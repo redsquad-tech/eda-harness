@@ -1,0 +1,353 @@
+** sch_path: /home/tim/gits/cheetah_v3_analog/dependencies/sky130_pa_ip__instramp/xschem/sky130_pa_ip__instramp.sch
+.subckt sky130_pa_ip__instramp V[9] V[8] V[7] V[6] V[5] V[4] V[3] V[2] V[1] V[0] VCM IBIAS AVDD VINN DVDD VOUT AVSS DVSS VINP
+*.PININFO VCM:I AVDD:B VOUT:O IBIAS:I DVDD:B AVSS:B DVSS:B V[9:0]:I VINP:I VINN:I
+x1 V[6] V[5] V[8] V[9] V[7] VO1 DVDD AVDD VOUT V[4] V[3] V[2] V[1] V[0] VCM DVSS AVSS VBIAS Parallel_10B_Block2
+x2 net1 VINP VO1 VINN VCM AVSS VBIAS Input_Stage_v1
+VI2 AVDD net1 0
+.save i(vi2)
+x3 VBIAS IBIAS AVSS vbias_gen_pga
+.ends
+
+* expanding   symbol:  Parallel_10B_Block2.sym # of pins=18
+** sym_path: /home/tim/gits/cheetah_v3_analog/dependencies/sky130_pa_ip__instramp/xschem/Parallel_10B_Block2.sym
+** sch_path: /home/tim/gits/cheetah_v3_analog/dependencies/sky130_pa_ip__instramp/xschem/Parallel_10B_Block2.sch
+.subckt Parallel_10B_Block2 V6 V5 V8 V9 V7 VO1 DVDD AVDD VOUT V4 V3 V2 V1 V0 VCM DVSS AVSS VBIAS
+*.PININFO VOUT:B VCM:B VO1:B V5:B V6:B V7:B V8:B V9:B V0:B V1:B V2:B V3:B V4:B AVSS:B DVSS:B VBIAS:B AVDD:B DVDD:B
+VI4 AVDD net25 0
+.save i(vi4)
+VI6 net1 net3 0
+.save i(vi6)
+VI7 net8 net24 0
+.save i(vi7)
+.save v(vout)
+VI11 net26 net6 0
+.save i(vi11)
+VI2 net27 net5 0
+.save i(vi2)
+VI1 net28 net6 0
+.save i(vi1)
+VI3 net29 net5 0
+.save i(vi3)
+VICM1 net5 VCM 0
+.save i(vicm1)
+VICM2 net6 net1 0
+.save i(vicm2)
+VI5 net30 net6 0
+.save i(vi5)
+VI8 net31 net5 0
+.save i(vi8)
+VI9 net32 net6 0
+.save i(vi9)
+VI10 net33 net5 0
+.save i(vi10)
+VI12 net34 net6 0
+.save i(vi12)
+VI14 net35 net5 0
+.save i(vi14)
+VINN2 Vx1 net8 0
+.save i(vinn2)
+x5 V5 DVDD net34 net35 net36 net23 DVSS AVDD AVSS Universal_R_2R_Block2
+x1 V6 DVDD net32 net33 net23 net22 DVSS AVDD AVSS Universal_R_2R_Block2
+x2 V7 DVDD net30 net31 net22 net21 DVSS AVDD AVSS Universal_R_2R_Block2
+x3 V8 DVDD net28 net29 net21 net20 DVSS AVDD AVSS Universal_R_2R_Block2
+x4 V9 DVDD net26 net27 net20 net7 DVSS AVDD AVSS Universal_R_2R_Block2
+VI15 AVDD net37 0
+.save i(vi15)
+VI16 net8 net36 0
+.save i(vi16)
+.save v(vx1)
+VI22 AVDD net38 0
+.save i(vi22)
+.save v(vx32)
+VICM3 VOUT net2 0
+.save i(vicm3)
+VI17 net39 net13 0
+.save i(vi17)
+VI18 net40 net12 0
+.save i(vi18)
+VI19 net41 net13 0
+.save i(vi19)
+VI20 net42 net12 0
+.save i(vi20)
+VICM21 net12 VCM 0
+.save i(vicm21)
+VICM22 net13 net1 0
+.save i(vicm22)
+VI23 net43 net13 0
+.save i(vi23)
+VI24 net44 net12 0
+.save i(vi24)
+VI25 net45 net13 0
+.save i(vi25)
+VI26 net46 net12 0
+.save i(vi26)
+VI27 net47 net13 0
+.save i(vi27)
+VI28 net48 net12 0
+.save i(vi28)
+x9 V0 DVDD net47 net48 net49 net16 DVSS AVDD AVSS Universal_R_2R_Block2
+x10 V1 DVDD net45 net46 net16 net17 DVSS AVDD AVSS Universal_R_2R_Block2
+x11 V2 DVDD net43 net44 net17 net18 DVSS AVDD AVSS Universal_R_2R_Block2
+x12 V3 DVDD net41 net42 net18 net19 DVSS AVDD AVSS Universal_R_2R_Block2
+x13 V4 DVDD net39 net40 net19 net14 DVSS AVDD AVSS Universal_R_2R_Block2
+VI29 net15 net49 0
+.save i(vi29)
+VINN1 Vx32 net15 0
+.save i(vinn1)
+x7 net25 VOUT net1 VCM VBIAS AVSS Output_OA
+x6 net37 Vx1 net9 VCM VBIAS AVSS x1_x32_OA
+x8 net38 Vx32 net10 VCM VBIAS AVSS x1_x32_OA
+XR11 net10 VO1 AVSS sky130_fd_pr__res_xhigh_po_0p35 L=20 mult=1 m=1
+XR12 Vx32 net10 AVSS sky130_fd_pr__res_xhigh_po_0p35 L=640 mult=1 m=1
+XR2 net9 VO1 AVSS sky130_fd_pr__res_xhigh_po_0p35 L=40 mult=1 m=1
+XR4 Vx1 net9 AVSS sky130_fd_pr__res_xhigh_po_0p35 L=40 mult=1 m=1
+XR9 net3 net24 AVSS sky130_fd_pr__res_xhigh_po_0p35 L=1280 mult=1 m=1
+XR5 net2 net3 AVSS sky130_fd_pr__res_xhigh_po_0p35 L=1280 mult=1 m=1
+XR6 net12 net11 AVSS sky130_fd_pr__res_xhigh_po_0p35 L=20 mult=1 m=1
+XR1 net11 net14 AVSS sky130_fd_pr__res_xhigh_po_0p35 L=20 mult=1 m=1
+XR3 net4 net7 AVSS sky130_fd_pr__res_xhigh_po_0p35 L=20 mult=1 m=1
+XR7 net5 net4 AVSS sky130_fd_pr__res_xhigh_po_0p35 L=20 mult=1 m=1
+.ends
+
+
+* expanding   symbol:  Input_Stage_v1.sym # of pins=7
+** sym_path: /home/tim/gits/cheetah_v3_analog/dependencies/sky130_pa_ip__instramp/xschem/Input_Stage_v1.sym
+** sch_path: /home/tim/gits/cheetah_v3_analog/dependencies/sky130_pa_ip__instramp/xschem/Input_Stage_v1.sch
+.subckt Input_Stage_v1 AVDD VINP VOUT1 VINN CM AVSS VBIAS
+*.PININFO VINP:B CM:B VINN:B VOUT1:B AVDD:B AVSS:B VBIAS:B
+VI13 AVDD net5 0
+.save i(vi13)
+VI2 AVDD net6 0
+.save i(vi2)
+VI3 AVDD net7 0
+.save i(vi3)
+.save v(voneg)
+.save v(vopos)
+VI1 net3 net4 0
+.save i(vi1)
+VI4 net4 VOUT1 0
+.save i(vi4)
+x1 net5 VONEG VONEG VINN VBIAS AVSS Input_Stage_OA1
+x2 net7 VOPOS VOPOS VINP VBIAS AVSS Input_Stage_OA1
+x3 net6 net4 net2 net1 VBIAS AVSS Input_Stage_OA2
+XR7 CM VINN AVSS sky130_fd_pr__res_xhigh_po_0p35 L=860 mult=1 m=1
+XR5 VINP CM AVSS sky130_fd_pr__res_xhigh_po_0p35 L=860 mult=1 m=1
+XR6 CM net1 AVSS sky130_fd_pr__res_xhigh_po_0p35 L=278 mult=1 m=1
+XR8 net3 net2 AVSS sky130_fd_pr__res_xhigh_po_0p35 L=278 mult=1 m=1
+XR9 net2 VONEG AVSS sky130_fd_pr__res_xhigh_po_0p35 L=34.5 mult=1 m=1
+XR10 net1 VOPOS AVSS sky130_fd_pr__res_xhigh_po_0p35 L=34.5 mult=1 m=1
+.ends
+
+
+* expanding   symbol:  vbias_gen_pga.sym # of pins=3
+** sym_path: /home/tim/gits/cheetah_v3_analog/dependencies/sky130_pa_ip__instramp/xschem/vbias_gen_pga.sym
+** sch_path: /home/tim/gits/cheetah_v3_analog/dependencies/sky130_pa_ip__instramp/xschem/vbias_gen_pga.sch
+.subckt vbias_gen_pga VBIAS IBIAS VSS
+*.PININFO VBIAS:B VSS:B IBIAS:B
+.save v(vbias)
+VIBIAS net1 VBIAS 0
+.save i(vibias)
+XM4 VBIAS VBIAS VSS VSS sky130_fd_pr__nfet_g5v0d10v5 L=1 W=5 nf=1 m=1
+R1 IBIAS net1 sky130_fd_pr__res_generic_m1 W=1 L=0.08 m=1
+.ends
+
+
+* expanding   symbol:  Universal_R_2R_Block2.sym # of pins=9
+** sym_path: /home/tim/gits/cheetah_v3_analog/dependencies/sky130_pa_ip__instramp/xschem/Universal_R_2R_Block2.sym
+** sch_path: /home/tim/gits/cheetah_v3_analog/dependencies/sky130_pa_ip__instramp/xschem/Universal_R_2R_Block2.sch
+.subckt Universal_R_2R_Block2 VD DVDD VIRTOUT CMOUT R2RIN R2ROUT DVSS AVDD AVSS
+*.PININFO VD:B R2ROUT:B R2RIN:B VIRTOUT:B CMOUT:B DVDD:B AVSS:B AVDD:B DVSS:B
+.save v(vx)
+x12 net6 VDBAR VDbuf VX AVSS AVDD T_Gate_5V
+x13 net5 VDbuf VDBAR VX AVSS AVDD T_Gate_5V
+VI12 net1 net4 0
+.save i(vi12)
+VI1 net1 R2ROUT 0
+.save i(vi1)
+.save v(vdbar)
+.save v(vdbuf)
+VI2 net5 CMOUT 0
+.save i(vi2)
+VI3 net6 VIRTOUT 0
+.save i(vi3)
+VI4 R2RIN net2 0
+.save i(vi4)
+x1 VD DVDD DVSS DVSS AVDD AVDD VDbuf sky130_fd_sc_hvl__lsbuflv2hv_1
+x2 VDbuf DVSS DVSS AVDD AVDD VDBAR sky130_fd_sc_hvl__inv_1
+XR1 net4 net3 AVSS sky130_fd_pr__res_xhigh_po_0p35 L=20 mult=1 m=1
+XR3 net3 VX AVSS sky130_fd_pr__res_xhigh_po_0p35 L=20 mult=1 m=1
+XR2 net1 net2 AVSS sky130_fd_pr__res_xhigh_po_0p35 L=20 mult=1 m=1
+x3 VD DVSS DVSS AVDD AVDD sky130_fd_sc_hvl__diode_2
+.ends
+
+
+* expanding   symbol:  Output_OA.sym # of pins=6
+** sym_path: /home/tim/gits/cheetah_v3_analog/dependencies/sky130_pa_ip__instramp/xschem/Output_OA.sym
+** sch_path: /home/tim/gits/cheetah_v3_analog/dependencies/sky130_pa_ip__instramp/xschem/Output_OA.sch
+.subckt Output_OA VDD VOUT VINN VINP VBIAS VSS
+*.PININFO VINN:B VINP:B VOUT:B VDD:B VSS:B VBIAS:B
+XM1 net4 VINN net1 net1 sky130_fd_pr__nfet_01v8_lvt L=0.15 W=7.5 nf=1 m=1
+XM2 net3 VINP net1 net1 sky130_fd_pr__nfet_01v8_lvt L=0.15 W=7.5 nf=1 m=1
+VISink net1 net2 0
+.save i(visink)
+XM6 net5 net5 net6 net6 sky130_fd_pr__pfet_01v8_lvt L=5 W=20 nf=1 m=2
+XM7 net7 net5 net6 net6 sky130_fd_pr__pfet_01v8_lvt L=5 W=20 nf=1 m=2
+VD1 net5 net8 0
+.save i(vd1)
+VID2 net7 net9 0
+.save i(vid2)
+VID1 VOUT net12 0
+.save i(vid1)
+VID3 net11 VOUT 0
+.save i(vid3)
+.save v(vinn)
+.save v(vinp)
+.save v(vout)
+VIBIAS VBIAS net10 0
+.save i(vibias)
+XM10 net8 VINN net4 net4 sky130_fd_pr__nfet_05v0_nvt L=2 W=1 nf=1 m=25
+XM12 net9 VINP net3 net3 sky130_fd_pr__nfet_05v0_nvt L=2 W=1 nf=1 m=25
+XM3 net2 net10 VSS VSS sky130_fd_pr__nfet_g5v0d10v5 L=1 W=5 nf=1 m=20
+XM5 net12 net10 VSS VSS sky130_fd_pr__nfet_g5v0d10v5 L=1 W=5 nf=1 m=200
+XM8 net11 net7 net6 net6 sky130_fd_pr__pfet_g5v0d10v5 L=0.5 W=10 nf=1 m=10
+VIVDD VDD net6 0
+.save i(vivdd)
+XC1 net7 net13 sky130_fd_pr__cap_mim_m3_1 W=10 L=10 m=15
+XR1 net13 VOUT VSS sky130_fd_pr__res_high_po_0p69 L=41 mult=1 m=1
+.ends
+
+
+* expanding   symbol:  x1_x32_OA.sym # of pins=6
+** sym_path: /home/tim/gits/cheetah_v3_analog/dependencies/sky130_pa_ip__instramp/xschem/x1_x32_OA.sym
+** sch_path: /home/tim/gits/cheetah_v3_analog/dependencies/sky130_pa_ip__instramp/xschem/x1_x32_OA.sch
+.subckt x1_x32_OA VDD VOUT VINN VINP VBIAS VSS
+*.PININFO VINN:B VINP:B VOUT:B VDD:B VSS:B VBIAS:B
+XM1 net4 VINN net1 net1 sky130_fd_pr__nfet_01v8_lvt L=0.15 W=7.5 nf=1 m=1
+XM2 net3 VINP net1 net1 sky130_fd_pr__nfet_01v8_lvt L=0.15 W=7.5 nf=1 m=1
+VISink net1 net2 0
+.save i(visink)
+XM6 net5 net5 net6 net6 sky130_fd_pr__pfet_01v8_lvt L=5 W=20 nf=1 m=2
+XM7 net7 net5 net6 net6 sky130_fd_pr__pfet_01v8_lvt L=5 W=20 nf=1 m=2
+VD1 net5 net8 0
+.save i(vd1)
+VID2 net7 net9 0
+.save i(vid2)
+VID1 VOUT net12 0
+.save i(vid1)
+VID3 net11 VOUT 0
+.save i(vid3)
+.save v(vinn)
+.save v(vinp)
+.save v(vout)
+VIBIAS VBIAS net10 0
+.save i(vibias)
+XM10 net8 VINN net4 net4 sky130_fd_pr__nfet_05v0_nvt L=2 W=1 nf=1 m=25
+XM12 net9 VINP net3 net3 sky130_fd_pr__nfet_05v0_nvt L=2 W=1 nf=1 m=25
+XM3 net2 net10 VSS VSS sky130_fd_pr__nfet_g5v0d10v5 L=1 W=5 nf=1 m=15
+XM5 net12 net10 VSS VSS sky130_fd_pr__nfet_g5v0d10v5 L=1 W=5 nf=1 m=100
+XM8 net11 net7 net6 net6 sky130_fd_pr__pfet_g5v0d10v5 L=0.5 W=10 nf=1 m=10
+VIVDD VDD net6 0
+.save i(vivdd)
+XC1 net7 net13 sky130_fd_pr__cap_mim_m3_1 W=10 L=10 m=15
+XR1 net13 VOUT VSS sky130_fd_pr__res_high_po_0p69 L=41 mult=1 m=1
+.ends
+
+
+* expanding   symbol:  Input_Stage_OA1.sym # of pins=6
+** sym_path: /home/tim/gits/cheetah_v3_analog/dependencies/sky130_pa_ip__instramp/xschem/Input_Stage_OA1.sym
+** sch_path: /home/tim/gits/cheetah_v3_analog/dependencies/sky130_pa_ip__instramp/xschem/Input_Stage_OA1.sch
+.subckt Input_Stage_OA1 VDD VOUT VINN VINP VBIAS VSS
+*.PININFO VINN:B VINP:B VOUT:B VDD:B VSS:B VBIAS:B
+XM1 net4 VINN net1 net1 sky130_fd_pr__nfet_01v8_lvt L=0.15 W=7.5 nf=1 m=1
+XM2 net3 VINP net1 net1 sky130_fd_pr__nfet_01v8_lvt L=0.15 W=7.5 nf=1 m=1
+VISink net1 net2 0
+.save i(visink)
+XM6 net5 net5 net6 net6 sky130_fd_pr__pfet_01v8_lvt L=5 W=20 nf=1 m=2
+XM7 net7 net5 net6 net6 sky130_fd_pr__pfet_01v8_lvt L=5 W=20 nf=1 m=2
+VD1 net5 net8 0
+.save i(vd1)
+VID2 net7 net9 0
+.save i(vid2)
+VID1 VOUT net12 0
+.save i(vid1)
+VID3 net11 VOUT 0
+.save i(vid3)
+.save v(vinn)
+.save v(vinp)
+.save v(vout)
+VIBIAS VBIAS net10 0
+.save i(vibias)
+XM10 net8 VINN net4 net4 sky130_fd_pr__nfet_05v0_nvt L=2 W=1 nf=1 m=25
+XM12 net9 VINP net3 net3 sky130_fd_pr__nfet_05v0_nvt L=2 W=1 nf=1 m=25
+XM3 net2 net10 VSS VSS sky130_fd_pr__nfet_g5v0d10v5 L=1 W=5 nf=1 m=10
+XM5 net12 net10 VSS VSS sky130_fd_pr__nfet_g5v0d10v5 L=1 W=5 nf=1 m=20
+XM8 net11 net7 net6 net6 sky130_fd_pr__pfet_g5v0d10v5 L=0.5 W=10 nf=1 m=10
+VIVDD VDD net6 0
+.save i(vivdd)
+XC1 net7 net13 sky130_fd_pr__cap_mim_m3_1 W=10 L=10 m=15
+XR2 net13 VOUT VSS sky130_fd_pr__res_high_po_0p69 L=41 mult=1 m=1
+.ends
+
+
+* expanding   symbol:  Input_Stage_OA2.sym # of pins=6
+** sym_path: /home/tim/gits/cheetah_v3_analog/dependencies/sky130_pa_ip__instramp/xschem/Input_Stage_OA2.sym
+** sch_path: /home/tim/gits/cheetah_v3_analog/dependencies/sky130_pa_ip__instramp/xschem/Input_Stage_OA2.sch
+.subckt Input_Stage_OA2 VDD VOUT VINN VINP VBIAS VSS
+*.PININFO VINN:B VINP:B VOUT:B VDD:B VSS:B VBIAS:B
+XM1 net4 VINN net1 net1 sky130_fd_pr__nfet_01v8_lvt L=0.15 W=7.5 nf=1 m=1
+XM2 net3 VINP net1 net1 sky130_fd_pr__nfet_01v8_lvt L=0.15 W=7.5 nf=1 m=1
+VISink net1 net2 0
+.save i(visink)
+XM6 net5 net5 net6 net6 sky130_fd_pr__pfet_01v8_lvt L=5 W=20 nf=1 m=2
+XM7 net7 net5 net6 net6 sky130_fd_pr__pfet_01v8_lvt L=5 W=20 nf=1 m=2
+VD1 net5 net8 0
+.save i(vd1)
+VID2 net7 net9 0
+.save i(vid2)
+VID1 VOUT net12 0
+.save i(vid1)
+VID3 net11 VOUT 0
+.save i(vid3)
+.save v(vinn)
+.save v(vinp)
+.save v(vout)
+VIBIAS VBIAS net10 0
+.save i(vibias)
+XM10 net8 VINN net4 net4 sky130_fd_pr__nfet_05v0_nvt L=2 W=1 nf=1 m=25
+XM12 net9 VINP net3 net3 sky130_fd_pr__nfet_05v0_nvt L=2 W=1 nf=1 m=25
+XM3 net2 net10 VSS VSS sky130_fd_pr__nfet_g5v0d10v5 L=1 W=5 nf=1 m=20
+XM5 net12 net10 VSS VSS sky130_fd_pr__nfet_g5v0d10v5 L=1 W=5 nf=1 m=100
+XM8 net11 net7 net6 net6 sky130_fd_pr__pfet_g5v0d10v5 L=0.5 W=10 nf=1 m=10
+VIVDD VDD net6 0
+.save i(vivdd)
+XC1 net7 net13 sky130_fd_pr__cap_mim_m3_1 W=10 L=10 m=15
+XR1 net13 VOUT VSS sky130_fd_pr__res_high_po_0p69 L=41 mult=1 m=1
+.ends
+
+
+* expanding   symbol:  T_Gate_5V.sym # of pins=6
+** sym_path: /home/tim/gits/cheetah_v3_analog/dependencies/sky130_pa_ip__instramp/xschem/T_Gate_5V.sym
+** sch_path: /home/tim/gits/cheetah_v3_analog/dependencies/sky130_pa_ip__instramp/xschem/T_Gate_5V.sch
+.subckt T_Gate_5V UPPER PGATE NGATE LOWER AVSS AVDD
+*.PININFO PGATE:B UPPER:B LOWER:B NGATE:B AVDD:B AVSS:B
+VI6 net2 net1 0
+.save i(vi6)
+VI1 net2 net3 0
+.save i(vi1)
+VI2 net6 net4 0
+.save i(vi2)
+VI3 net5 net4 0
+.save i(vi3)
+XM1 net5 net7 net1 AVSS sky130_fd_pr__nfet_g5v0d10v5 L=0.5 W=1 nf=1 m=1
+XM2 net3 net8 net6 AVDD sky130_fd_pr__pfet_g5v0d10v5 L=0.5 W=1 nf=1 m=1
+VI4 net4 UPPER 0
+.save i(vi4)
+VI5 LOWER net2 0
+.save i(vi5)
+VI7 PGATE net8 0
+.save i(vi7)
+VI8 net7 NGATE 0
+.save i(vi8)
+.ends
+
+.end

@@ -1,0 +1,6 @@
+[submodule ".agents/KiCAD-MCP-Server"]
+	path = .agents/KiCAD-MCP-Server
+	url = https://github.com/mixelpixx/KiCAD-MCP-Server.git
+[submodule "netlist-viewer"]
+	path = netlist-viewer
+	url = git@github.com:f18m/netlist-viewer.git
