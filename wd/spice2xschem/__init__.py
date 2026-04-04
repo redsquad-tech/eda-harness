@@ -972,8 +972,11 @@ class SchematicGenerator:
             inst_attrs = self._instance_attrs(inst, spec)
             lines.append(f'C {{{spec.ref}}} {x} {y} 0 0 ' + "{" + " ".join(inst_attrs) + "}")
 
-        for x1, y1, x2, y2, attrs in self._route_nets(subckt, symbol_specs, inst_positions, port_positions):
+        segments, labels = self._route_nets(subckt, symbol_specs, inst_positions, port_positions)
+        for x1, y1, x2, y2, attrs in segments:
             lines.append(f"N {x1} {y1} {x2} {y2} {attrs}")
+        for idx, (x, y, rot, flip, lab) in enumerate(labels, start=1):
+            lines.append(f'C {{devices/lab_pin.sym}} {x} {y} {rot} {flip} {{name=l{idx} lab={quote_attr(lab)}}}')
 
         return "\n".join(lines) + "\n"
 
@@ -994,22 +997,41 @@ class SchematicGenerator:
         symbol_specs: dict[str, SymbolSpec],
         inst_positions: dict[str, tuple[int, int]],
         port_positions: dict[str, tuple[int, int, str]],
-    ) -> list[tuple[int, int, int, int, str]]:
-        endpoints: dict[str, list[tuple[int, int]]] = defaultdict(list)
-        port_nets = {port.name for port in subckt.ports}
+    ) -> tuple[list[tuple[int, int, int, int, str]], list[tuple[int, int, int, int, str]]]:
+        endpoints: dict[str, list[dict[str, object]]] = defaultdict(list)
 
         for port in subckt.ports:
             x, y, _ = port_positions[port.name]
-            endpoints[port.name].append((snap(x), snap(y)))
+            p = (snap(x), snap(y))
+            escape = self._port_escape(port_positions[port.name])
+            endpoints[port.name].append(
+                {
+                    "pin": p,
+                    "escape": escape,
+                    "kind": "port",
+                    "pin_def": PinDef(name=port.name, x=p[0], y=p[1], direction=port.direction),
+                }
+            )
 
         for inst in subckt.instances:
             spec = symbol_specs[inst.cell]
             x0, y0 = inst_positions.get(inst.name, (10 * GRID, 10 * GRID))
             for net, pin_def in self._visible_pin_nets(spec, inst.pins):
-                endpoints[net].append((snap(x0 + pin_def.x), snap(y0 + pin_def.y)))
+                pin_pt = (snap(x0 + pin_def.x), snap(y0 + pin_def.y))
+                escape_pt = self._pin_escape(spec, x0, y0, pin_def)
+                endpoints[net].append(
+                    {
+                        "pin": pin_pt,
+                        "escape": escape_pt,
+                        "kind": "inst",
+                        "pin_def": pin_def,
+                    }
+                )
 
         segments: list[tuple[int, int, int, int, str]] = []
+        labels: list[tuple[int, int, int, int, str]] = []
         seen: set[tuple[int, int, int, int, str]] = set()
+        seen_labels: set[tuple[int, int, int, int, str]] = set()
 
         def add_seg(x1: int, y1: int, x2: int, y2: int, lab: Optional[str] = None) -> None:
             x1 = snap(x1)
@@ -1026,31 +1048,127 @@ class SchematicGenerator:
             seen.add(key)
             segments.append((x1, y1, x2, y2, attrs))
 
+        def add_label(x: int, y: int, rot: int, flip: int, lab: str) -> None:
+            item = (snap(x), snap(y), rot, flip, lab)
+            if item in seen_labels:
+                return
+            seen_labels.add(item)
+            labels.append(item)
+
         for net, pts in sorted(endpoints.items()):
-            uniq = sorted(set((snap(x), snap(y)) for x, y in pts))
-            if len(uniq) < 2:
-                continue
-            if len(uniq) == 2:
-                (x1, y1), (x2, y2) = uniq
-                if x1 == x2 or y1 == y2:
-                    add_seg(x1, y1, x2, y2, net)
-                else:
-                    mid_x = snap((x1 + x2) / 2)
-                    add_seg(x1, y1, mid_x, y1, net)
-                    add_seg(mid_x, y1, mid_x, y2, None)
-                    add_seg(mid_x, y2, x2, y2, None)
+            uniq_items: list[dict[str, object]] = []
+            seen_pairs: set[tuple[tuple[int, int], tuple[int, int], str]] = set()
+            for item in pts:
+                key = (item["pin"], item["escape"], item["kind"])
+                if key in seen_pairs:
+                    continue
+                seen_pairs.add(key)
+                uniq_items.append(item)
+
+            if not uniq_items:
                 continue
 
-            xs = [x for x, _ in uniq]
-            ys = [y for _, y in uniq]
-            trunk_x = snap(median(xs))
-            min_y = min(ys)
-            max_y = max(ys)
-            add_seg(trunk_x, min_y, trunk_x, max_y, net)
-            for x, y in uniq:
-                add_seg(x, y, trunk_x, y, None)
+            for item in uniq_items:
+                pin_pt = item["pin"]
+                escape_pt = item["escape"]
+                add_seg(pin_pt[0], pin_pt[1], escape_pt[0], escape_pt[1], None)
 
-        return segments
+            escapes = [item["escape"] for item in uniq_items]
+            direct = len(uniq_items) == 2 and self._can_direct_connect(escapes[0], escapes[1])
+            if direct:
+                self._add_manhattan(segments, seen, escapes[0], escapes[1], net)
+                continue
+
+            for item in uniq_items:
+                rot, flip = self._label_orientation(item["pin"], item["escape"], item["kind"])
+                add_label(item["escape"][0], item["escape"][1], rot, flip, net)
+
+        return segments, labels
+
+    def _can_direct_connect(self, a: tuple[int, int], b: tuple[int, int]) -> bool:
+        dx = abs(a[0] - b[0])
+        dy = abs(a[1] - b[1])
+        return (a[0] == b[0] or a[1] == b[1]) or (dx <= 8 * GRID and dy <= 8 * GRID)
+
+    def _add_manhattan(
+        self,
+        segments: list[tuple[int, int, int, int, str]],
+        seen: set[tuple[int, int, int, int, str]],
+        start: tuple[int, int],
+        end: tuple[int, int],
+        lab: str,
+    ) -> None:
+        def add_seg(x1: int, y1: int, x2: int, y2: int, lab_name: Optional[str] = None) -> None:
+            x1 = snap(x1)
+            y1 = snap(y1)
+            x2 = snap(x2)
+            y2 = snap(y2)
+            if x1 == x2 and y1 == y2:
+                return
+            attrs = "{}" if lab_name is None else "{lab=" + quote_attr(lab_name) + "}"
+            key = (x1, y1, x2, y2, attrs)
+            rev = (x2, y2, x1, y1, attrs)
+            if key in seen or rev in seen:
+                return
+            seen.add(key)
+            segments.append((x1, y1, x2, y2, attrs))
+
+        x1, y1 = start
+        x2, y2 = end
+        if x1 == x2 or y1 == y2:
+            add_seg(x1, y1, x2, y2, lab)
+            return
+        mid_x = snap((x1 + x2) / 2)
+        add_seg(x1, y1, mid_x, y1, lab)
+        add_seg(mid_x, y1, mid_x, y2, None)
+        add_seg(mid_x, y2, x2, y2, None)
+
+    def _label_orientation(
+        self,
+        pin_pt: tuple[int, int],
+        escape_pt: tuple[int, int],
+        kind: str,
+    ) -> tuple[int, int]:
+        dx = escape_pt[0] - pin_pt[0]
+        dy = escape_pt[1] - pin_pt[1]
+        if abs(dx) >= abs(dy):
+            if dx >= 0:
+                return (0, 1) if kind == "inst" else (0, 0)
+            return (0, 0) if kind == "inst" else (0, 1)
+        if dy >= 0:
+            return (3, 0)
+        return (1, 0)
+
+    def _pin_escape(self, spec: SymbolSpec, x0: int, y0: int, pin: PinDef) -> tuple[int, int]:
+        px = snap(x0 + pin.x)
+        py = snap(y0 + pin.y)
+        left = pin.x <= 0
+        right = pin.x >= spec.width
+        top = pin.y <= 0
+        bottom = pin.y >= spec.height
+        if left:
+            return (snap(px - GRID), py)
+        if right:
+            return (snap(px + GRID), py)
+        if top:
+            return (px, snap(py - GRID))
+        if bottom:
+            return (px, snap(py + GRID))
+        return (px, py)
+
+    def _port_escape(self, port_info: tuple[int, int, str]) -> tuple[int, int]:
+        x, y, role = port_info
+        x = snap(x)
+        y = snap(y)
+        if role == "input":
+            return (snap(x + GRID), y)
+        if role in {"output", "inout"}:
+            return (snap(x - GRID), y)
+        if role == "power":
+            return (x, snap(y + GRID))
+        if role == "ground":
+            return (x, snap(y - GRID))
+        return (x, y)
 
     def _instance_attrs(self, inst: Instance, spec: SymbolSpec) -> list[str]:
         attrs = {**spec.default_attrs, "name": inst.name}
@@ -1184,9 +1302,6 @@ class SpiceToXschem:
         if pdk_root_parent and pdk_name:
             lines.append(f"set env(PDK_ROOT) {quote_attr(pdk_root_parent)}\n")
             lines.append(f"set env(PDK) {quote_attr(pdk_name)}\n")
-            lines.append(f"if {{[file exists {quote_attr(os.path.join(pdk_root, 'xschemrc'))}]}} {{\n")
-            lines.append(f"  source {quote_attr(os.path.join(pdk_root, 'xschemrc'))}\n")
-            lines.append("}\n")
         lines.append(f"append XSCHEM_LIBRARY_PATH :{path_expr}\n")
         return "".join(lines)
 
