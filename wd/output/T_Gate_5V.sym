@@ -1,0 +1,14 @@
+v {xschem version=3.4.4 file_version=1.2
+}
+G {}
+K {}
+V {}
+S {}
+E {}
+P {n UPPER inout 0 10 0 10 UPPER}
+P {n PGATE inout 0 50 0 50 PGATE}
+P {n NGATE inout 0 90 0 90 NGATE}
+P {n LOWER inout 140 130 140 130 LOWER}
+P {n AVSS inout 140 170 140 170 AVSS}
+P {n AVDD inout 140 210 140 210 AVDD}
+T {n T_Gate_5V 70 55 0 0.3 0.3 0 T_Gate_5V}

@@ -1,0 +1,14 @@
+v {xschem version=3.4.4 file_version=1.2
+}
+G {}
+K {}
+V {}
+S {}
+E {}
+P {n VDD inout 0 10 0 10 VDD}
+P {n VOUT inout 0 50 0 50 VOUT}
+P {n VINN inout 0 90 0 90 VINN}
+P {n VINP inout 140 130 140 130 VINP}
+P {n VBIAS inout 140 170 140 170 VBIAS}
+P {n VSS inout 140 210 140 210 VSS}
+T {n Input_Stage_OA1 70 55 0 0.3 0.3 0 Input_Stage_OA1}

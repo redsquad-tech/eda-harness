@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "spice2xschem"
+version = "0.1.0"
+description = "SPICE to xschem converter for Sky130"
+readme = "README.md"
+requires-python = ">=3.8"
+
+[project.scripts]
+spice2xschem = "spice2xschem.__main__:main"

@@ -1,0 +1,17 @@
+v {xschem version=3.4.4 file_version=1.2
+}
+G {}
+K {}
+V {}
+S {}
+E {}
+P {n VD inout 0 10 0 10 VD}
+P {n DVDD inout 0 36 0 36 DVDD}
+P {n VIRTOUT inout 0 63 0 63 VIRTOUT}
+P {n CMOUT inout 0 90 0 90 CMOUT}
+P {n R2RIN inout 140 90 140 90 R2RIN}
+P {n R2ROUT inout 140 110 140 110 R2ROUT}
+P {n DVSS inout 140 130 140 130 DVSS}
+P {n AVDD inout 140 150 140 150 AVDD}
+P {n AVSS inout 140 170 140 170 AVSS}
+T {n Universal_R_2R_Block2 70 55 0 0.3 0.3 0 Universal_R_2R_Block2}

@@ -1,0 +1,2 @@
+[console_scripts]
+spice2xschem = spice2xschem.__main__:main

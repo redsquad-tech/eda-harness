@@ -1,0 +1,7 @@
+README.md
+pyproject.toml
+spice2xschem.egg-info/PKG-INFO
+spice2xschem.egg-info/SOURCES.txt
+spice2xschem.egg-info/dependency_links.txt
+spice2xschem.egg-info/entry_points.txt
+spice2xschem.egg-info/top_level.txt

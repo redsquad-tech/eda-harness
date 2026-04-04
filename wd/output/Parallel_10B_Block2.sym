@@ -1,0 +1,26 @@
+v {xschem version=3.4.4 file_version=1.2
+}
+G {}
+K {}
+V {}
+S {}
+E {}
+P {n V6 inout 0 10 0 10 V6}
+P {n V5 inout 0 20 0 20 V5}
+P {n V8 inout 0 30 0 30 V8}
+P {n V9 inout 0 40 0 40 V9}
+P {n V7 inout 0 50 0 50 V7}
+P {n VO1 inout 0 60 0 60 VO1}
+P {n DVDD inout 0 70 0 70 DVDD}
+P {n AVDD inout 0 80 0 80 AVDD}
+P {n VOUT inout 0 90 0 90 VOUT}
+P {n V4 inout 140 100 140 100 V4}
+P {n V3 inout 140 110 140 110 V3}
+P {n V2 inout 140 120 140 120 V2}
+P {n V1 inout 140 130 140 130 V1}
+P {n V0 inout 140 140 140 140 V0}
+P {n VCM inout 140 150 140 150 VCM}
+P {n DVSS inout 140 160 140 160 DVSS}
+P {n AVSS inout 140 170 140 170 AVSS}
+P {n VBIAS inout 140 180 140 180 VBIAS}
+T {n Parallel_10B_Block2 70 55 0 0.3 0.3 0 Parallel_10B_Block2}
