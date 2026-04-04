@@ -23,7 +23,6 @@ import os
 import re
 from collections import defaultdict
 from dataclasses import dataclass, field
-from statistics import median
 from glob import glob
 from typing import Optional
 
@@ -1055,7 +1054,7 @@ class SchematicGenerator:
             seen_labels.add(item)
             labels.append(item)
 
-        for net, pts in sorted(endpoints.items()):
+        for net_index, (net, pts) in enumerate(sorted(endpoints.items())):
             uniq_items: list[dict[str, object]] = []
             seen_pairs: set[tuple[tuple[int, int], tuple[int, int], str]] = set()
             for item in pts:
@@ -1074,21 +1073,47 @@ class SchematicGenerator:
                 add_seg(pin_pt[0], pin_pt[1], escape_pt[0], escape_pt[1], None)
 
             escapes = [item["escape"] for item in uniq_items]
-            direct = len(uniq_items) == 2 and self._can_direct_connect(escapes[0], escapes[1])
-            if direct:
+            if self._is_ground_net(net):
+                for item in uniq_items:
+                    rot, flip = self._label_orientation(item["pin"], item["escape"], item["kind"])
+                    add_label(item["escape"][0], item["escape"][1], rot, flip, net)
+                continue
+
+            if len(escapes) == 2:
                 self._add_manhattan(segments, seen, escapes[0], escapes[1], net)
                 continue
 
-            for item in uniq_items:
-                rot, flip = self._label_orientation(item["pin"], item["escape"], item["kind"])
-                add_label(item["escape"][0], item["escape"][1], rot, flip, net)
+            ordered = self._ordered_escapes(escapes)
+            for idx in range(len(ordered) - 1):
+                self._add_manhattan(
+                    segments,
+                    seen,
+                    ordered[idx],
+                    ordered[idx + 1],
+                    net if idx == 0 else None,
+                    jog_seed=net_index * 100 + idx,
+                    force_jog=True,
+                )
 
         return segments, labels
 
-    def _can_direct_connect(self, a: tuple[int, int], b: tuple[int, int]) -> bool:
-        dx = abs(a[0] - b[0])
-        dy = abs(a[1] - b[1])
-        return (a[0] == b[0] or a[1] == b[1]) or (dx <= 8 * GRID and dy <= 8 * GRID)
+    def _is_ground_net(self, net: str) -> bool:
+        upper = net.upper()
+        return any(token in upper for token in ("GND", "VSS", "VGND", "AVSS", "DVSS"))
+
+    def _ordered_escapes(self, escapes: list[tuple[int, int]]) -> list[tuple[int, int]]:
+        if len(escapes) <= 2:
+            return sorted(escapes)
+        remaining = sorted(set(escapes))
+        ordered = [remaining.pop(0)]
+        while remaining:
+            current = ordered[-1]
+            next_idx = min(
+                range(len(remaining)),
+                key=lambda i: (abs(remaining[i][0] - current[0]) + abs(remaining[i][1] - current[1]), remaining[i][0], remaining[i][1]),
+            )
+            ordered.append(remaining.pop(next_idx))
+        return ordered
 
     def _add_manhattan(
         self,
@@ -1096,7 +1121,9 @@ class SchematicGenerator:
         seen: set[tuple[int, int, int, int, str]],
         start: tuple[int, int],
         end: tuple[int, int],
-        lab: str,
+        lab: Optional[str],
+        jog_seed: int = 0,
+        force_jog: bool = False,
     ) -> None:
         def add_seg(x1: int, y1: int, x2: int, y2: int, lab_name: Optional[str] = None) -> None:
             x1 = snap(x1)
@@ -1115,10 +1142,17 @@ class SchematicGenerator:
 
         x1, y1 = start
         x2, y2 = end
-        if x1 == x2 or y1 == y2:
+        if (x1 == x2 or y1 == y2) and not force_jog:
             add_seg(x1, y1, x2, y2, lab)
             return
-        mid_x = snap((x1 + x2) / 2)
+        jog = snap(((jog_seed % 5) + 1) * GRID)
+        if abs(x2 - x1) >= abs(y2 - y1):
+            mid_y = snap((y1 + y2) / 2 + (jog if (jog_seed // 5) % 2 == 0 else -jog))
+            add_seg(x1, y1, x1, mid_y, lab)
+            add_seg(x1, mid_y, x2, mid_y, None)
+            add_seg(x2, mid_y, x2, y2, None)
+            return
+        mid_x = snap((x1 + x2) / 2 + (jog if (jog_seed // 5) % 2 == 0 else -jog))
         add_seg(x1, y1, mid_x, y1, lab)
         add_seg(mid_x, y1, mid_x, y2, None)
         add_seg(mid_x, y2, x2, y2, None)
