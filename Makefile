@@ -25,7 +25,7 @@ sysdeps: ## Install system dependencies via apt
 	$(APT) update
 	$(APT) install -y $(SYS_PACKAGES)
 
-init: sysdeps ## Create virtualenv
+init: ## Create virtualenv
 	python3 -m venv $(VENV)
 	$(PIP) install --upgrade pip
 	$(PIP) install -r dev-requirements.txt
