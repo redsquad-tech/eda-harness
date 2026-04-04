@@ -134,6 +134,8 @@ class SymbolSpec:
     pins: list[PinDef]
     width: int
     height: int
+    net_bindings: list[tuple[str, str]] = field(default_factory=list)
+    default_attrs: dict[str, str] = field(default_factory=dict)
 
 
 class SpiceParser:
@@ -346,12 +348,16 @@ class SpiceParser:
 
 
 class SymFileParser:
-    def parse(self, path: str) -> tuple[list[PinDef], int, int]:
+    def parse(self, path: str) -> tuple[list[PinDef], int, int, dict[str, str]]:
         pins: list[PinDef] = []
         min_x = min_y = 0
         max_x = max_y = 0
+        props: dict[str, str] = {}
         with open(path, "r", encoding="utf-8") as fh:
-            for line_no, line in enumerate(fh):
+            content = fh.read()
+        props.update(self._block_props(content, "K"))
+        props.update({k: v for k, v in self._block_props(content, "G").items() if k not in props})
+        for line_no, line in enumerate(content.splitlines()):
                 raw = line.strip()
                 if not raw:
                     continue
@@ -370,17 +376,29 @@ class SymFileParser:
                 x1, y1, x2, y2 = [self._safe_int(v) for v in raw.split("{", 1)[0].split()[2:6]]
                 name = attrs.get("name", f"p{line_no}")
                 direction = attrs.get("dir", "inout")
-                order = int(attrs.get("sim_pinnumber", str(len(pins))))
+                order = int(attrs.get("sim_pinnumber", attrs.get("pinnumber", str(len(pins) + 1))))
                 pins.append(PinDef(name=name, x=(x1 + x2) // 2, y=(y1 + y2) // 2, direction=direction, order=order))
         pins.sort(key=lambda pin: (pin.order, pin.name))
         width = max(GRID * 4, max_x - min_x)
         height = max(GRID * 4, max_y - min_y)
-        return pins, width, height
+        return pins, width, height, props
+
+    def _block_props(self, content: str, prefix: str) -> dict[str, str]:
+        pattern = re.compile(rf"(?ms)^{prefix} \{{(.*?)^\}}")
+        out: dict[str, str] = {}
+        for match in pattern.finditer(content):
+            block = match.group(1)
+            for key, value in self._attrs_from_text(block).items():
+                out[key] = value
+        return out
 
     def _attrs(self, raw: str) -> dict[str, str]:
         if "{" not in raw or "}" not in raw:
             return {}
         attr_text = raw.split("{", 1)[1].rsplit("}", 1)[0]
+        return self._attrs_from_text(attr_text)
+
+    def _attrs_from_text(self, attr_text: str) -> dict[str, str]:
         out: dict[str, str] = {}
         for key, value in PIN_ATTR_RE.findall(attr_text):
             out[key] = value.strip('"')
@@ -443,6 +461,7 @@ class SymbolResolver:
                 pins=pins,
                 width=width,
                 height=height,
+                net_bindings=[("pin", pin.name) for pin in pins],
             )
             self._resolved[cell_name] = spec
             return spec
@@ -451,6 +470,11 @@ class SymbolResolver:
         if pdk:
             self._resolved[cell_name] = pdk
             return pdk
+
+        builtin = self._find_builtin_symbol(cell_name)
+        if builtin:
+            self._resolved[cell_name] = builtin
+            return builtin
 
         project = self._find_project_symbol(cell_name)
         if project:
@@ -462,6 +486,9 @@ class SymbolResolver:
             self._resolved[cell_name] = include
             return include
 
+        if cell_name.startswith("sky130"):
+            raise RuntimeError(f"PDK symbol not found for {cell_name}")
+
         pins, width, height = build_fallback_geometry(fallback_pin_count)
         spec = SymbolSpec(
             kind="fallback",
@@ -470,6 +497,7 @@ class SymbolResolver:
             pins=pins,
             width=width,
             height=height,
+            net_bindings=[("pin", pin.name) for pin in pins],
         )
         self._resolved[cell_name] = spec
         return spec
@@ -482,19 +510,66 @@ class SymbolResolver:
             for root, _, files in os.walk(self.pdk_xschem_root):
                 for fname in files:
                     if fname.endswith(".sym"):
-                        self._pdk_index.setdefault(fname[:-4], os.path.join(root, fname))
+                        path = os.path.join(root, fname)
+                        key = fname[:-4]
+                        self._pdk_index.setdefault(key, path)
+                        full_rel = relsym(path, self.pdk_xschem_root).replace("/", "::")
+                        self._pdk_index.setdefault(full_rel, path)
         path = self._pdk_index.get(cell_name)
+        default_attrs: dict[str, str] = {}
+        binding_cell = cell_name
+        if not path:
+            prefix_map = [
+                ("sky130_fd_pr__", "sky130_fd_pr"),
+                ("sky130_fd_sc_hvl__", "sky130_stdcells"),
+                ("sky130_fd_sc_hd__", "sky130_stdcells"),
+            ]
+            for prefix, folder in prefix_map:
+                if not cell_name.startswith(prefix):
+                    continue
+                base = cell_name[len(prefix):]
+                preferred = os.path.join(self.pdk_xschem_root, folder, f"{base}.sym")
+                if os.path.isfile(preferred):
+                    path = preferred
+                    binding_cell = base
+                    if prefix != "sky130_fd_pr__":
+                        default_attrs["prefix"] = prefix
+                    break
         if not path:
             return None
-        pins, width, height = self.sym_parser.parse(path)
-        return SymbolSpec(kind="pdk", ref=relsym(path, self.pdk_xschem_root), path=path, pins=pins, width=width, height=height)
+        pins, width, height, props = self.sym_parser.parse(path)
+        bindings = self._derive_net_bindings(pins, props)
+        attrs = self._default_symbol_attrs(props)
+        attrs.update(default_attrs)
+        if binding_cell.startswith("sky130_fd_pr__"):
+            attrs.setdefault("model", binding_cell.replace("sky130_fd_pr__", ""))
+        elif cell_name.startswith("sky130_fd_pr__"):
+            attrs.setdefault("model", cell_name.replace("sky130_fd_pr__", ""))
+        return SymbolSpec(
+            kind="pdk",
+            ref=relsym(path, self.pdk_xschem_root),
+            path=path,
+            pins=pins,
+            width=width,
+            height=height,
+            net_bindings=bindings,
+            default_attrs=attrs,
+        )
 
     def _find_project_symbol(self, cell_name: str) -> Optional[SymbolSpec]:
         for base_dir in [self.local_dir, self.output_dir]:
             path = self._find_named_file(base_dir, f"{cell_name}.sym")
             if path:
-                pins, width, height = self.sym_parser.parse(path)
-                return SymbolSpec(kind="project", ref=relsym(path, self.output_dir), path=path, pins=pins, width=width, height=height)
+                pins, width, height, _ = self.sym_parser.parse(path)
+                return SymbolSpec(
+                    kind="project",
+                    ref=relsym(path, self.output_dir),
+                    path=path,
+                    pins=pins,
+                    width=width,
+                    height=height,
+                    net_bindings=[("pin", pin.name) for pin in pins],
+                )
         return None
 
     def _find_include_symbol(self, cell_name: str) -> Optional[SymbolSpec]:
@@ -502,8 +577,16 @@ class SymbolResolver:
             sym_path = os.path.join(inc_dir, f"{cell_name}.sym")
             sch_path = os.path.join(inc_dir, f"{cell_name}.sch")
             if os.path.isfile(sym_path) and os.path.isfile(sch_path):
-                pins, width, height = self.sym_parser.parse(sym_path)
-                return SymbolSpec(kind="include", ref=relsym(sym_path, self.output_dir), path=sym_path, pins=pins, width=width, height=height)
+                pins, width, height, _ = self.sym_parser.parse(sym_path)
+                return SymbolSpec(
+                    kind="include",
+                    ref=relsym(sym_path, self.output_dir),
+                    path=sym_path,
+                    pins=pins,
+                    width=width,
+                    height=height,
+                    net_bindings=[("pin", pin.name) for pin in pins],
+                )
         return None
 
     def _find_named_file(self, base_dir: str, target: str) -> Optional[str]:
@@ -514,6 +597,70 @@ class SymbolResolver:
             if target in files:
                 return os.path.join(root, target)
         return None
+
+    def _find_builtin_symbol(self, cell_name: str) -> Optional[SymbolSpec]:
+        builtin_map = {
+            "spice_v": ("devices/vsource.sym", [PinDef("PLUS", 0, -20, "inout", 1), PinDef("MINUS", 0, 20, "inout", 2)]),
+            "spice_i": ("devices/isource.sym", [PinDef("PLUS", 0, -20, "inout", 1), PinDef("MINUS", 0, 20, "inout", 2)]),
+            "spice_r": ("devices/res.sym", [PinDef("P", 0, -30, "inout", 1), PinDef("M", 0, 30, "inout", 2)]),
+            "spice_c": ("devices/capa.sym", [PinDef("PLUS", 0, -30, "inout", 1), PinDef("MINUS", 0, 30, "inout", 2)]),
+            "spice_l": ("devices/ind.sym", [PinDef("P", 0, -30, "inout", 1), PinDef("M", 0, 30, "inout", 2)]),
+        }
+        item = builtin_map.get(cell_name)
+        if not item:
+            return None
+        ref, pins = item
+        return SymbolSpec(
+            kind="builtin",
+            ref=ref,
+            path=None,
+            pins=pins,
+            width=80,
+            height=80,
+            net_bindings=[("pin", pin.name) for pin in pins],
+        )
+
+    def _default_symbol_attrs(self, props: dict[str, str]) -> dict[str, str]:
+        template = props.get("template", "")
+        attrs: dict[str, str] = {}
+        for key, value in PIN_ATTR_RE.findall(template):
+            attrs[key] = value.strip('"')
+        return attrs
+
+    def _derive_net_bindings(self, pins: list[PinDef], props: dict[str, str]) -> list[tuple[str, str]]:
+        fmt = props.get("format", "")
+        visible = {pin.name for pin in pins}
+        bindings: list[tuple[str, str]] = []
+        i = 0
+        while i < len(fmt):
+            if fmt[i] != "@":
+                i += 1
+                continue
+            if i + 1 < len(fmt) and fmt[i + 1] == "@":
+                i += 2
+                name = []
+                while i < len(fmt) and (fmt[i].isalnum() or fmt[i] == "_"):
+                    name.append(fmt[i])
+                    i += 1
+                token = "".join(name)
+                if token and token in visible:
+                    bindings.append(("pin", token))
+                continue
+            i += 1
+            name = []
+            while i < len(fmt) and (fmt[i].isalnum() or fmt[i] == "_"):
+                name.append(fmt[i])
+                i += 1
+            token = "".join(name)
+            if token and token in {"name", "pinlist", "symname", "spiceprefix", "model", "prefix", "L", "W", "nf", "mult", "m", "ad", "as", "pd", "ps", "nrd", "nrs", "sa", "sb", "sd", "MF", "VM"}:
+                continue
+            if token and token in visible:
+                bindings.append(("pin", token))
+            elif token and token.isupper():
+                bindings.append(("attr", token))
+        if bindings:
+            return bindings
+        return [("pin", pin.name) for pin in pins]
 
 
 def build_symbol_geometry(ports: list[Port]) -> tuple[list[PinDef], int, int]:
@@ -706,12 +853,10 @@ class LayoutEngine:
 
     def _assign_layers(self, subckt: Subckt, symbol_specs: dict[str, SymbolSpec]) -> dict[str, int]:
         net_ports = {port.name: port_kind(port.name, port.direction) for port in subckt.ports}
-        inst_by_name = {inst.name: inst for inst in subckt.instances}
         net_users: dict[str, list[tuple[str, PinDef]]] = defaultdict(list)
         for inst in subckt.instances:
             spec = symbol_specs[inst.cell]
-            pin_defs = self._ordered_pin_defs(spec, len(inst.pins))
-            for net, pin_def in zip(inst.pins, pin_defs):
+            for net, pin_def in self._visible_pin_nets(spec, inst.pins):
                 net_users[net].append((inst.name, pin_def))
 
         graph: dict[str, set[str]] = defaultdict(set)
@@ -764,6 +909,19 @@ class LayoutEngine:
         extra = [PinDef(name=f"p{i + 1}", x=spec.width + GRID, y=i * GRID, order=len(spec.pins) + i + 1) for i in range(count - len(spec.pins))]
         return spec.pins + extra
 
+    def _visible_pin_nets(self, spec: SymbolSpec, nets: list[str]) -> list[tuple[str, PinDef]]:
+        pin_map = {pin.name: pin for pin in spec.pins}
+        out: list[tuple[str, PinDef]] = []
+        net_iter = iter(nets)
+        for kind, name in spec.net_bindings or [("pin", pin.name) for pin in spec.pins]:
+            try:
+                net = next(net_iter)
+            except StopIteration:
+                break
+            if kind == "pin" and name in pin_map:
+                out.append((net, pin_map[name]))
+        return out
+
     def _instance_sort_key(self, inst: Instance, subckt: Subckt, symbol_specs: dict[str, SymbolSpec]) -> tuple[int, str]:
         top_level_nets = {port.name for port in subckt.ports}
         top_hits = sum(1 for net in inst.pins if net in top_level_nets)
@@ -811,7 +969,7 @@ class SchematicGenerator:
         for inst in subckt.instances:
             x, y = inst_positions.get(inst.name, (10 * GRID, 10 * GRID))
             spec = symbol_specs[inst.cell]
-            inst_attrs = self._instance_attrs(inst)
+            inst_attrs = self._instance_attrs(inst, spec)
             lines.append(f'C {{{spec.ref}}} {x} {y} 0 0 ' + "{" + " ".join(inst_attrs) + "}")
 
         for x1, y1, x2, y2, attrs in self._route_nets(subckt, symbol_specs, inst_positions, port_positions):
@@ -846,9 +1004,8 @@ class SchematicGenerator:
 
         for inst in subckt.instances:
             spec = symbol_specs[inst.cell]
-            pin_defs = self._ordered_pin_defs(spec, len(inst.pins))
             x0, y0 = inst_positions.get(inst.name, (10 * GRID, 10 * GRID))
-            for pin_def, net in zip(pin_defs, inst.pins):
+            for net, pin_def in self._visible_pin_nets(spec, inst.pins):
                 endpoints[net].append((snap(x0 + pin_def.x), snap(y0 + pin_def.y)))
 
         segments: list[tuple[int, int, int, int, str]] = []
@@ -895,17 +1052,53 @@ class SchematicGenerator:
 
         return segments
 
-    def _instance_attrs(self, inst: Instance) -> list[str]:
-        attrs = [f"name={inst.name}"]
+    def _instance_attrs(self, inst: Instance, spec: SymbolSpec) -> list[str]:
+        attrs = {**spec.default_attrs, "name": inst.name}
+        assigned_binding_attrs = self._binding_attrs(spec, inst.pins)
+        attrs.update(assigned_binding_attrs)
         bare_idx = 1
         for param in inst.params:
             if "=" in param:
-                attrs.append(param)
+                key, value = param.split("=", 1)
+                attrs[key] = value
                 continue
             key = "value" if bare_idx == 1 else f"value{bare_idx}"
-            attrs.append(f"{key}={quote_attr(param)}")
+            attrs[key] = quote_attr(param)
             bare_idx += 1
+        rendered = []
+        for key, value in attrs.items():
+            if key == "name":
+                rendered.append(f"name={value}")
+            elif value.startswith('"') and value.endswith('"'):
+                rendered.append(f"{key}={value}")
+            else:
+                rendered.append(f"{key}={quote_attr(value)}")
+        return rendered
+
+    def _binding_attrs(self, spec: SymbolSpec, nets: list[str]) -> dict[str, str]:
+        attrs: dict[str, str] = {}
+        net_iter = iter(nets)
+        for kind, name in spec.net_bindings or [("pin", pin.name) for pin in spec.pins]:
+            try:
+                net = next(net_iter)
+            except StopIteration:
+                break
+            if kind == "attr":
+                attrs[name] = net
         return attrs
+
+    def _visible_pin_nets(self, spec: SymbolSpec, nets: list[str]) -> list[tuple[str, PinDef]]:
+        pin_map = {pin.name: pin for pin in spec.pins}
+        out: list[tuple[str, PinDef]] = []
+        net_iter = iter(nets)
+        for kind, name in spec.net_bindings or [("pin", pin.name) for pin in spec.pins]:
+            try:
+                net = next(net_iter)
+            except StopIteration:
+                break
+            if kind == "pin" and name in pin_map:
+                out.append((net, pin_map[name]))
+        return out
 
 
 class SpiceToXschem:
@@ -977,15 +1170,25 @@ class SpiceToXschem:
             if inc_dir not in design_paths:
                 design_paths.append(inc_dir)
         pdk_root = self.symbol_resolver.pdk_xschem_root
+        pdk_base = os.path.dirname(os.path.dirname(os.path.abspath(pdk_root))) if os.path.isdir(pdk_root) else ""
+        pdk_name = os.path.basename(pdk_base) if pdk_base else ""
+        pdk_root_parent = os.path.dirname(pdk_base) if pdk_base else ""
         if os.path.isdir(pdk_root) and pdk_root not in design_paths:
             design_paths.append(pdk_root)
         path_expr = ":".join(design_paths)
-        return (
+        lines = [
             "if {![info exists XSCHEM_LIBRARY_PATH]} {\n"
             "  set XSCHEM_LIBRARY_PATH \"\"\n"
             "}\n"
-            f"append XSCHEM_LIBRARY_PATH :{path_expr}\n"
-        )
+        ]
+        if pdk_root_parent and pdk_name:
+            lines.append(f"set env(PDK_ROOT) {quote_attr(pdk_root_parent)}\n")
+            lines.append(f"set env(PDK) {quote_attr(pdk_name)}\n")
+            lines.append(f"if {{[file exists {quote_attr(os.path.join(pdk_root, 'xschemrc'))}]}} {{\n")
+            lines.append(f"  source {quote_attr(os.path.join(pdk_root, 'xschemrc'))}\n")
+            lines.append("}\n")
+        lines.append(f"append XSCHEM_LIBRARY_PATH :{path_expr}\n")
+        return "".join(lines)
 
 
 def main() -> None:
