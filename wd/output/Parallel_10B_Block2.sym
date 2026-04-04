@@ -1,26 +1,44 @@
-v {xschem version=3.4.4 file_version=1.2
-}
-G {}
-K {}
+v {xschem version=3.4.7 file_version=1.2}
+G {type=subcircuit format="@name @pinlist @symname" template="name=x1"}
+K {type=subcircuit format="@name @pinlist @symname" template="name=x1"}
 V {}
 S {}
 E {}
-P {n V6 inout 0 10 0 10 V6}
-P {n V5 inout 0 20 0 20 V5}
-P {n V8 inout 0 30 0 30 V8}
-P {n V9 inout 0 40 0 40 V9}
-P {n V7 inout 0 50 0 50 V7}
-P {n VO1 inout 0 60 0 60 VO1}
-P {n DVDD inout 0 70 0 70 DVDD}
-P {n AVDD inout 0 80 0 80 AVDD}
-P {n VOUT inout 0 90 0 90 VOUT}
-P {n V4 inout 140 100 140 100 V4}
-P {n V3 inout 140 110 140 110 V3}
-P {n V2 inout 140 120 140 120 V2}
-P {n V1 inout 140 130 140 130 V1}
-P {n V0 inout 140 140 140 140 V0}
-P {n VCM inout 140 150 140 150 VCM}
-P {n DVSS inout 140 160 140 160 DVSS}
-P {n AVSS inout 140 170 140 170 AVSS}
-P {n VBIAS inout 140 180 140 180 VBIAS}
-T {n Parallel_10B_Block2 70 55 0 0.3 0.3 0 Parallel_10B_Block2}
+B 4 0 0 160 600 {fill=false}
+T {Parallel_10B_Block2} 80 300 0 0 0.35 0.35 {hcenter=true vcenter=true}
+B 5 175 -265 185 -255 {name=V6 dir=inout sim_pinnumber=1}
+T {V6} 200 -260 0 0 0.25 0.25 {hcenter=false}
+B 5 175 -225 185 -215 {name=V5 dir=inout sim_pinnumber=2}
+T {V5} 200 -220 0 0 0.25 0.25 {hcenter=false}
+B 5 175 -185 185 -175 {name=V8 dir=inout sim_pinnumber=3}
+T {V8} 200 -180 0 0 0.25 0.25 {hcenter=false}
+B 5 175 -145 185 -135 {name=V9 dir=inout sim_pinnumber=4}
+T {V9} 200 -140 0 0 0.25 0.25 {hcenter=false}
+B 5 175 -105 185 -95 {name=V7 dir=inout sim_pinnumber=5}
+T {V7} 200 -100 0 0 0.25 0.25 {hcenter=false}
+B 5 175 -65 185 -55 {name=VO1 dir=inout sim_pinnumber=6}
+T {VO1} 200 -60 0 0 0.25 0.25 {hcenter=false}
+B 5 -25 -25 -15 -15 {name=DVDD dir=inout sim_pinnumber=15}
+T {DVDD} -40 -20 0 0 0.25 0.25 {hcenter=false}
+B 5 15 -25 25 -15 {name=AVDD dir=inout sim_pinnumber=16}
+T {AVDD} 40 -20 0 0 0.25 0.25 {hcenter=false}
+B 5 175 -25 185 -15 {name=VOUT dir=inout sim_pinnumber=7}
+T {VOUT} 200 -20 0 0 0.25 0.25 {hcenter=false}
+B 5 175 15 185 25 {name=V4 dir=inout sim_pinnumber=8}
+T {V4} 200 20 0 0 0.25 0.25 {hcenter=false}
+B 5 175 55 185 65 {name=V3 dir=inout sim_pinnumber=9}
+T {V3} 200 60 0 0 0.25 0.25 {hcenter=false}
+B 5 175 95 185 105 {name=V2 dir=inout sim_pinnumber=10}
+T {V2} 200 100 0 0 0.25 0.25 {hcenter=false}
+B 5 175 135 185 145 {name=V1 dir=inout sim_pinnumber=11}
+T {V1} 200 140 0 0 0.25 0.25 {hcenter=false}
+B 5 175 175 185 185 {name=V0 dir=inout sim_pinnumber=12}
+T {V0} 200 180 0 0 0.25 0.25 {hcenter=false}
+B 5 175 215 185 225 {name=VCM dir=inout sim_pinnumber=13}
+T {VCM} 200 220 0 0 0.25 0.25 {hcenter=false}
+B 5 -25 615 -15 625 {name=DVSS dir=inout sim_pinnumber=17}
+T {DVSS} -40 620 0 0 0.25 0.25 {hcenter=false}
+B 5 15 615 25 625 {name=AVSS dir=inout sim_pinnumber=18}
+T {AVSS} 40 620 0 0 0.25 0.25 {hcenter=false}
+B 5 175 255 185 265 {name=VBIAS dir=inout sim_pinnumber=14}
+T {VBIAS} 200 260 0 0 0.25 0.25 {hcenter=false}

@@ -1,11 +1,14 @@
-v {xschem version=3.4.4 file_version=1.2
-}
-G {}
-K {}
+v {xschem version=3.4.7 file_version=1.2}
+G {type=subcircuit format="@name @pinlist @symname" template="name=x1"}
+K {type=subcircuit format="@name @pinlist @symname" template="name=x1"}
 V {}
 S {}
 E {}
-P {n VBIAS inout 0 50 0 50 VBIAS}
-P {n IBIAS inout 140 90 140 90 IBIAS}
-P {n VSS inout 140 170 140 170 VSS}
-T {n vbias_gen_pga 70 55 0 0.3 0.3 0 vbias_gen_pga}
+B 4 0 0 160 120 {fill=false}
+T {vbias_gen_pga} 80 60 0 0 0.35 0.35 {hcenter=true vcenter=true}
+B 5 175 -25 185 -15 {name=VBIAS dir=inout sim_pinnumber=1}
+T {VBIAS} 200 -20 0 0 0.25 0.25 {hcenter=false}
+B 5 175 15 185 25 {name=IBIAS dir=inout sim_pinnumber=2}
+T {IBIAS} 200 20 0 0 0.25 0.25 {hcenter=false}
+B 5 -5 135 5 145 {name=VSS dir=inout sim_pinnumber=3}
+T {VSS} -20 140 0 0 0.25 0.25 {hcenter=false}

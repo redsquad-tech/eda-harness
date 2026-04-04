@@ -24,6 +24,7 @@ import re
 from collections import defaultdict
 from dataclasses import dataclass, field
 from statistics import median
+from glob import glob
 from typing import Optional
 
 
@@ -404,8 +405,22 @@ class SymbolResolver:
         self.sym_parser = SymFileParser()
         self._resolved: dict[str, SymbolSpec] = {}
         self._pdk_index: Optional[dict[str, str]] = None
-        pdk_base = pdk_path or os.environ.get("SKY130_PDK_PATH") or "/usr/local/share/pdk/sky130A"
+        pdk_base = pdk_path or os.environ.get("SKY130_PDK_PATH") or self._discover_pdk_path() or "/usr/local/share/pdk/sky130A"
         self.pdk_xschem_root = os.path.join(os.path.abspath(pdk_base), "libs.tech", "xschem")
+
+    def _discover_pdk_path(self) -> Optional[str]:
+        home = os.path.expanduser("~")
+        candidates = [
+            os.path.join(home, ".volare", "volare", "sky130", "versions", "*", "sky130A"),
+            os.path.join(home, ".volare", "sky130A"),
+            "/usr/local/share/pdk/sky130A",
+            "/usr/share/pdk/sky130A",
+        ]
+        for pattern in candidates:
+            for path in sorted(glob(pattern), reverse=True):
+                if os.path.isdir(os.path.join(path, "libs.tech", "xschem")):
+                    return path
+        return None
 
     def add_include_dir(self, include_path: str) -> None:
         if not include_path:

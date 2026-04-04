@@ -1,12 +1,18 @@
-v {xschem version=3.4.4 file_version=1.2
-}
-G {}
-K {}
+v {xschem version=3.4.7 file_version=1.2}
+G {type=primitive format="@name @pinlist sky130_fd_sc_hvl__diode_2" template="name=x1"}
+K {type=primitive format="@name @pinlist sky130_fd_sc_hvl__diode_2" template="name=x1"}
 V {}
 S {}
 E {}
-P {n p1 inout 0 0 20 0 20 p1}
-P {n p2 inout 0 0 40 0 40 p2}
-P {n p3 inout 0 0 60 0 60 p3}
-P {n p4 inout 0 0 80 0 80 p4}
-T {n sky130_fd_sc_hvl__diode_2 50 55 0 0.3 0.3 0 sky130_fd_sc_hvl__diode_2}
+B 4 0 0 160 240 {fill=false}
+T {sky130_fd_sc_hvl__diode_2} 80 120 0 0 0.35 0.35 {hcenter=true vcenter=true}
+B 5 175 -85 185 -75 {name=p1 dir=inout sim_pinnumber=1}
+T {p1} 200 -80 0 0 0.25 0.25 {hcenter=false}
+B 5 175 -45 185 -35 {name=p2 dir=inout sim_pinnumber=2}
+T {p2} 200 -40 0 0 0.25 0.25 {hcenter=false}
+B 5 175 -5 185 5 {name=p3 dir=inout sim_pinnumber=3}
+T {p3} 200 0 0 0 0.25 0.25 {hcenter=false}
+B 5 175 35 185 45 {name=p4 dir=inout sim_pinnumber=4}
+T {p4} 200 40 0 0 0.25 0.25 {hcenter=false}
+B 5 175 75 185 85 {name=p5 dir=inout sim_pinnumber=5}
+T {p5} 200 80 0 0 0.25 0.25 {hcenter=false}

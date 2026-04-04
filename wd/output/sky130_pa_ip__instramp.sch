@@ -1,53 +1,90 @@
-v {xschem version=3.4.4 file_version=1.2
-}
+v {xschem version=3.4.7 file_version=1.2}
 G {}
 K {}
 V {}
-P {n VINN inout 30 30 30 30 VINN}
-P {n VINP inout 30 50 30 50 VINP}
-P {n VOUT inout 700 30 700 30 VOUT}
-P {n AVDD inout 30 30 30 30 AVDD}
-P {n DVDD inout 50 30 50 30 DVDD}
-P {n AVSS inout 70 570 70 570 AVSS}
-P {n DVSS inout 90 570 90 570 DVSS}
-P {n V[9] inout 670 30 670 30 V[9]}
-P {n V[8] inout 670 50 670 50 V[8]}
-P {n V[7] inout 670 70 670 70 V[7]}
-P {n V[6] inout 670 90 670 90 V[6]}
-P {n V[5] inout 670 110 670 110 V[5]}
-P {n V[4] inout 670 130 670 130 V[4]}
-P {n V[3] inout 670 150 670 150 V[3]}
-P {n V[2] inout 670 170 670 170 V[2]}
-P {n V[1] inout 670 190 670 190 V[1]}
-P {n V[0] inout 670 210 670 210 V[0]}
-P {n VCM inout 670 230 670 230 VCM}
-P {n IBIAS inout 670 250 670 250 IBIAS}
-I {n x1 240 140 0 0 Parallel_10B_Block2}
-I {n x2 240 250 0 0 Input_Stage_v1}
-I {n x3 240 360 0 0 vbias_gen_pga}
-W {n __net0__ 180 5 670 90}
-W {n __net0__ 180 20 670 110}
-W {n __net0__ 180 35 670 50}
-W {n __net0__ 180 50 670 30}
-W {n __net0__ 180 65 670 70}
-W {n __net0__ 180 80 180 235}
-W {n __net0__ 50 30 180 95}
-W {n __net0__ 30 30 180 110}
-W {n __net0__ 180 125 700 30}
-W {n __net0__ 300 140 670 130}
-W {n __net0__ 300 155 670 150}
-W {n __net0__ 300 170 670 170}
-W {n __net0__ 300 185 670 190}
-W {n __net0__ 300 200 670 210}
-W {n __net0__ 300 215 300 265}
-W {n __net0__ 300 265 670 230}
-W {n __net0__ 90 570 300 230}
-W {n __net0__ 70 570 300 245}
-W {n __net0__ 300 245 300 280}
-W {n __net0__ 300 280 300 375}
-W {n __net0__ 180 345 300 260}
-W {n __net0__ 300 260 300 295}
-W {n __net0__ 30 50 180 220}
-W {n __net0__ 30 30 300 250}
-W {n __net0__ 300 360 670 250}
+S {}
 E {}
+C {devices/iopin.sym} 800 360 0 0 {name=p1 lab=V[9]}
+C {devices/iopin.sym} 800 400 0 0 {name=p2 lab=V[8]}
+C {devices/iopin.sym} 800 440 0 0 {name=p3 lab=V[7]}
+C {devices/iopin.sym} 800 480 0 0 {name=p4 lab=V[6]}
+C {devices/iopin.sym} 800 520 0 0 {name=p5 lab=V[5]}
+C {devices/iopin.sym} 800 560 0 0 {name=p6 lab=V[4]}
+C {devices/iopin.sym} 800 600 0 0 {name=p7 lab=V[3]}
+C {devices/iopin.sym} 800 640 0 0 {name=p8 lab=V[2]}
+C {devices/iopin.sym} 800 680 0 0 {name=p9 lab=V[1]}
+C {devices/iopin.sym} 800 720 0 0 {name=p10 lab=V[0]}
+C {devices/ipin.sym} 40 80 0 0 {name=p11 lab=VCM}
+C {devices/ipin.sym} 40 120 0 0 {name=p12 lab=IBIAS}
+C {devices/iopin.sym} 120 40 1 0 {name=p13 lab=AVDD}
+C {devices/ipin.sym} 40 160 0 0 {name=p14 lab=VINN}
+C {devices/iopin.sym} 180 40 1 0 {name=p15 lab=DVDD}
+C {devices/opin.sym} 800 1020 2 0 {name=p16 lab=VOUT}
+C {devices/iopin.sym} 120 1140 3 0 {name=p17 lab=AVSS}
+C {devices/iopin.sym} 180 1140 3 0 {name=p18 lab=DVSS}
+C {devices/ipin.sym} 40 200 0 0 {name=p19 lab=VINP}
+C {Parallel_10B_Block2.sym} 440 260 0 0 {name=x1}
+C {Input_Stage_v1.sym} 440 460 0 0 {name=x2}
+C {spice_v.sym} 440 860 0 0 {name=VI2 value=0}
+C {vbias_gen_pga.sym} 440 660 0 0 {name=x3}
+N 460 40 460 840 {lab=AVDD}
+N 120 40 460 40 {}
+N 620 840 460 840 {}
+N 440 720 440 1140 {lab=AVSS}
+N 120 1140 440 1140 {}
+N 460 880 440 880 {}
+N 180 40 300 40 {lab=DVDD}
+N 300 40 300 240 {}
+N 300 240 420 240 {}
+N 180 1140 300 1140 {lab=DVSS}
+N 300 1140 300 880 {}
+N 300 880 420 880 {}
+N 40 120 320 120 {lab=IBIAS}
+N 320 120 320 680 {}
+N 320 680 620 680 {}
+N 620 520 620 640 {lab=VBIAS}
+N 620 80 620 500 {lab=VCM}
+N 40 80 620 80 {}
+N 40 160 320 160 {lab=VINN}
+N 320 160 320 460 {}
+N 320 460 620 460 {}
+N 40 200 320 200 {lab=VINP}
+N 320 200 320 380 {}
+N 320 380 620 380 {}
+N 620 200 620 420 {lab=VO1}
+N 620 240 720 240 {lab=VOUT}
+N 720 240 720 1020 {}
+N 720 1020 800 1020 {}
+N 620 440 720 440 {lab=V[0]}
+N 720 440 720 720 {}
+N 720 720 800 720 {}
+N 620 400 720 400 {lab=V[1]}
+N 720 400 720 680 {}
+N 720 680 800 680 {}
+N 620 360 720 360 {lab=V[2]}
+N 720 360 720 640 {}
+N 720 640 800 640 {}
+N 620 320 720 320 {lab=V[3]}
+N 720 320 720 600 {}
+N 720 600 800 600 {}
+N 620 280 720 280 {lab=V[4]}
+N 720 280 720 560 {}
+N 720 560 800 560 {}
+N 620 40 720 40 {lab=V[5]}
+N 720 40 720 520 {}
+N 720 520 800 520 {}
+N 620 0 720 0 {lab=V[6]}
+N 720 0 720 480 {}
+N 720 480 800 480 {}
+N 620 160 720 160 {lab=V[7]}
+N 720 160 720 440 {}
+N 720 440 800 440 {}
+N 620 80 720 80 {lab=V[8]}
+N 720 80 720 400 {}
+N 720 400 800 400 {}
+N 620 120 720 120 {lab=V[9]}
+N 720 120 720 360 {}
+N 720 360 800 360 {}
+N 440 440 520 440 {lab=net1}
+N 520 440 520 880 {}
+N 520 880 620 880 {}
