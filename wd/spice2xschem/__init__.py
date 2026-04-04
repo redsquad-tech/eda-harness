@@ -23,6 +23,7 @@ import os
 import re
 from collections import defaultdict
 from dataclasses import dataclass, field
+from statistics import median
 from typing import Optional
 
 
@@ -798,12 +799,8 @@ class SchematicGenerator:
             inst_attrs = self._instance_attrs(inst)
             lines.append(f'C {{{spec.ref}}} {x} {y} 0 0 ' + "{" + " ".join(inst_attrs) + "}")
 
-            for pin_def, net in zip(self._ordered_pin_defs(spec, len(inst.pins)), inst.pins):
-                lab_x = snap(x + pin_def.x)
-                lab_y = snap(y + pin_def.y)
-                rot = self._label_rotation(pin_def)
-                lines.append(f'C {{devices/lab_pin.sym}} {lab_x} {lab_y} {rot} 0 ' + "{"
-                             f"name=l_{sanitize_filename(inst.name)}_{sanitize_filename(pin_def.name)} lab={quote_attr(net)}" + "}")
+        for x1, y1, x2, y2, attrs in self._route_nets(subckt, symbol_specs, inst_positions, port_positions):
+            lines.append(f"N {x1} {y1} {x2} {y2} {attrs}")
 
         return "\n".join(lines) + "\n"
 
@@ -817,6 +814,71 @@ class SchematicGenerator:
         if pin.x <= 0:
             return 0
         return 2
+
+    def _route_nets(
+        self,
+        subckt: Subckt,
+        symbol_specs: dict[str, SymbolSpec],
+        inst_positions: dict[str, tuple[int, int]],
+        port_positions: dict[str, tuple[int, int, str]],
+    ) -> list[tuple[int, int, int, int, str]]:
+        endpoints: dict[str, list[tuple[int, int]]] = defaultdict(list)
+        port_nets = {port.name for port in subckt.ports}
+
+        for port in subckt.ports:
+            x, y, _ = port_positions[port.name]
+            endpoints[port.name].append((snap(x), snap(y)))
+
+        for inst in subckt.instances:
+            spec = symbol_specs[inst.cell]
+            pin_defs = self._ordered_pin_defs(spec, len(inst.pins))
+            x0, y0 = inst_positions.get(inst.name, (10 * GRID, 10 * GRID))
+            for pin_def, net in zip(pin_defs, inst.pins):
+                endpoints[net].append((snap(x0 + pin_def.x), snap(y0 + pin_def.y)))
+
+        segments: list[tuple[int, int, int, int, str]] = []
+        seen: set[tuple[int, int, int, int, str]] = set()
+
+        def add_seg(x1: int, y1: int, x2: int, y2: int, lab: Optional[str] = None) -> None:
+            x1 = snap(x1)
+            y1 = snap(y1)
+            x2 = snap(x2)
+            y2 = snap(y2)
+            if x1 == x2 and y1 == y2:
+                return
+            attrs = "{}" if lab is None else "{lab=" + quote_attr(lab) + "}"
+            key = (x1, y1, x2, y2, attrs)
+            rev = (x2, y2, x1, y1, attrs)
+            if key in seen or rev in seen:
+                return
+            seen.add(key)
+            segments.append((x1, y1, x2, y2, attrs))
+
+        for net, pts in sorted(endpoints.items()):
+            uniq = sorted(set((snap(x), snap(y)) for x, y in pts))
+            if len(uniq) < 2:
+                continue
+            if len(uniq) == 2:
+                (x1, y1), (x2, y2) = uniq
+                if x1 == x2 or y1 == y2:
+                    add_seg(x1, y1, x2, y2, net)
+                else:
+                    mid_x = snap((x1 + x2) / 2)
+                    add_seg(x1, y1, mid_x, y1, net)
+                    add_seg(mid_x, y1, mid_x, y2, None)
+                    add_seg(mid_x, y2, x2, y2, None)
+                continue
+
+            xs = [x for x, _ in uniq]
+            ys = [y for _, y in uniq]
+            trunk_x = snap(median(xs))
+            min_y = min(ys)
+            max_y = max(ys)
+            add_seg(trunk_x, min_y, trunk_x, max_y, net)
+            for x, y in uniq:
+                add_seg(x, y, trunk_x, y, None)
+
+        return segments
 
     def _instance_attrs(self, inst: Instance) -> list[str]:
         attrs = [f"name={inst.name}"]
@@ -876,6 +938,11 @@ class SpiceToXschem:
                     fh.write(self.symbol_gen.generate_fallback_symbol(cell, pin_count))
                 generated_files[os.path.basename(sym_path)] = sym_path
 
+        xschemrc_path = os.path.join(self.output_dir, "xschemrc")
+        with open(xschemrc_path, "w", encoding="utf-8") as fh:
+            fh.write(self._generate_xschemrc())
+        generated_files[os.path.basename(xschemrc_path)] = xschemrc_path
+
         return generated_files
 
     def _fallback_pin_counts(self, subckts: dict[str, Subckt]) -> dict[str, int]:
@@ -886,6 +953,24 @@ class SpiceToXschem:
                 if inst.cell not in local_names:
                     counts[inst.cell] = max(counts.get(inst.cell, 0), len(inst.pins))
         return counts
+
+    def _generate_xschemrc(self) -> str:
+        design_paths: list[str] = [self.output_dir]
+        if self.local_dir not in design_paths:
+            design_paths.append(self.local_dir)
+        for inc_dir in self.symbol_resolver.include_dirs:
+            if inc_dir not in design_paths:
+                design_paths.append(inc_dir)
+        pdk_root = self.symbol_resolver.pdk_xschem_root
+        if os.path.isdir(pdk_root) and pdk_root not in design_paths:
+            design_paths.append(pdk_root)
+        path_expr = ":".join(design_paths)
+        return (
+            "if {![info exists XSCHEM_LIBRARY_PATH]} {\n"
+            "  set XSCHEM_LIBRARY_PATH \"\"\n"
+            "}\n"
+            f"append XSCHEM_LIBRARY_PATH :{path_expr}\n"
+        )
 
 
 def main() -> None:
