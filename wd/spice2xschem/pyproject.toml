@@ -11,3 +11,4 @@ requires-python = ">=3.8"
 
 [project.scripts]
 spice2xschem = "spice2xschem.__main__:main"
+spice2xschem-validate = "spice2xschem.validate:main"

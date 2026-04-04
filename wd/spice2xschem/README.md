@@ -14,6 +14,12 @@ pip install -e .
 python -m spice2xschem input.sp -o output/
 ```
 
+Validation through xschem CLI:
+
+```bash
+python -m spice2xschem.validate output/
+```
+
 Options:
 - `-o, --output` - Output directory (default: current directory)
 - `-l, --local` - Local symbol search directory (default: current directory)
@@ -48,6 +54,12 @@ For each `.subckt` in input:
 
 For unresolved external components:
 - `<cell>.sym` - default square symbol (no .sch)
+
+## Validation Notes
+
+- The validator checks that xschem can open every generated `.sch` / `.sym`
+- It also scans xschem debug logs for unresolved symbol loading issues
+- In this environment `xschem 2.8.1` crashes in CLI netlisting mode (`-x -n`) even on bundled example schematics, so netlisting is not used as a validation criterion
 
 ## Example
 
