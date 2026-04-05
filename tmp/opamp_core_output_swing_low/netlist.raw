@@ -1,0 +1,11 @@
+Title: * `ngspice` sim input for `components.opamp_core.tb`
+Date: Sun Apr  5 22:58:13  2026
+Plotname: Operating Point
+Flags: real
+No. Variables: 2
+No. Points: 1       
+Variables:
+	0	i(v.xtop.vvvdd)	current
+	1	v(xtop.vout)	voltage
+Binary:
+[Âä¦GÇÄ¾è)ÅˆÌÌü?

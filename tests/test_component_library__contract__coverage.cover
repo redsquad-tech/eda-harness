@@ -1,0 +1,255 @@
+    1: from __future__ import annotations
+       
+    1: import csv
+    1: import importlib
+    1: import inspect
+    1: import sys
+    1: import unittest
+    1: from pathlib import Path
+       
+    1: import hdl21 as h
+    1: import sky130_hdl21 as sky130
+       
+    1: from components import (
+           extract_subckt_name,
+           flatten_metrics,
+           format_metrics_table,
+           parse_ngspice_scalar,
+       )
+       
+       
+    1: ROOT = Path(__file__).resolve().parents[1]
+    1: TMP_ROOT = ROOT / "tmp" / "test_component_library_contract"
+       
+       
+    1: COMPONENT_SPECS = {
+    1:     "tg_switch": {
+    1:         "module": "components.tg_switch",
+    1:         "params": "TgSwitchParams",
+    1:         "generator": "tg_switch",
+    1:         "csv_params": ["dev_n", "dev_p", "w_n", "l_n", "nf_n", "m_n", "w_p", "l_p", "nf_p", "m_p", "use_dummy_switch", "body_tie_style"],
+    1:         "variant_kwargs": {"use_dummy_switch": True},
+    1:         "variant_markers": ["dummy_n", "dummy_p"],
+    1:         "invalid_kwargs": {"body_tie_style": "bad"},
+    1:         "invalid_message": "Unsupported body_tie_style",
+           },
+    1:     "sample_hold_cap": {
+    1:         "module": "components.sample_hold_cap",
+    1:         "params": "SampleHoldCapParams",
+    1:         "generator": "sample_hold_cap",
+    1:         "csv_params": ["cap_dev", "c_target", "unit_w", "unit_l", "nser", "npar", "common_centroid"],
+    1:         "variant_kwargs": {"nser": 3},
+    1:         "variant_markers": ["cap_0", "cap_1", "cap_2"],
+    1:         "invalid_kwargs": {"nser": 0},
+    1:         "invalid_message": "nser must be >=",
+           },
+    1:     "nonoverlap_clk": {
+    1:         "module": "components.nonoverlap_clk",
+    1:         "params": "NonoverlapClkParams",
+    1:         "generator": "nonoverlap_clk",
+    1:         "csv_params": ["style", "t_dead", "duty", "buf_stages", "inv_ratio", "trf"],
+    1:         "variant_kwargs": {"buf_stages": 3},
+    1:         "variant_markers": ["clk_delay_inv_5", "clkb_delay_inv_5"],
+    1:         "invalid_kwargs": {"buf_stages": 0},
+    1:         "invalid_message": "buf_stages must be >=",
+           },
+    1:     "diffpair_n": {
+    1:         "module": "components.diffpair_n",
+    1:         "params": "DiffpairNParams",
+    1:         "generator": "diffpair_n",
+    1:         "csv_params": ["dev_in", "w_in", "l_in", "nf_in", "m_in", "body_tie", "use_degeneration", "r_deg"],
+    1:         "variant_kwargs": {"use_degeneration": True, "r_deg": 250.0},
+    1:         "variant_markers": ["rdeg_p", "rdeg_n"],
+    1:         "invalid_kwargs": {"body_tie": "bad"},
+    1:         "invalid_message": "Unsupported body_tie",
+           },
+    1:     "diffpair_p": {
+    1:         "module": "components.diffpair_p",
+    1:         "params": "DiffpairPParams",
+    1:         "generator": "diffpair_p",
+    1:         "csv_params": ["dev_in", "w_in", "l_in", "nf_in", "m_in", "body_tie", "use_degeneration", "r_deg"],
+    1:         "variant_kwargs": {"use_degeneration": True, "r_deg": 250.0},
+    1:         "variant_markers": ["rdeg_p", "rdeg_n"],
+    1:         "invalid_kwargs": {"body_tie": "bad"},
+    1:         "invalid_message": "Unsupported body_tie",
+           },
+    1:     "tail_bias": {
+    1:         "module": "components.tail_bias",
+    1:         "params": "TailBiasParams",
+    1:         "generator": "tail_bias",
+    1:         "csv_params": ["style", "dev_out", "dev_cas", "w_out", "l_out", "nf_out", "m_out", "w_cas", "l_cas", "nf_cas", "m_cas", "i_target"],
+    1:         "variant_kwargs": {"style": "cascoded"},
+    1:         "variant_markers": ["m_cas", "mid"],
+    1:         "invalid_kwargs": {"style": "bad"},
+    1:         "invalid_message": "Unsupported style",
+           },
+    1:     "current_mirror": {
+    1:         "module": "components.current_mirror",
+    1:         "params": "CurrentMirrorParams",
+    1:         "generator": "current_mirror",
+    1:         "csv_params": ["device_type", "style", "dev_ref", "dev_out", "ratio", "w_ref", "l_ref", "nf_ref", "m_ref", "w_out", "l_out", "nf_out", "m_out"],
+    1:         "variant_kwargs": {"device_type": "p", "style": "wide_swing", "dev_ref": "PMOS_1p8V_STD", "dev_out": "PMOS_1p8V_STD"},
+    1:         "variant_markers": ["ref_mid", "out_mid", "sky130_fd_pr__pfet_01v8"],
+    1:         "invalid_kwargs": {"ratio": 0},
+    1:         "invalid_message": "ratio must be positive",
+           },
+    1:     "active_load": {
+    1:         "module": "components.active_load",
+    1:         "params": "ActiveLoadParams",
+    1:         "generator": "active_load",
+    1:         "csv_params": ["device_type", "style", "dev_load", "ratio", "w_load", "l_load", "nf_load", "m_load", "cross_coupled"],
+    1:         "variant_kwargs": {"device_type": "n", "style": "cascoded", "dev_load": "NMOS_1p8V_STD"},
+    1:         "variant_markers": ["inp_mid", "outp_mid", "sky130_fd_pr__nfet_01v8"],
+    1:         "invalid_kwargs": {"device_type": "bad"},
+    1:         "invalid_message": "Unsupported device_type",
+           },
+    1:     "cascode_block": {
+    1:         "module": "components.cascode_block",
+    1:         "params": "CascodeBlockParams",
+    1:         "generator": "cascode_block",
+    1:         "csv_params": ["device_type", "style", "dev_main", "dev_cas", "w_main", "l_main", "nf_main", "m_main", "w_cas", "l_cas", "nf_cas", "m_cas", "vcas_target"],
+    1:         "variant_kwargs": {"device_type": "p", "style": "wide_swing", "dev_main": "PMOS_1p8V_STD", "dev_cas": "PMOS_1p8V_STD"},
+    1:         "variant_markers": ["mid", "sky130_fd_pr__pfet_01v8"],
+    1:         "invalid_kwargs": {"style": "bad"},
+    1:         "invalid_message": "Unsupported style",
+           },
+       }
+       
+       
+    1: def _init_sky130_install() -> None:
+    1:     if sky130.install is not None:
+               return
+    2:     sky130.install = sky130.Install(
+    1:         pdk_path=Path("pdks/sky130A/sky130A").resolve(),
+    1:         lib_path=Path("libs.tech/ngspice/sky130.lib.spice"),
+    1:         model_ref=Path("libs.ref/sky130_fd_pr/spice"),
+           )
+       
+       
+    1: def _load_module(component_name: str):
+   90:     return importlib.import_module(COMPONENT_SPECS[component_name]["module"])
+       
+       
+    1: def _params_cls(component_name: str):
+   36:     spec = COMPONENT_SPECS[component_name]
+   36:     module = _load_module(component_name)
+   36:     return getattr(module, spec["params"])
+       
+       
+    1: def _dut_params(component_name: str, **kwargs):
+   36:     return _params_cls(component_name)(**kwargs)
+       
+       
+    1: def _builder_corner(component_name: str):
+   13:     return "TT" if component_name in {"sample_hold_cap", "nonoverlap_clk"} else h.pdk.Corner.TYP
+       
+       
+    1: def _registry_rows() -> list[dict[str, str]]:
+    2:     with (ROOT / "components.csv").open() as f:
+    1:         return list(csv.DictReader(f))
+       
+       
+    2: class TestComponentLibraryContractCoverage(unittest.TestCase):
+    1:     @classmethod
+    1:     def setUpClass(cls) -> None:
+    1:         sys.path.insert(0, str(ROOT))
+    1:         TMP_ROOT.mkdir(parents=True, exist_ok=True)
+    1:         _init_sky130_install()
+       
+    1:     def test_component_library__contract__registry_matches_modules_and_params(self) -> None:
+   11:         registry = {row["name"]: row for row in _registry_rows()}
+    1:         self.assertEqual(set(registry), set(COMPONENT_SPECS))
+       
+   10:         for component_name, spec in COMPONENT_SPECS.items():
+   18:             with self.subTest(component=component_name):
+    9:                 module = _load_module(component_name)
+    9:                 params_cls = getattr(module, spec["params"])
+       
+    9:                 self.assertTrue(hasattr(module, spec["generator"]))
+    9:                 self.assertEqual(list(params_cls.__dataclass_fields__), spec["csv_params"])
+    9:                 self.assertEqual(registry[component_name]["parameters"].split(","), spec["csv_params"])
+       
+    1:     def test_component_library__contract__verification_plan_schema(self) -> None:
+    1:         required_keys = {"test", "analysis", "metrics", "rule", "corners", "sweeps", "monte_carlo"}
+   10:         for component_name in COMPONENT_SPECS:
+   18:             with self.subTest(component=component_name):
+    9:                 module = _load_module(component_name)
+    9:                 plan = module.VERIFICATION_PLAN
+    9:                 self.assertIn("structural", plan)
+   34:                 for test_name, payload in plan.items():
+   25:                     self.assertEqual(set(payload), required_keys)
+   25:                     self.assertTrue(callable(getattr(module, payload["test"])))
+   25:                     self.assertIsInstance(payload["metrics"], list)
+   25:                     self.assertIsInstance(payload["corners"], list)
+   25:                     self.assertIsInstance(payload["sweeps"], list)
+   25:                     self.assertIsInstance(payload["monte_carlo"], bool)
+   25:                     self.assertIsInstance(test_name, str)
+       
+    1:     def test_component_library__contract__build_testbenches_use_single_vss_port(self) -> None:
+   10:         for component_name in COMPONENT_SPECS:
+    9:             module = _load_module(component_name)
+    9:             params = _dut_params(component_name)
+  159:             for builder_name, builder in inspect.getmembers(module, inspect.isfunction):
+  150:                 if not builder_name.startswith("build_"):
+  137:                     continue
+   26:                 with self.subTest(component=component_name, builder=builder_name):
+   13:                     sim = builder(params, corner=_builder_corner(component_name))
+   13:                     self.assertEqual(list(sim.tb.ports), ["VSS"])
+       
+    1:     def test_component_library__contract__export_spice_creates_valid_netlists(self) -> None:
+   10:         for component_name in COMPONENT_SPECS:
+   18:             with self.subTest(component=component_name):
+    9:                 module = _load_module(component_name)
+    9:                 out_path = TMP_ROOT / f"{component_name}.sp"
+    9:                 exported = module.export_spice(out_path, _dut_params(component_name))
+    9:                 text = exported.read_text()
+    9:                 subckt_name = extract_subckt_name(text)
+       
+    9:                 self.assertEqual(exported, out_path)
+    9:                 self.assertTrue(exported.exists())
+    9:                 self.assertTrue(subckt_name)
+    9:                 self.assertIn(".SUBCKT", text)
+    9:                 self.assertIn(".ENDS", text)
+       
+    1:     def test_component_library__contract__variant_topologies_export_expected_markers(self) -> None:
+   10:         for component_name, spec in COMPONENT_SPECS.items():
+   18:             with self.subTest(component=component_name):
+    9:                 module = _load_module(component_name)
+    9:                 params = _dut_params(component_name, **spec["variant_kwargs"])
+    9:                 checks = module.run_structural_checks(params)
+    9:                 text = module.export_spice(TMP_ROOT / f"{component_name}__variant.sp", params).read_text()
+       
+    9:                 self.assertTrue(all(checks.values()), checks)
+   30:                 for marker in spec["variant_markers"]:
+   21:                     self.assertIn(marker, text)
+       
+    1:     def test_component_library__contract__invalid_params_raise_value_error(self) -> None:
+   10:         for component_name, spec in COMPONENT_SPECS.items():
+   18:             with self.subTest(component=component_name):
+    9:                 module = _load_module(component_name)
+    9:                 generator = getattr(module, spec["generator"])
+   18:                 with self.assertRaisesRegex(ValueError, spec["invalid_message"]):
+    9:                     generator(_dut_params(component_name, **spec["invalid_kwargs"]))
+       
+    1:     def test_component_library__contract__shared_helpers_cover_expected_shapes(self) -> None:
+    2:         rows = flatten_metrics(
+    1:             {
+    1:                 "structural": {"generator_call": True, "elaboration": True},
+    1:                 "mirror_op": {"ratio_est": 1.97},
+    1:                 "scalar_section": 5,
+                   }
+               )
+    1:         table = format_metrics_table({"structural": {"generator_call": True}, "scalar_section": 5}, title="demo")
+       
+    1:         self.assertIn(("structural", "generator_call", "PASS"), rows)
+    1:         self.assertIn(("scalar_section", "value", "5"), rows)
+    1:         self.assertIn("demo", table)
+    1:         self.assertIn("test", table)
+    1:         self.assertIn("value", table)
+    1:         self.assertEqual(parse_ngspice_scalar("v(out) = 1.234e-03", "v(out)"), 1.234e-03)
+    2:         with self.assertRaisesRegex(ValueError, "Could not find scalar"):
+    1:             parse_ngspice_scalar("v(in) = 0.1", "v(out)")
+       
+       
+    1: if __name__ == "__main__":
+           unittest.main()

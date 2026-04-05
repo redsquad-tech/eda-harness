@@ -2,6 +2,8 @@ from pathlib import Path
 from typing import Optional
 
 from hdl21.sim.proto import to_proto
+import hdl21.sim.proto as sim_proto
+from hdl21.signal import Signal
 from hdl21.sim.data import Sim as Hdl21Sim
 import vlsir.spice_pb2 as vsp
 from vlsirtools.netlist.spice import NgspiceNetlister
@@ -101,8 +103,30 @@ def write_compatible_netlist(inp: vsp.SimInput, path: str | Path) -> Path:
     return path
 
 
+def _export_save_compat(save) -> vsp.Save:
+    """Repository-local compatibility patch for hdl21 `Save` export."""
+    targ = save.targ
+    if hasattr(sim_proto, "data") and isinstance(targ, sim_proto.data.SaveMode):
+        if targ == sim_proto.data.SaveMode.ALL:
+            return vsp.Save(mode=vsp.Save.SaveMode.ALL)
+        if targ == sim_proto.data.SaveMode.NONE:
+            return vsp.Save(mode=vsp.Save.SaveMode.NONE)
+        raise ValueError(f"Unsupported save mode: {targ}")
+    if isinstance(targ, Signal):
+        return vsp.Save(signal=targ.name)
+    if isinstance(targ, str):
+        return vsp.Save(signal=targ)
+    if isinstance(targ, list):
+        if all(isinstance(item, Signal) for item in targ):
+            return vsp.Save(signal=",".join(item.name for item in targ))
+        if all(isinstance(item, str) for item in targ):
+            return vsp.Save(signal=",".join(targ))
+    raise TypeError(f"Unsupported save target: {type(targ).__name__}")
+
+
 def run_compatible_sim(sim: Hdl21Sim, opts: Optional[SimOptions] = None) -> SimResultUnion:
     """Run an HDL21 Sim through the repository-local compatible ngspice path."""
+    sim_proto.export_save = _export_save_compat
     return CompatibleNGSpiceSim.sim(inp=to_proto(sim), opts=opts)
 
 

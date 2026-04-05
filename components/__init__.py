@@ -2,6 +2,7 @@
 
 from pathlib import Path
 import re
+from dataclasses import dataclass
 from typing import Any
 
 import sky130_hdl21
@@ -68,6 +69,12 @@ def flatten_metrics(results: dict[str, Any]) -> list[tuple[str, str, str]]:
     rows: list[tuple[str, str, str]] = []
     for section, payload in results.items():
         if isinstance(payload, dict):
+            if {"component", "category", "purpose", "metrics"}.issubset(payload.keys()):
+                if "pass" in payload:
+                    rows.append((section, "pass", _format_metric_value(payload["pass"])))
+                for metric, value in payload["metrics"].items():
+                    rows.append((section, metric, _format_metric_value(value)))
+                continue
             for metric, value in payload.items():
                 rows.append((section, metric, _format_metric_value(value)))
         else:
@@ -100,11 +107,79 @@ def print_metrics_table(results: dict[str, Any], *, title: str | None = None) ->
     print(format_metrics_table(results, title=title))
 
 
+@dataclass(frozen=True)
+class TestResultEnvelope:
+    """Canonical repository result payload for component verification."""
+
+    component: str
+    category: str
+    purpose: str
+    metrics: dict[str, Any]
+    passed: bool | None = None
+    corner_worst: str | None = None
+    margin: dict[str, Any] | None = None
+    artifacts: dict[str, Any] | None = None
+    spec_name: str | None = None
+    violations: list[str] | None = None
+
+    def as_dict(self) -> dict[str, Any]:
+        payload = {
+            "component": self.component,
+            "category": self.category,
+            "purpose": self.purpose,
+            "metrics": self.metrics,
+        }
+        if self.category != "char":
+            payload["pass"] = bool(self.passed)
+        if self.corner_worst is not None:
+            payload["corner_worst"] = self.corner_worst
+        if self.category in ("contract", "budget"):
+            payload["margin"] = self.margin or {}
+        elif self.margin:
+            payload["margin"] = self.margin
+        if self.artifacts:
+            payload["artifacts"] = self.artifacts
+        if self.spec_name is not None:
+            payload["spec_name"] = self.spec_name
+        if self.violations is not None:
+            payload["violations"] = self.violations
+        return payload
+
+
+def make_test_result(
+    *,
+    component: str,
+    category: str,
+    purpose: str,
+    metrics: dict[str, Any],
+    passed: bool | None = None,
+    corner_worst: str | None = None,
+    margin: dict[str, Any] | None = None,
+    artifacts: dict[str, Any] | None = None,
+    spec_name: str | None = None,
+    violations: list[str] | None = None,
+) -> dict[str, Any]:
+    """Build a canonical JSON-like verification result payload."""
+    return TestResultEnvelope(
+        component=component,
+        category=category,
+        purpose=purpose,
+        metrics=metrics,
+        passed=passed,
+        corner_worst=corner_worst,
+        margin=margin,
+        artifacts=artifacts,
+        spec_name=spec_name,
+        violations=violations,
+    ).as_dict()
+
+
 __all__ = [
     "PDK_ROOT",
     "extract_subckt_name",
     "flatten_metrics",
     "format_metrics_table",
+    "make_test_result",
     "parse_ngspice_scalar",
     "print_metrics_table",
     "require_sky130_install",
