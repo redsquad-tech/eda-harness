@@ -2,3 +2,5 @@ pdks/
 .venv/
 __pycache__/
 output/
+tmp/
+.codex

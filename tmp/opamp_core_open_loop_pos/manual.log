@@ -1,7 +1,0 @@
-
-No compatibility mode selected!
-
-
-Circuit: * `ngspice` sim input for `components.opamp_core.tb`
-
-Note: No ".plot", ".print", or ".fourier" lines; no simulations run
