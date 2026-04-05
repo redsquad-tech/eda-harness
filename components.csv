@@ -1,0 +1,10 @@
+name,description,parameters
+tg_switch,Basic transmission-gate switch built from SKY130 NMOS and PMOS devices,"dev_n,dev_p,w_n,l_n,nf_n,m_n,w_p,l_p,nf_p,m_p,use_dummy_switch,body_tie_style"
+sample_hold_cap,Sampling and hold capacitor built from SKY130 MiM cells,"cap_dev,c_target,unit_w,unit_l,nser,npar,common_centroid"
+nonoverlap_clk,Two-phase non-overlap clock generator built from CMOS gates,"style,t_dead,duty,buf_stages,inv_ratio,trf"
+diffpair_n,NMOS differential pair with optional source degeneration,"dev_in,w_in,l_in,nf_in,m_in,body_tie,use_degeneration,r_deg"
+diffpair_p,PMOS differential pair with optional source degeneration,"dev_in,w_in,l_in,nf_in,m_in,body_tie,use_degeneration,r_deg"
+tail_bias,NMOS tail-current sink with simple or cascoded topology,"style,dev_out,dev_cas,w_out,l_out,nf_out,m_out,w_cas,l_cas,nf_cas,m_cas,i_target"
+current_mirror,Polarity-selectable current mirror with simple and stacked styles,"device_type,style,dev_ref,dev_out,ratio,w_ref,l_ref,nf_ref,m_ref,w_out,l_out,nf_out,m_out"
+active_load,Two-branch active load with mirror diode or cascoded style,"device_type,style,dev_load,ratio,w_load,l_load,nf_load,m_load,cross_coupled"
+cascode_block,Polarity-selectable cascode element with simple and wide-swing styles,"device_type,style,dev_main,dev_cas,w_main,l_main,nf_main,m_main,w_cas,l_cas,nf_cas,m_cas,vcas_target"
