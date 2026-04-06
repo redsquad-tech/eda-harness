@@ -92,10 +92,11 @@ class OutputStageParams:
     l_amp = h.Param(dtype=h.Scalar, desc="Amplifier length in um", default=1.0)
     nf_amp = h.Param(dtype=int, desc="Amplifier fingers", default=1)
     m_amp = h.Param(dtype=int, desc="Amplifier multiplier", default=1)
-    w_load_scale = h.Param(dtype=h.Scalar, desc="Load width scale relative to amplifier", default=3.0)
+    w_load_scale = h.Param(dtype=h.Scalar, desc="Load width scale relative to amplifier", default=2.0)
     l_load = h.Param(dtype=h.Scalar, desc="Load length in um", default=1.0)
     i_bias = h.Param(dtype=h.Scalar, desc="Bias current metadata in A", default=2e-6)
     r_out_target = h.Param(dtype=h.Scalar, desc="Nominal output load in ohm", default=100e3)
+    r_gate_bias = h.Param(dtype=h.Scalar, desc="Gate-bias mixing resistance for bias-aware output stage in ohm", default=100e3)
 
 
 @h.paramclass
@@ -119,8 +120,8 @@ def output_stage(params: OutputStageParams) -> h.Module:
         raise ValueError("w_amp, l_amp, w_load_scale, and l_load must be positive")
     if params.nf_amp < 1 or params.m_amp < 1:
         raise ValueError("nf_amp and m_amp must be >= 1")
-    if params.i_bias <= 0 or params.r_out_target <= 0:
-        raise ValueError("i_bias and r_out_target must be positive")
+    if params.i_bias <= 0 or params.r_out_target <= 0 or params.r_gate_bias <= 0:
+        raise ValueError("i_bias, r_out_target, and r_gate_bias must be positive")
 
     mod = h.Module(name="OutputStage")
     mod.VIN, mod.VOUT, mod.IBIAS, mod.VDD, mod.VSS = h.Ports(5)
@@ -142,9 +143,14 @@ def output_stage(params: OutputStageParams) -> h.Module:
         pmos = _mos_primitive("PMOS_1p8V_STD")
         npar = _mos_params(params.w_amp, params.l_amp, params.nf_amp, params.m_amp)
         ppar = _mos_params(params.w_amp * params.w_load_scale, params.l_load, params.nf_amp, params.m_amp)
+        mod.gp = h.Signal(name="gp")
         # CMOS inverter-like output stage. Both pull-up and pull-down are
-        # signal-driven from VIN, making it suitable as a true drive stage.
-        mod.m_p = pmos(ppar)(d=mod.VOUT, g=mod.VIN, s=mod.VDD, b=mod.VDD)
+        # signal-driven from VIN. The PMOS gate is weakly biased toward IBIAS to
+        # keep the static operating point away from the top rail when the stage is
+        # embedded inside the opamp loop.
+        mod.rgp_sig = h.Res(r=params.r_gate_bias)(p=mod.VIN, n=mod.gp)
+        mod.rgp_bias = h.Res(r=params.r_gate_bias)(p=mod.IBIAS, n=mod.gp)
+        mod.m_p = pmos(ppar)(d=mod.VOUT, g=mod.gp, s=mod.VDD, b=mod.VDD)
         mod.m_n = nmos(npar)(d=mod.VOUT, g=mod.VIN, s=mod.VSS, b=mod.VSS)
     else:
         amp_name = "NMOS_1p8V_STD" if params.device_type == "n" else "PMOS_1p8V_STD"

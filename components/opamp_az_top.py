@@ -106,8 +106,9 @@ class OpampAzTopClosedLoopStepTbParams:
 @h.paramclass
 class OpampAzTopNoiseAndOffsetTbParams:
     vdd = h.Param(dtype=h.Scalar, desc="Supply voltage in V", default=1.8)
-    tstop = h.Param(dtype=h.Scalar, desc="Transient stop time in s", default=8e-6)
-    tstep = h.Param(dtype=h.Scalar, desc="Transient step in s", default=50e-9)
+    period = h.Param(dtype=h.Scalar, desc="AZ clock period in s", default=20e-6)
+    tstop = h.Param(dtype=h.Scalar, desc="Transient stop time in s", default=200e-6)
+    tstep = h.Param(dtype=h.Scalar, desc="Transient step in s", default=100e-9)
 
 
 @h.generator
@@ -119,7 +120,7 @@ def opamp_az_top(params: OpampAzTopParams) -> h.Module:
     mod.VINP, mod.VINN, mod.VOUT, mod.EN, mod.PHI1, mod.PHI2, mod.VDD, mod.VSS = h.Ports(8)
     mod.vxp, mod.vxn = h.Signals(2)
 
-    mod.xfront = frontend_inst(VINP=mod.VINP, VINN=mod.VINN, VXP=mod.vxp, VXN=mod.vxn, PHI1=mod.PHI1, PHI2=mod.PHI2, VDD=mod.VDD, VSS=mod.VSS)
+    mod.xfront = frontend_inst(VINP=mod.VINP, VINN=mod.VINN, VOFF=mod.VOUT, VXP=mod.vxp, VXN=mod.vxn, PHI1=mod.PHI1, PHI2=mod.PHI2, VDD=mod.VDD, VSS=mod.VSS)
     mod.xcore = core_inst(VINP=mod.vxp, VINN=mod.vxn, VOUT=mod.VOUT, EN=mod.EN, VDD=mod.VDD, VSS=mod.VSS)
     return mod
 
@@ -226,15 +227,12 @@ def run_open_loop_test(
         category="char",
         purpose="open_loop",
         metrics={
-            "vout_pos": core_metrics["vout_pos"],
-            "vout_neg": core_metrics["vout_neg"],
-            "gain_est": core_metrics["gain_est"],
             "aol_db": core_metrics["aol_db"],
+            "direct_dc_gain_db": core_metrics["direct_dc_gain_db"],
             "gbw_hz": core_metrics["gbw_hz"],
             "phase_margin_deg": core_metrics["phase_margin_deg"],
             "gain_margin_db": core_metrics["gain_margin_db"],
             "iq_uA": core_metrics["iq_uA"],
-            "core_bias_ratio_est": core_metrics["bias_ratio_est"],
             "ac_fixture_ok": core_metrics["ac_fixture_ok"],
             "measurement_mode": "core_proxy",
         },
@@ -298,7 +296,7 @@ def build_noise_and_offset_test(
     tb_params = tb_params or OpampAzTopNoiseAndOffsetTbParams()
     install = require_sky130_install()
     dut = opamp_az_top(dut_params)
-    period = 2e-6
+    period = float(tb_params.period)
     nonoverlap = 0.1 * period
     phi_width = 0.5 * period - nonoverlap
 
@@ -336,7 +334,7 @@ def build_noise_and_offset_test(
         tb=Tb,
         attrs=[
             Tran(tstop=float(tb_params.tstop), tstep=float(tb_params.tstep)),
-            Save("time, v(xtop.vout), v(xtop.phi2)"),
+            Save("time, v(xtop.vout), v(xtop.phi1), v(xtop.phi2)"),
             install.include(corner),
         ],
     )
@@ -366,14 +364,13 @@ def run_noise_and_offset_test(
     run_stop = int(active_idx[-1])
     residual_offset_uv = 1e6 * abs(float(vout[run_stop]))
     pedestal_uv = 1e6 * abs(float(np.max(vout[run_start : run_stop + 1]) - np.min(vout[run_start : run_stop + 1])))
-    window = max(float(time[run_stop]) - float(time[run_start]), 1e-18)
-    phase_window_utilization = float(time[run_stop] - time[run_start]) / window
+    tail_start = run_start + max((run_stop - run_start) * 3 // 4, 1)
+    settling_residue_uv = 1e6 * abs(float(np.max(vout[tail_start : run_stop + 1]) - np.min(vout[tail_start : run_stop + 1])))
     metrics = {
         "residual_offset_uV": residual_offset_uv,
         "pedestal_uV": pedestal_uv,
-        "settling_residue_uV": residual_offset_uv,
+        "settling_residue_uV": settling_residue_uv,
         "vout_final": float(vout[run_stop]),
-        "phase_window_utilization": phase_window_utilization,
     }
     return make_test_result(
         component="opamp_az_top",

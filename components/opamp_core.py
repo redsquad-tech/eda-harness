@@ -23,7 +23,7 @@ VERIFICATION_PLAN = {
         "category": "structural",
         "test_name": "run_structural_checks",
         "analysis_type": "generator/elaboration/export",
-        "extracted_metrics": ["generator_call", "elaboration", "subckt_name", "contains_bias_gen", "contains_gain_stage", "contains_second_stage", "contains_freq_comp"],
+        "extracted_metrics": ["generator_call", "elaboration", "subckt_name", "contains_bias_gen", "contains_gain_stage", "contains_second_stage", "contains_output_stage", "contains_freq_comp"],
         "pass_fail_rule": "all structural checks pass",
         "required_corners": [],
         "required_operating_conditions": [],
@@ -34,10 +34,55 @@ VERIFICATION_PLAN = {
         "category": "char",
         "test_name": "run_open_loop_test",
         "analysis_type": "Ac/Op",
-        "extracted_metrics": ["aol_db", "gbw_hz", "phase_margin_deg", "gain_margin_db", "iq_uA", "ac_fixture_ok"],
+        "extracted_metrics": [
+            "aol_db",
+            "direct_dc_gain_db",
+            "loop_gain_dc_db",
+            "gbw_hz",
+            "phase_margin_deg",
+            "gain_margin_db",
+            "phase_at_unity_deg_raw",
+            "low_freq_phase_deg_raw",
+            "sign_offset_detected",
+            "iq_uA",
+            "ac_fixture_ok",
+        ],
         "pass_fail_rule": "component exposes measurable loop-break AC and quiescent-current behavior under the nominal fixture",
         "required_corners": ["TT"],
         "required_operating_conditions": ["nominal_load"],
+        "monte_carlo_required": False,
+    },
+    "direct_dc_gain": {
+        "specification_aspect": "direct differential DC gain characterization",
+        "category": "char",
+        "test_name": "run_direct_dc_gain_test",
+        "analysis_type": "Ac/Op",
+        "extracted_metrics": ["vout_dc", "low_freq_vout_mag", "direct_gain_vv", "direct_gain_db", "iq_uA"],
+        "pass_fail_rule": "component exposes measurable small-signal differential gain around the nominal operating point",
+        "required_corners": ["TT"],
+        "required_operating_conditions": ["nominal_load"],
+        "monte_carlo_required": False,
+    },
+    "internal_direct_gain": {
+        "specification_aspect": "direct internal-node DC gain characterization",
+        "category": "char",
+        "test_name": "run_internal_direct_gain_test",
+        "analysis_type": "Ac/Op",
+        "extracted_metrics": ["vdrv_dc", "low_freq_vdrv_mag", "direct_gain_vv", "direct_gain_db"],
+        "pass_fail_rule": "component exposes measurable small-signal differential gain on the internal drive node around the nominal operating point",
+        "required_corners": ["TT"],
+        "required_operating_conditions": ["nominal_load"],
+        "monte_carlo_required": False,
+    },
+    "direct_dc_gain_sweep": {
+        "specification_aspect": "direct differential DC gain vs input amplitude characterization",
+        "category": "char",
+        "test_name": "run_direct_dc_gain_sweep_test",
+        "analysis_type": "Op sweep",
+        "extracted_metrics": ["cases", "best_direct_gain_db", "worst_direct_gain_db"],
+        "pass_fail_rule": "component exposes measurable small-signal differential gain across a representative differential-input sweep",
+        "required_corners": ["TT"],
+        "required_operating_conditions": ["nominal_load", "vdiff sweep"],
         "monte_carlo_required": False,
     },
     "closed_loop_step": {
@@ -60,6 +105,17 @@ VERIFICATION_PLAN = {
         "pass_fail_rule": "characterize nominal internal bias points under the loop-broken DC fixture",
         "required_corners": ["TT"],
         "required_operating_conditions": ["nominal_load"],
+        "monte_carlo_required": False,
+    },
+    "bias_characterization": {
+        "specification_aspect": "bias distribution characterization",
+        "category": "char",
+        "test_name": "run_bias_characterization_test",
+        "analysis_type": "Op",
+        "extracted_metrics": ["bias_ratio_est", "bias_i1_est", "bias_i2_est"],
+        "pass_fail_rule": "characterize nominal mirrored-bias behavior through the dedicated bias-generator fixture",
+        "required_corners": ["TT"],
+        "required_operating_conditions": ["nominal_bias"],
         "monte_carlo_required": False,
     },
     "output_swing": {
@@ -150,8 +206,12 @@ class OpampCoreSpec:
     pins: tuple[str, ...] = ("VINP", "VINN", "VOUT", "EN", "VDD", "VSS")
     measurable_behaviors: tuple[str, ...] = (
         "open_loop",
+        "direct_dc_gain",
+        "internal_direct_gain",
+        "direct_dc_gain_sweep",
         "closed_loop_step",
         "internal_nodes",
+        "bias_characterization",
         "output_swing",
         "output_drive",
         "output_current_limit",
@@ -169,11 +229,10 @@ class OpampCoreSpec:
 class OpampCoreParams:
     gain_stage_params = h.Param(dtype=GainStageParams, desc="First-stage parameters", default=GainStageParams())
     second_stage_params = h.Param(dtype=SecondStageParams, desc="Second-stage parameters", default=SecondStageParams(device_type="p", w_amp=2.0, l_amp=2.0, w_load_scale=2.0, l_load=4.0))
-    use_output_stage = h.Param(dtype=bool, desc="Insert a separate output-drive stage after the gain stages", default=False)
     output_stage_params = h.Param(
         dtype=OutputStageParams,
-        desc="Optional output-stage parameters",
-        default=OutputStageParams(style="push_pull", w_amp=4.0, l_amp=1.0, w_load_scale=3.0, l_load=1.0),
+        desc="Output-stage parameters",
+        default=OutputStageParams(style="push_pull", w_amp=4.0, l_amp=1.0, w_load_scale=2.0, l_load=1.0, r_gate_bias=100e3),
     )
     freq_comp_params = h.Param(
         dtype=FreqCompParams,
@@ -194,6 +253,7 @@ class OpampCoreOpenLoopTbParams:
     r_probe = h.Param(dtype=h.Scalar, desc="Weak output probe resistance in ohm", default=1e12)
     v_cm = h.Param(dtype=h.Scalar, desc="Input common-mode voltage in V", default=0.4)
     v_diff = h.Param(dtype=h.Scalar, desc="Differential AC excitation in V", default=1.0)
+    dc_v_diff = h.Param(dtype=h.Scalar, desc="Differential DC excitation in V for direct-gain characterization", default=100e-6)
     f_start = h.Param(dtype=h.Scalar, desc="AC sweep start frequency in Hz", default=1.0)
     f_stop = h.Param(dtype=h.Scalar, desc="AC sweep stop frequency in Hz", default=1e9)
     npts = h.Param(dtype=int, desc="AC sweep points per decade", default=40)
@@ -237,7 +297,7 @@ class OpampCoreDisabledTbParams:
 def opamp_core(params: OpampCoreParams) -> h.Module:
     gain_stage_inst = gain_stage(params.gain_stage_params)
     second_stage_inst = second_stage(params.second_stage_params)
-    output_stage_inst = output_stage(params.output_stage_params) if params.use_output_stage else None
+    output_stage_inst = output_stage(params.output_stage_params)
     freq_comp_inst = freq_comp(params.freq_comp_params)
     bias_inst = bias_gen(params.bias_gen_params)
 
@@ -247,17 +307,12 @@ def opamp_core(params: OpampCoreParams) -> h.Module:
     mod.ibias1, mod.ibias2 = h.Signals(2)
     mod.vbias2 = h.Signal(name="vbias2")
     mod.vcm = h.Signal(name="vcm")
-    if params.use_output_stage:
-        mod.vdrv = h.Signal(name="vdrv")
+    mod.vdrv = h.Signal(name="vdrv")
 
     mod.xbias = bias_inst(VDD=mod.VDD, VSS=mod.VSS, EN=mod.EN, IBIAS1=mod.ibias1, IBIAS2=mod.ibias2)
-    if params.use_output_stage:
-        # The optional push-pull output stage is inverting. Flip the first-stage
-        # differential sense here so the top-level opamp polarity remains
-        # unchanged at the external pins.
-        mod.xgain = gain_stage_inst(VINP=mod.VINN, VINN=mod.VINP, VX=mod.vx, VREF=mod.vref, IBIAS=mod.ibias1, VDD=mod.VDD, VSS=mod.VSS)
-    else:
-        mod.xgain = gain_stage_inst(VINP=mod.VINP, VINN=mod.VINN, VX=mod.vx, VREF=mod.vref, IBIAS=mod.ibias1, VDD=mod.VDD, VSS=mod.VSS)
+    # The push-pull output stage is inverting. Flip the first-stage differential
+    # sense here so the top-level opamp polarity remains unchanged.
+    mod.xgain = gain_stage_inst(VINP=mod.VINN, VINN=mod.VINP, VX=mod.vx, VREF=mod.vref, IBIAS=mod.ibias1, VDD=mod.VDD, VSS=mod.VSS)
     # Internal common-mode anchor keeps the inter-stage and output nodes out of hard rails.
     mod.rvcm_top = h.Res(r=10e6)(p=mod.VDD, n=mod.vcm)
     mod.rvcm_bot = h.Res(r=10e6)(p=mod.vcm, n=mod.VSS)
@@ -275,14 +330,10 @@ def opamp_core(params: OpampCoreParams) -> h.Module:
     else:
         mod.bias2_ref = sky130_hdl21.primitives.NMOS_1p8V_STD(bias2_ref_par)(d=mod.vbias2, g=mod.vbias2, s=mod.VSS, b=mod.VSS)
     mod.bias2_short = h.Res(r=1e-3)(p=mod.ibias2, n=mod.vbias2)
-    if params.use_output_stage:
-        mod.xsecond = second_stage_inst(VIN=mod.vx, VOUT=mod.vdrv, IBIAS=mod.vbias2, VDD=mod.VDD, VSS=mod.VSS)
-        mod.xout = output_stage_inst(VIN=mod.vdrv, VOUT=mod.VOUT, IBIAS=mod.vbias2, VDD=mod.VDD, VSS=mod.VSS)
-        mod.xcomp = freq_comp_inst(V1=mod.vx, VOUT=mod.vdrv)
-        mod.bleed_vdrv = h.Res(r=1e9)(p=mod.vdrv, n=mod.vcm)
-    else:
-        mod.xsecond = second_stage_inst(VIN=mod.vx, VOUT=mod.VOUT, IBIAS=mod.vbias2, VDD=mod.VDD, VSS=mod.VSS)
-        mod.xcomp = freq_comp_inst(V1=mod.vx, VOUT=mod.VOUT)
+    mod.xsecond = second_stage_inst(VIN=mod.vx, VOUT=mod.vdrv, IBIAS=mod.vbias2, VDD=mod.VDD, VSS=mod.VSS)
+    mod.xout = output_stage_inst(VIN=mod.vdrv, VOUT=mod.VOUT, IBIAS=mod.vbias2, VDD=mod.VDD, VSS=mod.VSS)
+    mod.xcomp = freq_comp_inst(V1=mod.vx, VOUT=mod.vdrv)
+    mod.bleed_vdrv = h.Res(r=1e9)(p=mod.vdrv, n=mod.vcm)
     # Keep floating nodes numerically well-behaved without materially loading the
     # high-impedance gain nodes.
     mod.bleed_vx = h.Res(r=1e9)(p=mod.vx, n=mod.vcm)
@@ -357,6 +408,15 @@ def _extract_ac_trace(result, signal_name: str):
     raise RuntimeError(f"AC trace {signal_name} not found in result keys: {list(ac.data.keys())}")
 
 
+def _extract_ac_trace_suffix(result, suffix: str):
+    ac = result.an[0]
+    target = suffix.lower()
+    for key, data in ac.data.items():
+        if key.lower().endswith(target):
+            return ac.freq, data
+    raise RuntimeError(f"AC trace suffix {suffix} not found in result keys: {list(ac.data.keys())}")
+
+
 def _interp_crossing(x_vals, y_vals, target: float):
     for idx in range(1, len(y_vals)):
         y0 = float(y_vals[idx - 1])
@@ -393,6 +453,21 @@ def _phase_margin_from_unity_phase(phase_deg_at_unity: float) -> float:
     phase = ((phase_deg_at_unity + 180.0) % 360.0) - 180.0
     pm = phase if phase >= 0.0 else 180.0 + phase
     return min(max(pm, 0.0), 180.0)
+
+
+def _negative_feedback_phase_trace(loop_gain: np.ndarray):
+    """Return a loop-gain phase trace referenced to the negative-feedback branch.
+
+    Series-injection benches often report the low-frequency loop phase on the
+    `+180 deg` branch. For PM/ GM extraction we want the continuous branch around
+    `-180 deg`, not a wrapped positive-angle representation.
+    """
+    if len(loop_gain) == 0:
+        return np.asarray([], dtype=float), float("nan")
+    phase_deg = np.unwrap(np.angle(loop_gain)) * 180.0 / math.pi
+    if float(phase_deg[0]) > 90.0:
+        phase_deg = phase_deg - 360.0
+    return phase_deg, float(phase_deg[0])
 
 
 def _build_open_loop_tb(
@@ -517,6 +592,7 @@ def _build_direct_gain_op_tb(
     r_probe: float,
     v_cm: float,
     v_diff: float,
+    save_node: str,
     temp_c: float,
     corner,
 ) -> Sim:
@@ -539,7 +615,119 @@ def _build_direct_gain_op_tb(
         tb=Tb,
         attrs=[
             Op(),
-            Save("i(v.xtop.vvvdd), v(xtop.vout)"),
+            Save(f"i(v.xtop.vvvdd), v(xtop.{save_node})"),
+            h.sim.Literal(f".temp {temp_c}"),
+            install.include(corner),
+        ],
+    )
+
+
+def _build_direct_gain_ac_tb(
+    dut_params: OpampCoreParams,
+    *,
+    vdd: float,
+    c_load: float,
+    r_probe: float,
+    v_cm: float,
+    v_diff: float,
+    save_node: str,
+    temp_c: float,
+    corner,
+) -> Sim:
+    install = require_sky130_install()
+    dut = opamp_core(dut_params)
+
+    @h.module
+    class Tb:
+        VSS = h.Port()
+        vinp_sig, vinn_sig, vout, en, vdd_sig = h.Signals(5)
+        vvdd = h.Vdc(dc=vdd)(p=vdd_sig, n=VSS)
+        ven = h.Vdc(dc=vdd)(p=en, n=VSS)
+        vvinp = h.Vdc(dc=v_cm, ac=0.5 * v_diff)(p=vinp_sig, n=VSS)
+        vvinn = h.Vdc(dc=v_cm, ac=-0.5 * v_diff)(p=vinn_sig, n=VSS)
+        cload = h.Cap(c=c_load)(p=vout, n=VSS)
+        rload = h.Res(r=r_probe)(p=vout, n=VSS)
+        xdut = dut(VINP=vinp_sig, VINN=vinn_sig, VOUT=vout, EN=en, VDD=vdd_sig, VSS=VSS)
+
+    return Sim(
+        tb=Tb,
+        attrs=[
+            Ac(sweep=LogSweep(1.0, 10.0, 2)),
+            Save(f"v(xtop.{save_node})"),
+            h.sim.Literal(f".temp {temp_c}"),
+            install.include(corner),
+        ],
+    )
+
+
+def _build_internal_direct_gain_ac_tb(
+    dut_params: OpampCoreParams,
+    *,
+    vdd: float,
+    c_load: float,
+    r_probe: float,
+    v_cm: float,
+    v_diff: float,
+    temp_c: float,
+    corner,
+) -> Sim:
+    install = require_sky130_install()
+    dut = opamp_core(dut_params)
+
+    @h.module
+    class Tb:
+        VSS = h.Port()
+        vinp_sig, vinn_sig, vout, en, vdd_sig = h.Signals(5)
+        vvdd = h.Vdc(dc=vdd)(p=vdd_sig, n=VSS)
+        ven = h.Vdc(dc=vdd)(p=en, n=VSS)
+        vvinp = h.Vdc(dc=v_cm, ac=0.5 * v_diff)(p=vinp_sig, n=VSS)
+        vvinn = h.Vdc(dc=v_cm, ac=-0.5 * v_diff)(p=vinn_sig, n=VSS)
+        cload = h.Cap(c=c_load)(p=vout, n=VSS)
+        rload = h.Res(r=r_probe)(p=vout, n=VSS)
+        xdut = dut(VINP=vinp_sig, VINN=vinn_sig, VOUT=vout, EN=en, VDD=vdd_sig, VSS=VSS)
+
+    return Sim(
+        tb=Tb,
+        attrs=[
+            Ac(sweep=LogSweep(1.0, 10.0, 2)),
+            Save(SaveMode.ALL),
+            h.sim.Literal(f".temp {temp_c}"),
+            install.include(corner),
+        ],
+    )
+
+
+def _build_internal_direct_gain_op_tb(
+    dut_params: OpampCoreParams,
+    *,
+    vdd: float,
+    c_load: float,
+    r_probe: float,
+    v_cm: float,
+    v_diff: float,
+    temp_c: float,
+    corner,
+) -> Sim:
+    install = require_sky130_install()
+    dut = opamp_core(dut_params)
+
+    @h.module
+    class Tb:
+        VSS = h.Port()
+        vinp_sig, vinn_sig, vout, en, vdd_sig = h.Signals(5)
+        vvdd = h.Vdc(dc=vdd)(p=vdd_sig, n=VSS)
+        ven = h.Vdc(dc=vdd)(p=en, n=VSS)
+        vvinp = h.Vdc(dc=v_cm + 0.5 * v_diff)(p=vinp_sig, n=VSS)
+        vvinn = h.Vdc(dc=v_cm - 0.5 * v_diff)(p=vinn_sig, n=VSS)
+        cload = h.Cap(c=c_load)(p=vout, n=VSS)
+        rload = h.Res(r=r_probe)(p=vout, n=VSS)
+        xdut = dut(VINP=vinp_sig, VINN=vinn_sig, VOUT=vout, EN=en, VDD=vdd_sig, VSS=VSS)
+
+    return Sim(
+        tb=Tb,
+        attrs=[
+            Op(),
+            Save(SaveMode.ALL),
             h.sim.Literal(f".temp {temp_c}"),
             install.include(corner),
         ],
@@ -611,16 +799,175 @@ def build_open_loop_test(
     )
 
 
+def run_direct_dc_gain_test(
+    dut_params: OpampCoreParams | None = None,
+    tb_params: OpampCoreOpenLoopTbParams | None = None,
+    *,
+    corner=h.pdk.Corner.TYP,
+):
+    dut_params = dut_params or OpampCoreParams()
+    tb_params = tb_params or OpampCoreOpenLoopTbParams()
+    ac_result = run_ngspice_sim(
+        _build_direct_gain_ac_tb(
+            dut_params,
+            vdd=float(tb_params.vdd),
+            c_load=float(tb_params.c_load),
+            r_probe=float(tb_params.r_probe),
+            v_cm=float(tb_params.v_cm),
+            v_diff=float(tb_params.dc_v_diff),
+            save_node="vout",
+            temp_c=float(tb_params.temp_c),
+            corner=corner,
+        ),
+        _default_ngspice_options("opamp_core_direct_dc_gain_ac"),
+    )
+    op_result = run_ngspice_sim(
+        _build_direct_gain_op_tb(
+            dut_params,
+            vdd=float(tb_params.vdd),
+            c_load=float(tb_params.c_load),
+            r_probe=float(tb_params.r_probe),
+            v_cm=float(tb_params.v_cm),
+            v_diff=0.0,
+            save_node="vout",
+            temp_c=float(tb_params.temp_c),
+            corner=corner,
+        ),
+        _default_ngspice_options("opamp_core_direct_dc_gain_bias"),
+    )
+    _, vout_amp = _extract_ac_trace(ac_result, "v(xtop.vout)")
+    low_freq_vout = complex(np.asarray(vout_amp)[0])
+    direct_gain_vv = abs(low_freq_vout) / max(abs(float(tb_params.dc_v_diff)), 1e-18)
+    direct_gain_db = 20.0 * math.log10(max(direct_gain_vv, 1e-30))
+    iq_abs = abs(_op_scalar(op_result, "i(v.xtop.vvvdd)"))
+    return make_test_result(
+        component="opamp_core",
+        category="char",
+        purpose="direct_dc_gain",
+        metrics={
+            "vout_dc": _op_scalar(op_result, "v(xtop.vout)"),
+            "low_freq_vout_mag": abs(low_freq_vout),
+            "direct_gain_vv": direct_gain_vv,
+            "direct_gain_db": direct_gain_db,
+            "iq_uA": 1e6 * iq_abs,
+        },
+    )
+
+
+def run_internal_direct_gain_test(
+    dut_params: OpampCoreParams | None = None,
+    tb_params: OpampCoreOpenLoopTbParams | None = None,
+    *,
+    corner=h.pdk.Corner.TYP,
+):
+    dut_params = dut_params or OpampCoreParams()
+    tb_params = tb_params or OpampCoreOpenLoopTbParams()
+    ac_result = run_ngspice_sim(
+        _build_internal_direct_gain_ac_tb(
+            dut_params,
+            vdd=float(tb_params.vdd),
+            c_load=float(tb_params.c_load),
+            r_probe=float(tb_params.r_probe),
+            v_cm=float(tb_params.v_cm),
+            v_diff=float(tb_params.dc_v_diff),
+            temp_c=float(tb_params.temp_c),
+            corner=corner,
+        ),
+        _default_ngspice_options("opamp_core_internal_direct_gain_ac"),
+    )
+    op_result = run_ngspice_sim(
+        _build_internal_direct_gain_op_tb(
+            dut_params,
+            vdd=float(tb_params.vdd),
+            c_load=float(tb_params.c_load),
+            r_probe=float(tb_params.r_probe),
+            v_cm=float(tb_params.v_cm),
+            v_diff=0.0,
+            temp_c=float(tb_params.temp_c),
+            corner=corner,
+        ),
+        _default_ngspice_options("opamp_core_internal_direct_gain_bias"),
+    )
+    _, vdrv_amp = _extract_ac_trace_suffix(ac_result, ".vdrv)")
+    low_freq_vdrv = complex(np.asarray(vdrv_amp)[0])
+    direct_gain_vv = abs(low_freq_vdrv) / max(abs(float(tb_params.dc_v_diff)), 1e-18)
+    direct_gain_db = 20.0 * math.log10(max(direct_gain_vv, 1e-30))
+    return make_test_result(
+        component="opamp_core",
+        category="char",
+        purpose="internal_direct_gain",
+        metrics={
+            "vdrv_dc": _op_scalar_suffix(op_result, ".vdrv)"),
+            "low_freq_vdrv_mag": abs(low_freq_vdrv),
+            "direct_gain_vv": direct_gain_vv,
+            "direct_gain_db": direct_gain_db,
+        },
+    )
+
+
+def run_direct_dc_gain_sweep_test(
+    dut_params: OpampCoreParams | None = None,
+    tb_params: OpampCoreOpenLoopTbParams | None = None,
+    *,
+    corner=h.pdk.Corner.TYP,
+    vdiff_values: tuple[float, ...] = (1e-3, 1e-4, 1e-5),
+):
+    dut_params = dut_params or OpampCoreParams()
+    base_tb = tb_params or OpampCoreOpenLoopTbParams()
+    cases = []
+    for vdiff in vdiff_values:
+        case_tb = OpampCoreOpenLoopTbParams(
+            vdd=base_tb.vdd,
+            c_load=base_tb.c_load,
+            r_probe=base_tb.r_probe,
+            v_cm=base_tb.v_cm,
+            v_diff=base_tb.v_diff,
+            dc_v_diff=vdiff,
+            f_start=base_tb.f_start,
+            f_stop=base_tb.f_stop,
+            npts=base_tb.npts,
+            temp_c=base_tb.temp_c,
+        )
+        out_gain = run_direct_dc_gain_test(dut_params, case_tb, corner=corner)
+        drv_gain = run_internal_direct_gain_test(dut_params, case_tb, corner=corner)
+        cases.append(
+            {
+                "v_diff": float(vdiff),
+                "vout_direct_gain_db": float(out_gain["metrics"]["direct_gain_db"]),
+                "vout_direct_gain_vv": float(out_gain["metrics"]["direct_gain_vv"]),
+                "vdrv_direct_gain_db": float(drv_gain["metrics"]["direct_gain_db"]),
+                "vdrv_direct_gain_vv": float(drv_gain["metrics"]["direct_gain_vv"]),
+            }
+        )
+    vout_gains = [case["vout_direct_gain_db"] for case in cases]
+    vdrv_gains = [case["vdrv_direct_gain_db"] for case in cases]
+    return make_test_result(
+        component="opamp_core",
+        category="char",
+        purpose="direct_dc_gain_sweep",
+        metrics={
+            "cases": cases,
+            "best_direct_gain_db": max(vout_gains),
+            "worst_direct_gain_db": min(vout_gains),
+            "best_internal_direct_gain_db": max(vdrv_gains),
+            "worst_internal_direct_gain_db": min(vdrv_gains),
+        },
+    )
+
+
 def run_open_loop_test(
     dut_params: OpampCoreParams | None = None,
     tb_params: OpampCoreOpenLoopTbParams | None = None,
     *,
     corner=h.pdk.Corner.TYP,
     sim_options: SimOptions | None = None,
+    include_bias_char: bool = False,
 ):
     dut_params = dut_params or OpampCoreParams()
     tb_params = tb_params or OpampCoreOpenLoopTbParams()
     ac_failed = False
+    phase_at_unity_deg_raw = float("nan")
+    low_freq_phase_deg_raw = float("nan")
     try:
         ac_result = run_ngspice_sim(
             _build_open_loop_tb(
@@ -652,23 +999,32 @@ def run_open_loop_test(
         ),
         _default_ngspice_options("opamp_core_open_loop_bias"),
     )
+    direct_gain = run_direct_dc_gain_test(dut_params, tb_params, corner=corner)
+    direct_gain_est = float(direct_gain["metrics"]["direct_gain_vv"])
+    direct_dc_gain_db = float(direct_gain["metrics"]["direct_gain_db"])
     if not ac_failed:
         freq, vout_amp = _extract_ac_trace(ac_result, "v(xtop.vout)")
         _, vfb = _extract_ac_trace(ac_result, "v(xtop.vinn_sig)")
         freq = np.asarray(freq, dtype=float)
         vout_amp = np.asarray(vout_amp)
         vfb = np.asarray(vfb)
-        loop_gain = vout_amp / np.where(np.abs(vfb) > 1e-30, vfb, 1e-30 + 0j)
+        vtest_amp = vout_amp - vfb
+        # Series-injection return-ratio estimate:
+        # T ~= -Vtest / Vreturn, where Vreturn is the signal on the feedback side
+        # of the break and Vtest is the injected AC voltage across the break.
+        loop_gain = -vtest_amp / np.where(np.abs(vfb) > 1e-30, vfb, 1e-30 + 0j)
         mag = np.abs(loop_gain)
         mag_db = 20.0 * np.log10(np.maximum(mag, 1e-30))
-        phase_deg = np.unwrap(np.angle(loop_gain)) * 180.0 / math.pi
-        aol_db = float(mag_db[0]) if len(mag_db) else float("nan")
+        phase_deg, low_freq_phase_deg_raw = _negative_feedback_phase_trace(loop_gain)
+        loop_gain_dc_db = float(mag_db[0]) if len(mag_db) else float("nan")
+        aol_db = direct_dc_gain_db
         gbw_hz, _ = _interp_crossing(freq, mag, 1.0)
         phase_margin_deg = float("nan")
         if math.isfinite(gbw_hz):
             phase_at_unity = _interp_value(freq, phase_deg, gbw_hz)
             if math.isfinite(phase_at_unity):
-                phase_margin_deg = _phase_margin_from_unity_phase(phase_at_unity)
+                phase_at_unity_deg_raw = phase_at_unity
+                phase_margin_deg = 180.0 + phase_at_unity
         phase_cross_hz, _ = _interp_crossing(freq, phase_deg, -180.0)
         gain_margin_db = float("nan")
         if math.isfinite(phase_cross_hz):
@@ -677,72 +1033,67 @@ def run_open_loop_test(
                 gain_margin_db = -mag_db_at_phase_cross
         elif len(phase_deg) and float(np.min(phase_deg)) > -180.0:
             gain_margin_db = float("inf")
-        vout_pos = float(np.real(vout_amp[0])) if len(vout_amp) else float("nan")
-        vout_neg = float(np.real(vfb[0])) if len(vfb) else float("nan")
-        gain_est = float(mag[0]) if len(mag) else float("nan")
+        gain_est = direct_gain_est
     else:
-        pos_op = run_ngspice_sim(
-            _build_direct_gain_op_tb(
-                dut_params,
-                vdd=float(tb_params.vdd),
-                c_load=float(tb_params.c_load),
-                r_probe=float(tb_params.r_probe),
-                v_cm=float(tb_params.v_cm),
-                v_diff=float(tb_params.v_diff),
-                temp_c=float(tb_params.temp_c),
-                corner=corner,
-            ),
-            _default_ngspice_options("opamp_core_open_loop_fallback_pos"),
-        )
-        neg_op = run_ngspice_sim(
-            _build_direct_gain_op_tb(
-                dut_params,
-                vdd=float(tb_params.vdd),
-                c_load=float(tb_params.c_load),
-                r_probe=float(tb_params.r_probe),
-                v_cm=float(tb_params.v_cm),
-                v_diff=-float(tb_params.v_diff),
-                temp_c=float(tb_params.temp_c),
-                corner=corner,
-            ),
-            _default_ngspice_options("opamp_core_open_loop_fallback_neg"),
-        )
-        vout_pos = _op_scalar(pos_op, "v(xtop.vout)")
-        vout_neg = _op_scalar(neg_op, "v(xtop.vout)")
-        gain_est = abs((vout_pos - vout_neg) / max(float(tb_params.v_diff), 1e-18))
-        aol_db = 20.0 * math.log10(max(gain_est, 1e-30))
+        gain_est = direct_gain_est
+        aol_db = direct_dc_gain_db
+        loop_gain_dc_db = float("nan")
         gbw_hz = float("nan")
         phase_margin_deg = float("nan")
         gain_margin_db = float("nan")
     iq_abs = abs(_op_scalar(op_result, "i(v.xtop.vvvdd)"))
-    try:
-        bias = run_current_accuracy_test(dut_params.bias_gen_params, corner=corner)
-        bias_metrics = bias["metrics"]
-    except Exception:
-        bias_metrics = {
-            "ratio_est": float("nan"),
-            "i_ibias1_est": float("nan"),
-            "i_ibias2_est": float("nan"),
-        }
     metrics = {
-        "vout_pos": vout_pos,
-        "vout_neg": vout_neg,
         "gain_est": gain_est,
         "aol_db": aol_db,
+        "direct_dc_gain_db": direct_dc_gain_db,
+        "loop_gain_dc_db": loop_gain_dc_db,
         "gbw_hz": gbw_hz,
         "phase_margin_deg": phase_margin_deg,
         "gain_margin_db": gain_margin_db,
+        "phase_at_unity_deg_raw": phase_at_unity_deg_raw,
+        "low_freq_phase_deg_raw": low_freq_phase_deg_raw,
+        "sign_offset_detected": False,
         "iq_uA": 1e6 * iq_abs,
-        "bias_ratio_est": bias_metrics["ratio_est"],
-        "bias_i1_est": bias_metrics["i_ibias1_est"],
-        "bias_i2_est": bias_metrics["i_ibias2_est"],
         "ac_fixture_ok": not ac_failed,
     }
+    if include_bias_char:
+        try:
+            bias = run_current_accuracy_test(dut_params.bias_gen_params, corner=corner)
+            bias_metrics = bias["metrics"]
+        except Exception:
+            bias_metrics = {
+                "ratio_est": float("nan"),
+                "i_ibias1_est": float("nan"),
+                "i_ibias2_est": float("nan"),
+            }
+        metrics["bias_ratio_est"] = bias_metrics["ratio_est"]
+        metrics["bias_i1_est"] = bias_metrics["i_ibias1_est"]
+        metrics["bias_i2_est"] = bias_metrics["i_ibias2_est"]
     return make_test_result(
         component="opamp_core",
         category="char",
         purpose="open_loop",
         metrics=metrics,
+    )
+
+
+def run_bias_characterization_test(
+    dut_params: OpampCoreParams | None = None,
+    *,
+    corner=h.pdk.Corner.TYP,
+):
+    dut_params = dut_params or OpampCoreParams()
+    result = run_current_accuracy_test(dut_params.bias_gen_params, corner=corner)
+    metrics = result["metrics"]
+    return make_test_result(
+        component="opamp_core",
+        category="char",
+        purpose="bias_characterization",
+        metrics={
+            "bias_ratio_est": metrics["ratio_est"],
+            "bias_i1_est": metrics["i_ibias1_est"],
+            "bias_i2_est": metrics["i_ibias2_est"],
+        },
     )
 
 
@@ -1175,6 +1526,7 @@ def run_area_estimate(dut_params: OpampCoreParams | None = None):
     bias = dut_params.bias_gen_params
     gain = dut_params.gain_stage_params
     second = dut_params.second_stage_params
+    output = dut_params.output_stage_params
     comp = dut_params.freq_comp_params
 
     bias_area = (
@@ -1190,11 +1542,15 @@ def run_area_estimate(dut_params: OpampCoreParams | None = None):
         mos_area(second.w_amp, second.l_amp, second.nf_amp, second.m_amp)
         + mos_area(second.w_amp * second.w_load_scale, second.l_load, second.nf_amp, second.m_amp)
     )
+    output_area = (
+        mos_area(output.w_amp, output.l_amp, output.nf_amp, output.m_amp)
+        + mos_area(output.w_amp * output.w_load_scale, output.l_load, output.nf_amp, output.m_amp)
+    )
     bias2_ref_area = mos_area(second.w_amp, second.l_amp, second.nf_amp, second.m_amp)
-    total_device_count = 3 + 4 + 2 + 1
+    total_device_count = 3 + 4 + 2 + 2 + 1
     if gain.load_style == "cascoded":
         total_device_count += 2
-    transistor_area_um2 = bias_area + gain_area + second_area + bias2_ref_area
+    transistor_area_um2 = bias_area + gain_area + second_area + output_area + bias2_ref_area
     return make_test_result(
         component="opamp_core",
         category="char",
@@ -1221,10 +1577,73 @@ def run_all_tests(
             metrics=run_structural_checks(dut_params),
             passed=True,
         ),
+        "direct_dc_gain": run_direct_dc_gain_test(dut_params),
         "open_loop": run_open_loop_test(dut_params, sim_options=sim_options),
+        "bias_characterization": run_bias_characterization_test(dut_params),
         "internal_nodes": run_internal_nodes_test(dut_params, sim_options=sim_options),
         "closed_loop_step": run_closed_loop_step_test(dut_params, sim_options=sim_options),
         "area_estimate": run_area_estimate(dut_params),
+    }
+
+
+def run_fast_checks(
+    dut_params: OpampCoreParams | None = None,
+    *,
+    sim_options: SimOptions | None = None,
+):
+    dut_params = dut_params or OpampCoreParams()
+    open_loop_tb = OpampCoreOpenLoopTbParams(
+        vdd=1.8,
+        c_load=1e-12,
+        r_probe=1e12,
+        v_cm=0.4,
+        v_diff=1.0,
+        dc_v_diff=100e-6,
+        f_start=10.0,
+        f_stop=1e8,
+        npts=20,
+        temp_c=27.0,
+    )
+    step_tb = OpampCoreClosedLoopStepTbParams(
+        vdd=1.8,
+        c_load=1e-12,
+        v_step=10e-3,
+        tstop=5e-6,
+        tstep=100e-9,
+        temp_c=27.0,
+    )
+    follower_tb = OpampCoreFollowerTbParams(
+        vdd=1.8,
+        c_load=1e-12,
+        r_probe=1e12,
+        vout_low_target=0.1,
+        vout_high_target=1.7,
+        vout_mid_target=0.9,
+        drive_current_uA=25.0,
+        drive_sweep_stop_uA=25.0,
+        drive_sweep_step_uA=5.0,
+        temp_c=27.0,
+    )
+    disabled_tb = OpampCoreDisabledTbParams(
+        vdd=1.8,
+        c_load=1e-12,
+        r_probe=1e12,
+        v_cm=0.4,
+        temp_c=27.0,
+    )
+    return {
+        "structural": make_test_result(
+            component="opamp_core",
+            category="smoke",
+            purpose="fast_structural",
+            metrics=run_structural_checks(dut_params),
+            passed=True,
+        ),
+        "direct_dc_gain": run_direct_dc_gain_test(dut_params, open_loop_tb),
+        "open_loop": run_open_loop_test(dut_params, open_loop_tb, sim_options=sim_options),
+        "closed_loop_step": run_closed_loop_step_test(dut_params, step_tb, sim_options=sim_options),
+        "output_drive": run_output_drive_test(dut_params, follower_tb),
+        "disabled_leakage": run_disabled_leakage_test(dut_params, disabled_tb),
     }
 
 
@@ -1271,6 +1690,7 @@ def run_structural_checks(params: OpampCoreParams | None = None):
         "contains_bias_gen": "BiasGen" in text,
         "contains_gain_stage": "GainStage" in text,
         "contains_second_stage": "SecondStage" in text,
+        "contains_output_stage": "OutputStage" in text,
         "contains_freq_comp": "FreqComp" in text,
     }
     if not all(checks.values()):
