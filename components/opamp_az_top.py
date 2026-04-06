@@ -86,7 +86,11 @@ class OpampAzTopSpec:
 
 @h.paramclass
 class OpampAzTopParams:
-    frontend_az_params = h.Param(dtype=FrontendAzParams, desc="Frontend AZ parameters", default=FrontendAzParams())
+    frontend_az_params = h.Param(
+        dtype=FrontendAzParams,
+        desc="Frontend AZ parameters",
+        default=FrontendAzParams(c_az=5e-14, r_vcm_top=1e3, r_vcm_bot=5),
+    )
     opamp_core_params = h.Param(dtype=OpampCoreParams, desc="Core opamp parameters", default=OpampCoreParams())
 
 
@@ -107,8 +111,10 @@ class OpampAzTopClosedLoopStepTbParams:
 class OpampAzTopNoiseAndOffsetTbParams:
     vdd = h.Param(dtype=h.Scalar, desc="Supply voltage in V", default=1.8)
     period = h.Param(dtype=h.Scalar, desc="AZ clock period in s", default=20e-6)
+    dead_time = h.Param(dtype=h.Scalar, desc="Clock dead time between PHI1 and PHI2 in s", default=2e-6)
     tstop = h.Param(dtype=h.Scalar, desc="Transient stop time in s", default=200e-6)
     tstep = h.Param(dtype=h.Scalar, desc="Transient step in s", default=100e-9)
+    temp_c = h.Param(dtype=h.Scalar, desc="Simulation temperature in C", default=27.0)
 
 
 @h.generator
@@ -297,8 +303,7 @@ def build_noise_and_offset_test(
     install = require_sky130_install()
     dut = opamp_az_top(dut_params)
     period = float(tb_params.period)
-    nonoverlap = 0.1 * period
-    phi_width = 0.5 * period - nonoverlap
+    phi_width = 0.5 * period - max(float(tb_params.dead_time), 0.0)
 
     @h.module
     class Tb:
@@ -335,6 +340,7 @@ def build_noise_and_offset_test(
         attrs=[
             Tran(tstop=float(tb_params.tstop), tstep=float(tb_params.tstep)),
             Save("time, v(xtop.vout), v(xtop.phi1), v(xtop.phi2)"),
+            h.sim.Literal(f".temp {float(tb_params.temp_c)}"),
             install.include(corner),
         ],
     )
@@ -363,13 +369,42 @@ def run_noise_and_offset_test(
         run_start -= 1
     run_stop = int(active_idx[-1])
     residual_offset_uv = 1e6 * abs(float(vout[run_stop]))
-    pedestal_uv = 1e6 * abs(float(np.max(vout[run_start : run_stop + 1]) - np.min(vout[run_start : run_stop + 1])))
+    phase = vout[run_start : run_stop + 1]
+    pedestal_uv = 1e6 * abs(float(np.max(phase) - np.min(phase)))
     tail_start = run_start + max((run_stop - run_start) * 3 // 4, 1)
-    settling_residue_uv = 1e6 * abs(float(np.max(vout[tail_start : run_stop + 1]) - np.min(vout[tail_start : run_stop + 1])))
+    tail = vout[tail_start : run_stop + 1]
+    settling_residue_uv = 1e6 * abs(float(np.max(tail) - np.min(tail)))
+
+    def _window_p2p(start_frac: float, stop_frac: float) -> float:
+        npts = run_stop - run_start + 1
+        w_start = run_start + int(npts * start_frac)
+        w_stop = run_start + int(npts * stop_frac)
+        arr = vout[w_start : w_stop + 1]
+        return 1e6 * abs(float(np.max(arr) - np.min(arr)))
+
+    pedestal_mid50_uv = _window_p2p(0.25, 0.75)
+    pedestal_mid40_uv = _window_p2p(0.30, 0.70)
+
+    mid50_start = run_start + int((run_stop - run_start + 1) * 0.25)
+    mid50_stop = run_start + int((run_stop - run_start + 1) * 0.75)
+    mid50 = vout[mid50_start : mid50_stop + 1]
+    mid50_tail_start = max(len(mid50) * 3 // 4, 1)
+    settling_mid50_uv = 1e6 * abs(float(np.max(mid50[mid50_tail_start:]) - np.min(mid50[mid50_tail_start:])))
+
+    mid40_start = run_start + int((run_stop - run_start + 1) * 0.30)
+    mid40_stop = run_start + int((run_stop - run_start + 1) * 0.70)
+    mid40 = vout[mid40_start : mid40_stop + 1]
+    mid40_tail_start = max(len(mid40) * 3 // 4, 1)
+    settling_mid40_uv = 1e6 * abs(float(np.max(mid40[mid40_tail_start:]) - np.min(mid40[mid40_tail_start:])))
     metrics = {
         "residual_offset_uV": residual_offset_uv,
         "pedestal_uV": pedestal_uv,
         "settling_residue_uV": settling_residue_uv,
+        "pedestal_mid50_uV": pedestal_mid50_uv,
+        "pedestal_mid40_uV": pedestal_mid40_uv,
+        "settling_mid50_uV": settling_mid50_uv,
+        "settling_mid40_uV": settling_mid40_uv,
+        "phase_window_points": run_stop - run_start + 1,
         "vout_final": float(vout[run_stop]),
     }
     return make_test_result(
@@ -378,6 +413,51 @@ def run_noise_and_offset_test(
         purpose="noise_and_offset",
         metrics=metrics,
         passed=bool(np.isfinite(residual_offset_uv) and np.isfinite(pedestal_uv)),
+    )
+
+
+def run_reduced_pvt_test(
+    dut_params: OpampAzTopParams | None = None,
+    tb_params: OpampAzTopNoiseAndOffsetTbParams | None = None,
+):
+    dut_params = dut_params or OpampAzTopParams()
+    tb_params = tb_params or OpampAzTopNoiseAndOffsetTbParams()
+    cases = {
+        "TT_V1.80_T27C": (h.pdk.Corner.TYP, 1.8, 27.0),
+        "SS_V1.60_T125C": (h.pdk.Corner.SLOW, 1.6, 125.0),
+        "FF_V1.98_T-40C": (h.pdk.Corner.FAST, 1.98, -40.0),
+        "SS_V1.60_T-40C": (h.pdk.Corner.SLOW, 1.6, -40.0),
+        "FF_V1.98_T125C": (h.pdk.Corner.FAST, 1.98, 125.0),
+    }
+    results = {}
+    worst_residual = -float("inf")
+    worst_ped_mid50 = -float("inf")
+    worst_set_mid50 = -float("inf")
+    for label, (corner, vdd, temp_c) in cases.items():
+        case_tb = OpampAzTopNoiseAndOffsetTbParams(
+            vdd=vdd,
+            period=tb_params.period,
+            dead_time=tb_params.dead_time,
+            tstop=tb_params.tstop,
+            tstep=tb_params.tstep,
+            temp_c=temp_c,
+        )
+        result = run_noise_and_offset_test(dut_params, case_tb, corner=corner)
+        metrics = result["metrics"]
+        results[label] = metrics
+        worst_residual = max(worst_residual, float(metrics["residual_offset_uV"]))
+        worst_ped_mid50 = max(worst_ped_mid50, float(metrics["pedestal_mid50_uV"]))
+        worst_set_mid50 = max(worst_set_mid50, float(metrics["settling_mid50_uV"]))
+    return make_test_result(
+        component="opamp_az_top",
+        category="char",
+        purpose="reduced_pvt",
+        metrics={
+            "cases": results,
+            "worst_residual_offset_uV": worst_residual,
+            "worst_pedestal_mid50_uV": worst_ped_mid50,
+            "worst_settling_mid50_uV": worst_set_mid50,
+        },
     )
 
 

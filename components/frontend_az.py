@@ -72,12 +72,18 @@ class FrontendAzParams:
     use_dummy_switch = h.Param(dtype=bool, desc="Add dummy TG devices", default=False)
     r_vcm_top = h.Param(dtype=h.Scalar, desc="Top resistor for sampled output-error attenuator in ohm", default=1e3)
     r_vcm_bot = h.Param(dtype=h.Scalar, desc="Bottom resistor for sampled output-error attenuator in ohm", default=1e6)
+    r_out_p = h.Param(dtype=h.Scalar, desc="Series resistor from SC non-inverting node to core input in ohm", default=1.0)
+    r_out_n = h.Param(dtype=h.Scalar, desc="Series resistor from SC inverting node to core input in ohm", default=1.0)
+    c_out_p = h.Param(dtype=h.Scalar, desc="Optional shunt capacitor on core-facing non-inverting input in F", default=0.0)
+    c_out_n = h.Param(dtype=h.Scalar, desc="Optional shunt capacitor on core-facing inverting input in F", default=0.0)
+    c_corr_n_scale = h.Param(dtype=h.Scalar, desc="Fractional mirrored correction capacitor on the inverting path", default=0.0)
 
 
 @h.paramclass
 class FrontendAzPedestalZeroInputTbParams:
     vdd = h.Param(dtype=h.Scalar, desc="Supply voltage in V", default=1.8)
     period = h.Param(dtype=h.Scalar, desc="Clock period in s", default=20e-6)
+    dead_time = h.Param(dtype=h.Scalar, desc="Clock dead time between PHI1 and PHI2 in s", default=2e-6)
     tstop = h.Param(dtype=h.Scalar, desc="Transient stop time in s", default=120e-6)
     tstep = h.Param(dtype=h.Scalar, desc="Transient step in s", default=100e-9)
 
@@ -87,6 +93,7 @@ class FrontendAzSettlingInPhaseWindowTbParams:
     vdd = h.Param(dtype=h.Scalar, desc="Supply voltage in V", default=1.8)
     c_load = h.Param(dtype=h.Scalar, desc="Observation capacitance in F", default=100e-15)
     period = h.Param(dtype=h.Scalar, desc="Clock period in s", default=20e-6)
+    dead_time = h.Param(dtype=h.Scalar, desc="Clock dead time between PHI1 and PHI2 in s", default=2e-6)
     tstop = h.Param(dtype=h.Scalar, desc="Transient stop time in s", default=120e-6)
     tstep = h.Param(dtype=h.Scalar, desc="Transient step in s", default=100e-9)
 
@@ -99,6 +106,11 @@ def frontend_az(params: FrontendAzParams) -> h.Module:
     l_sw = float(params.l_sw)
     r_vcm_top = float(params.r_vcm_top)
     r_vcm_bot = float(params.r_vcm_bot)
+    r_out_p = float(params.r_out_p)
+    r_out_n = float(params.r_out_n)
+    c_out_p = float(params.c_out_p)
+    c_out_n = float(params.c_out_n)
+    c_corr_n_scale = float(params.c_corr_n_scale)
 
     if c_az <= 0:
         raise ValueError("c_az must be positive")
@@ -108,6 +120,12 @@ def frontend_az(params: FrontendAzParams) -> h.Module:
         raise ValueError("nf_sw and m_sw must be >= 1")
     if r_vcm_top <= 0 or r_vcm_bot <= 0:
         raise ValueError("r_vcm_top and r_vcm_bot must be positive")
+    if r_out_p <= 0 or r_out_n <= 0:
+        raise ValueError("r_out_p and r_out_n must be positive")
+    if c_out_p < 0 or c_out_n < 0:
+        raise ValueError("c_out_p and c_out_n must be >= 0")
+    if c_corr_n_scale < 0:
+        raise ValueError("c_corr_n_scale must be >= 0")
 
     tg_params = TgSwitchParams(
         w_n=params.w_sw_n,
@@ -127,7 +145,7 @@ def frontend_az(params: FrontendAzParams) -> h.Module:
 
     mod = h.Module(name="FrontendAz")
     mod.VINP, mod.VINN, mod.VOFF, mod.VXP, mod.VXN, mod.PHI1, mod.PHI2, mod.VDD, mod.VSS = h.Ports(9)
-    mod.samp_p, mod.voff_sense = h.Signals(2)
+    mod.samp_p, mod.samp_n, mod.voff_sense, mod.vxp_sc, mod.vxn_sc = h.Signals(5)
 
     mod.rvoff_top = h.Res(r=params.r_vcm_top)(p=mod.VOFF, n=mod.voff_sense)
     mod.rvoff_bot = h.Res(r=params.r_vcm_bot)(p=mod.voff_sense, n=mod.VSS)
@@ -136,17 +154,28 @@ def frontend_az(params: FrontendAzParams) -> h.Module:
     # the core-facing non-inverting node is reset near ground. During amplify,
     # reconnect the left plate to VINP, which applies VINP - VOFF(sampled) to VXP.
     mod.xsw_err_sample = tg(A=mod.voff_sense, B=mod.samp_p, PHI=mod.PHI1, PHIB=mod.PHI2, VDD=mod.VDD, VSS=mod.VSS)
-    mod.xsw_vxp_reset = tg(A=mod.VSS, B=mod.VXP, PHI=mod.PHI1, PHIB=mod.PHI2, VDD=mod.VDD, VSS=mod.VSS)
+    mod.xsw_vxp_reset = tg(A=mod.VSS, B=mod.vxp_sc, PHI=mod.PHI1, PHIB=mod.PHI2, VDD=mod.VDD, VSS=mod.VSS)
     mod.xsw_vxp_apply = tg(A=mod.VINP, B=mod.samp_p, PHI=mod.PHI2, PHIB=mod.PHI1, VDD=mod.VDD, VSS=mod.VSS)
-    mod.xcap_p_phys = cap(P=mod.samp_p, N=mod.VXP)
-    mod.xcap_p = h.Cap(c=params.c_az)(p=mod.samp_p, n=mod.VXP)
+    mod.xcap_p_phys = cap(P=mod.samp_p, N=mod.vxp_sc)
+    mod.xcap_p = h.Cap(c=params.c_az)(p=mod.samp_p, n=mod.vxp_sc)
+    mod.rout_p = h.Res(r=params.r_out_p)(p=mod.vxp_sc, n=mod.VXP)
+    if c_out_p > 0:
+        mod.cout_p = h.Cap(c=params.c_out_p)(p=mod.VXP, n=mod.VSS)
 
     # Keep the inverting path simple and predictable: reset during sample_zero,
     # then transparently pass the external VINN signal during amplify.
-    mod.xsw_vxn_reset = tg(A=mod.VSS, B=mod.VXN, PHI=mod.PHI1, PHIB=mod.PHI2, VDD=mod.VDD, VSS=mod.VSS)
-    mod.xsw_vxn_track = tg(A=mod.VINN, B=mod.VXN, PHI=mod.PHI2, PHIB=mod.PHI1, VDD=mod.VDD, VSS=mod.VSS)
-    mod.xcap_n_phys = cap(P=mod.VXN, N=mod.VSS)
-    mod.xcap_n = h.Cap(c=max(0.25 * params.c_az, 1e-15))(p=mod.VXN, n=mod.VSS)
+    mod.xsw_vxn_reset = tg(A=mod.VSS, B=mod.vxn_sc, PHI=mod.PHI1, PHIB=mod.PHI2, VDD=mod.VDD, VSS=mod.VSS)
+    mod.xsw_vxn_track = tg(A=mod.VINN, B=mod.vxn_sc, PHI=mod.PHI2, PHIB=mod.PHI1, VDD=mod.VDD, VSS=mod.VSS)
+    mod.xcap_n_phys = cap(P=mod.vxn_sc, N=mod.VSS)
+    mod.xcap_n = h.Cap(c=max(0.5 * params.c_az, 1e-15))(p=mod.vxn_sc, n=mod.VSS)
+    if c_corr_n_scale > 0:
+        mod.xsw_err_sample_n = tg(A=mod.voff_sense, B=mod.samp_n, PHI=mod.PHI1, PHIB=mod.PHI2, VDD=mod.VDD, VSS=mod.VSS)
+        mod.xsw_vxn_apply_corr = tg(A=mod.VINN, B=mod.samp_n, PHI=mod.PHI2, PHIB=mod.PHI1, VDD=mod.VDD, VSS=mod.VSS)
+        mod.xcap_corr_n_phys = cap(P=mod.samp_n, N=mod.vxn_sc)
+        mod.xcap_corr_n = h.Cap(c=max(c_corr_n_scale * params.c_az, 1e-15))(p=mod.samp_n, n=mod.vxn_sc)
+    mod.rout_n = h.Res(r=params.r_out_n)(p=mod.vxn_sc, n=mod.VXN)
+    if c_out_n > 0:
+        mod.cout_n = h.Cap(c=params.c_out_n)(p=mod.VXN, n=mod.VSS)
 
     # Very weak bleeders keep nodes numerically bounded while preserving the
     # sampled correction over a single phase window.
@@ -192,6 +221,7 @@ def _build_tran_tb(
     voff_dc: float,
     c_load: float,
     period: float,
+    dead_time: float,
     tstop: float,
     tstep: float,
     corner,
@@ -199,8 +229,7 @@ def _build_tran_tb(
     if corner != h.pdk.Corner.TYP:
         raise ValueError(f"frontend_az transient tests currently support only TT, got {corner}")
     dut = frontend_az(dut_params)
-    nonoverlap = 0.1 * period
-    phi_width = 0.5 * period - nonoverlap
+    phi_width = 0.5 * period - max(dead_time, 0.0)
 
     @h.module
     class Tb:
@@ -268,6 +297,7 @@ def build_pedestal_zero_input_test(
         voff_dc=0.0,
         c_load=float(dut_params.c_az),
         period=float(tb_params.period),
+        dead_time=float(tb_params.dead_time),
         tstop=float(tb_params.tstop),
         tstep=float(tb_params.tstep),
         corner=corner,
@@ -326,6 +356,7 @@ def build_settling_in_phase_window_test(
         voff_dc=0.0,
         c_load=float(tb_params.c_load),
         period=float(tb_params.period),
+        dead_time=float(tb_params.dead_time),
         tstop=float(tb_params.tstop),
         tstep=float(tb_params.tstep),
         corner=corner,
@@ -361,6 +392,21 @@ def run_settling_in_phase_window_test(
     final_mean = float(np.mean(tail))
     residue = float(np.max(tail) - np.min(tail))
     residue_uv = 1e6 * abs(residue)
+
+    npts = run_stop - run_start + 1
+    mid50_start = run_start + int(npts * 0.25)
+    mid50_stop = run_start + int(npts * 0.75)
+    mid50 = vdiff[mid50_start : mid50_stop + 1]
+    residue_mid50_uv = 1e6 * abs(float(np.max(mid50) - np.min(mid50)))
+    mid50_tail_start = max(len(mid50) * 3 // 4, 1)
+    residue_mid50_tail_uv = 1e6 * abs(float(np.max(mid50[mid50_tail_start:]) - np.min(mid50[mid50_tail_start:])))
+
+    mid40_start = run_start + int(npts * 0.30)
+    mid40_stop = run_start + int(npts * 0.70)
+    mid40 = vdiff[mid40_start : mid40_stop + 1]
+    residue_mid40_uv = 1e6 * abs(float(np.max(mid40) - np.min(mid40)))
+    mid40_tail_start = max(len(mid40) * 3 // 4, 1)
+    residue_mid40_tail_uv = 1e6 * abs(float(np.max(mid40[mid40_tail_start:]) - np.min(mid40[mid40_tail_start:])))
     settle_tol = max(30e-6, 0.01 * max(abs(final_mean), 1e-6))
     settle_idx = next(
         (idx for idx in range(run_start, run_stop + 1) if abs(float(vdiff[idx]) - final_mean) <= settle_tol),
@@ -373,6 +419,10 @@ def run_settling_in_phase_window_test(
         phase_window_utilization = (float(time[settle_idx]) - float(time[run_start])) / window
     metrics = {
         "settling_residue_uV": residue_uv,
+        "settling_mid50_uV": residue_mid50_uv,
+        "settling_mid40_uV": residue_mid40_uv,
+        "settling_mid50_tail_uV": residue_mid50_tail_uv,
+        "settling_mid40_tail_uV": residue_mid40_tail_uv,
         "phase_window_utilization": phase_window_utilization,
         "target_vdiff": final_mean,
         "vdiff_final": float(vdiff[run_stop]),

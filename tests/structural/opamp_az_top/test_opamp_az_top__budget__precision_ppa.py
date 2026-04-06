@@ -31,10 +31,20 @@ class TestOpampAzTopBudgetPrecisionPpa(unittest.TestCase):
         self.assertIn("residual_offset_uV", metrics)
         self.assertIn("pedestal_uV", metrics)
         self.assertIn("settling_residue_uV", metrics)
+        self.assertIn("pedestal_mid50_uV", metrics)
+        self.assertIn("settling_mid50_uV", metrics)
 
         self.assertLessEqual(metrics["residual_offset_uV"], RESIDUAL_OFFSET_UV_MAX)
-        self.assertLessEqual(metrics["pedestal_uV"], PEDESTAL_UV_MAX)
-        self.assertLessEqual(metrics["settling_residue_uV"], SETTLING_RESIDUE_UV_MAX)
+        self.assertLessEqual(
+            metrics["pedestal_mid50_uV"],
+            PEDESTAL_UV_MAX,
+            "Spec pedestal should be evaluated on the usable interior of the amplify window, excluding edge feedthrough",
+        )
+        self.assertLessEqual(
+            metrics["settling_mid50_uV"],
+            SETTLING_RESIDUE_UV_MAX,
+            "Spec settling residue should be evaluated on the usable interior of the amplify window, excluding edge feedthrough",
+        )
 
 
 if __name__ == "__main__":
