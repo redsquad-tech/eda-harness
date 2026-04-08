@@ -1,224 +1,359 @@
-# Opamp AZ Tracking
+# Opamp Experiment Ledger
 
-## Scope
+## Goal
 
-Трекер текущего состояния разработки ОУ с auto-zero в `sky130`.
+This file is the compact experiment memory for the `sky130` opamp work.
 
-Цель:
-- держать в одном месте актуальные метрики
-- не повторять уже проверенные тупиковые эксперименты
-- фиксировать реальные блокеры перед tape-out
+Use it to:
+- track good and bad hypotheses with metrics
+- avoid repeating dead branches
+- keep the current active baseline explicit
+
+Keep entries short:
+- `Hypothesis`
+- `Change`
+- `Result`
+- `Decision`
 
 ## Current Status
 
-### High-Level Summary
+Two tracks exist:
 
-- `opamp_core` на новой архитектуре собран и выглядит рабочим на nominal.
-- `opamp_az_top` на `TT nominal` проходит top-level budget по исправленной методике измерения.
-- Главный blocker сейчас не nominal, а сильная чувствительность `AZ` к corner conditions.
-- До tape-out ещё далеко: нет `MC`, нет `PEX`, нет layout/post-layout signoff.
+1. Baseline `AZ` product track
+- nominal `AZ` precision works
+- reduced-PVT `AZ` precision still fails badly, especially hot/fast pedestal and settling
+- not tapeout-ready
 
-### Current Architecture
+2. `v3` static-core track
+- shutdown leakage is now essentially solved
+- enabled-core closure is still open
+- current main blocker: worst-corner stability
 
-`opamp_core`:
-- `gain_stage -> second_stage -> output_stage`
+## Active `v3` Baseline
 
-`opamp_az_top`:
-- `frontend_az -> opamp_core`
+Current promoted default in `opamp/v3/opamp_core.py`:
+- helper-link isolation in shutdown enabled
+- `w_tail = 4.0 um`
+- `r_stage1_bias = 2.5e6 ohm`
+- `l_in = 3.0 um`
 
-## Current Metrics
+Current measured metrics:
 
-### Opamp Core Nominal
+Nominal `TT / 1.8 V / 27 C`
+- direct gain `≈ 62.68 dB`
+- `IQ ≈ 27.79 uA`
+- `VOUT_low ≈ 0.1146 V`
+- disabled leakage `≈ 0.97 nA`
+- raw offset `≈ 1044 uV`
 
-Источник:
-- `components/opamp_core.py`
-- `tests/structural/opamp_core/*`
+Hard corner `SS / 1.6 V / 125 C`
+- `AOL ≈ 60.43 dB`
+- `GBW ≈ 230.7 kHz`
+- `PM ≈ 36.71 deg`
+- `GM ≈ -22.73 dB`
+- `IQ ≈ 20.96 uA`
 
-| Metric | Target | Current | Status |
-|---|---:|---:|---|
-| Open-loop gain | `>= 75 dB` | `89.74 dB` | OK |
-| GBW @ 1 pF | `500 kHz ... 1 MHz` | `941.7 kHz` | OK |
-| Phase margin @ 1 pF | `>= 30 deg` | `107.7 deg` | OK |
-| Gain margin | `>= 5 dB` | `inf` | OK |
-| Quiescent current | `<= 15 uA` | `9.77 uA` | OK |
-| Output swing low | `<= 0.1 V` | `0.100257 V` | borderline |
-| Output swing high | `>= 1.7 V` | budget test passes | OK |
-| Output current | `>= ±25 uA` | budget/ char tests pass | OK |
-| Disabled leakage | `<= 15 nA` | budget test passes | OK |
+Interpretation:
+- shutdown: closed
+- nominal gain/current: improved but still not at target
+- low-side swing: still misses
+- raw offset: still requires `AZ`
+- worst-corner stability: main blocker
 
-### AZ Top-Level Nominal
+## Current Priorities
 
-Источник:
-- `components/opamp_az_top.py`
-- `tests/structural/opamp_az_top/test_opamp_az_top__budget__precision_ppa.py`
+1. Fix worst-corner `GM` and loop robustness.
+2. Improve nominal `AOL / IQ` further.
+3. Recover low-side swing.
+4. Only then revisit broader PVT/ MC and full `AZ` integration for `v3`.
 
-Важно:
-- product-level `pedestal` и `settling` сейчас считаются по usable interior window `PHI2`, а не по всей фазе вместе с edge feedthrough
+## Baseline `AZ` Track
 
-| Metric | Target | Current | Status |
-|---|---:|---:|---|
-| Residual offset after AZ | `<= 150 uV` | `2.09 uV` | OK |
-| Pedestal, whole PHI2 | debug only | `69.59 uV` | info |
-| Pedestal, `mid50` window | `<= 50 uV` | `31.67 uV` | OK |
-| Settling residue, whole PHI2 | debug only | `69.59 uV` | info |
-| Settling residue, `mid50` window | `<= 30 uV` | `12.31 uV` | OK |
+### Current Best Known Baseline `AZ` Point
 
-### AZ Top-Level Reduced PVT
+Default:
+- `FrontendAzParams(c_az=70 fF, r_vcm_top=8e2, r_vcm_bot=5)`
 
-Источник:
-- `components/opamp_az_top.py: run_reduced_pvt_test`
-- `tests/structural/opamp_az_top/test_opamp_az_top__char__reduced_pvt.py`
+Nominal `TT`
+- residual offset `≈ 7.91 uV`
+- pedestal `mid50 ≈ 23.56 uV`
+- settling `mid50 ≈ 7.70 uV`
 
-| Case | Residual Offset, uV | Pedestal Mid50, uV | Settling Mid50, uV | Status |
-|---|---:|---:|---:|---|
-| `TT 1.80V 27C` | `2.09` | `31.67` | `12.31` | good |
-| `SS 1.60V 125C` | `913.74` | `397.12` | `121.71` | fail |
-| `FF 1.98V -40C` | `2198.80` | `1081.54` | `263.26` | fail |
-| `SS 1.60V -40C` | `82.26` | `3.75` | `1.11` | good |
-| `FF 1.98V 125C` | `3284.53` | `369.05` | `15.35` | fail |
+Reduced PVT
+- `SS / 1.6 V / -40 C`: acceptable
+- `SS / 1.6 V / 125 C`: fails
+- `FF / 1.98 V / -40 C`: fails
+- `FF / 1.98 V / 125 C`: fails badly
 
-Worst reduced-PVT:
-- `worst_residual_offset_uV = 3284.53`
-- `worst_pedestal_mid50_uV = 1081.54`
-- `worst_settling_mid50_uV = 263.26`
+Conclusion:
+- nominal `AZ` is good
+- reduced-PVT `AZ` is still not signoff-ready
 
-## What We Learned
+### Baseline `AZ` Hypothesis Ledger
 
-### 1. Core Was Not the Main Blocker
+#### Promoted
 
-После пересборки `opamp_core` и правки benches выяснилось:
-- core на nominal выглядит достаточно сильным
-- drive удалось поднять после перехода на `output_stage`
-- текущий главный blocker сидит не в `core`, а в `AZ`-части на corners
+1. `PHI3` must carry the live signal path
+- Hypothesis:
+  - `PHI3` should be the real signal-transfer phase, not only a measurement window
+- Change:
+  - moved live `VINP`/ `VINN` signal transfer into `PHI3`
+- Result:
+  - nominal residual offset improved `≈ 131.5 uV -> 7.91 uV`
+  - worst reduced-PVT residual offset improved `≈ 16326 uV -> 2675 uV`
+- Decision:
+  - keep
 
-### 2. Some Earlier Red Results Were Measurement Artifacts
+2. Interior-window (`mid50`) metrics are the correct product metrics
+- Hypothesis:
+  - full-window metrics were over-counting switching feedthrough
+- Change:
+  - moved `AZ` product evaluation to interior-window measurement
+- Result:
+  - nominal product metrics became honest and stable
+- Decision:
+  - keep
 
-Было подтверждено:
-- часть старых `open_loop / PM / GM` метрик была искажена bench-методикой
-- часть старых `AZ pedestal / settling` метрик считала edge feedthrough как полезную amplify-phase ошибку
+#### Rejected
 
-Из-за этого были внесены правки:
-- `opamp_core` gain и loop metrics разведены
-- `opamp_az_top` budget переведён на interior-window measurement
-- standalone `frontend_az` test переведён в characterization, а не product-budget
+1. Simple three-phase split alone fixes corner sensitivity
+- Result:
+  - nominal improved
+  - reduced-PVT became worse in `FF`
+- Decision:
+  - do not repeat without topology change
 
-### 3. Current Two-Phase AZ Is Too Corner-Sensitive
+2. Mirrored correction on `VXN`
+- Result:
+  - worsened pedestal and settling
+  - even very weak variants broke nominal behavior
+- Decision:
+  - dead branch
 
-На `TT nominal` всё хорошо.
-На reduced PVT `AZ` разваливается.
+3. Floating or isolated `hold -> apply` path on `VXP`
+- Result:
+  - nominal collapsed
+  - `FF` corners became catastrophic
+- Decision:
+  - dead branch
 
-Вывод:
-- текущая sampled correction topology работает как demonstration of concept
-- но не даёт достаточной robustness для signoff
+4. Separate correction path plus direct live `VINP` path
+- Result:
+  - better than some dead branches
+  - still unacceptable hot-`FF` pedestal
+- Decision:
+  - not enough by itself
 
-## Experiments Already Tried
+5. Small `R/C` retuning
+- Result:
+  - no robust closure
+- Decision:
+  - do not spend more time here without a topology change
 
-### Experiments That Helped
+## `v3` Core Track
 
-1. Новый `opamp_core` path:
-- `gain_stage -> second_stage -> output_stage`
+### `v3` Core Design Rules
 
-2. Bias-aware `output_stage`
-- помог восстановить полезный gain и drive на core
+Keep:
+- PMOS-input first stage
+- explicit `VX` and `VDRV` nodes
+- non-inverting output path
+- sampled-data `AZ` separate from the static core
 
-3. Ослабленный correction path в `frontend_az`
-- лучший nominal кандидат:
-  - `c_az = 50 fF`
-  - `r_vcm_top = 1e3`
-  - `r_vcm_bot = 5`
+Do not repeat:
+- clamp-only shutdown tuning
+- direct PMOS input-gate forcing without isolation
+- scalar `r_stage2_bias` tuning as the main lever
+- `r_gp` tuning as the main lever
+- pure helper-strength sweeps as a substitute for output-path redesign
 
-4. Перевод top-level AZ budget на interior window
-- показал, что реальное useful-window поведение лучше, чем whole-phase p2p
+## `v3` Hypothesis Ledger
 
-### Experiments That Did Not Help
+### Promoted
 
-1. Простая RC-развязка между SC-node и `VXP/VXN`
-- ухудшала offset
-- не закрывала pedestal/residue
+1. Split-tail first stage plus isolated internal input gates helps shutdown
+- Hypothesis:
+  - shutdown must be structural, not just stronger clamps
+- Change:
+  - split first-stage tail
+  - isolate internal gates with TGs
+  - clamp only the internal gates in shutdown
+- Result:
+  - worst disable corner improved from catastrophic-clamp regimes to `≈ 1977.6 nA`
+- Decision:
+  - keep as the structural basis
 
-2. Mirrored correction на `VXN`
-- быстро ухудшала `pedestal` и `settling`
+2. Shutdown current is not in the first-stage tail path
+- Hypothesis:
+  - remaining leakage may still come from the first stage
+- Change:
+  - added debug current probes to shutdown diagnostics
+- Result:
+  - at `FF / 1.98 V / -40 C`:
+    - total disable current `≈ 16037.8 nA`
+    - tail current `≈ 0.0008 nA`
+    - `VX` current `≈ 0.0025 nA`
+    - `VREF` current `≈ 0.0025 nA`
+    - `VDRV` current `≈ -16037.7 nA`
+- Decision:
+  - stop first-stage shutdown work
 
-3. Reset входов core в внутренний `VCM`
-- ломал offset на порядки
+3. The real shutdown path is `m_gp_off -> r_gp -> vdrv -> m_stage2_off`
+- Hypothesis:
+  - the `VDRV` path still hides the true leakage root cause
+- Change:
+  - split `VDRV` current into:
+    - stage-2 PMOS load
+    - stage-2 NMOS
+    - stage-2 off clamp
+    - direct `VDRV -> VOUT`
+    - helper-gate link
+- Result:
+  - baseline `FF / 1.98 V / -40 C`:
+    - `i_probe_stage2_off_nA ≈ -16037.7`
+    - `i_probe_vdrv_gp_nA ≈ -16037.5`
+    - `i_probe_vdrv_out_nA ≈ -0.21`
+    - other stage-2 currents negligible
+- Decision:
+  - root cause confirmed
 
-4. Short `VXP/VXN` during `PHI1`
-- ухудшал `pedestal`
+4. Helper-link isolation in shutdown closes disable leakage
+- Hypothesis:
+  - an `EN`-controlled series switch in the helper gate-link will break the clamp fight
+- Change:
+  - added `isolate_gp_link_in_shutdown`
+- Result:
+  - `FF / 1.98 V / -40 C` disabled leakage:
+    - `≈ 16037.8 nA -> 0.54 nA`
+  - nominal direct gain stayed `≈ 58.58 dB`
+  - nominal `IQ` stayed `≈ 40.60 uA`
+  - nominal `VOUT_low` stayed `≈ 0.1149 V`
+- Decision:
+  - promoted to default
 
-5. Delayed short correction pulse inside `PHI2`
-- сильно ухудшал residual offset
+5. Lighter first-stage bias is the best first `AOL / IQ` lever
+- Hypothesis:
+  - first-stage current is too strong for the gain being delivered
+- Change:
+  - `w_tail = 4.0 um`
+  - `r_stage1_bias = 2.5e6 ohm`
+- Result:
+  - versus shutdown-fixed baseline:
+    - direct gain `≈ 58.58 dB -> 62.04 dB`
+    - `IQ ≈ 40.60 uA -> 28.23 uA`
+    - low swing slightly worse: `≈ 0.1149 V -> 0.1161 V`
+- Decision:
+  - promoted
 
-6. Простое уменьшение dead-time
-- ломало offset
+6. Adding longer PMOS input pair on top of lighter bias is the best balanced next step
+- Hypothesis:
+  - slightly longer PMOS input devices will improve gain-per-current without reopening shutdown
+- Change:
+  - promoted combo:
+    - `w_tail = 4.0 um`
+    - `r_stage1_bias = 2.5e6 ohm`
+    - `l_in = 3.0 um`
+- Result:
+  - versus lighter-bias baseline:
+    - direct gain `≈ 62.04 dB -> 62.68 dB`
+    - `IQ ≈ 28.23 uA -> 27.79 uA`
+    - `VOUT_low ≈ 0.1161 V -> 0.1146 V`
+    - shutdown still `≈ 0.54 ... 0.97 nA`
+- Decision:
+  - promoted to current default baseline
 
-7. Простое увеличение `c_az`
-- не давало достаточного выигрыша
+### Rejected Or Not Promoted
 
-## Current Best Known Nominal AZ Point
+1. Weaker or longer tail switch alone
+- Hypothesis:
+  - weaker tail switch may reduce shutdown current
+- Result:
+  - solver-hostile
+- Decision:
+  - do not repeat
 
-В `opamp_az_top` по умолчанию сейчас стоит:
-- `FrontendAzParams(c_az=5e-14, r_vcm_top=1e3, r_vcm_bot=5)`
+2. Stacked tail switch
+- Hypothesis:
+  - stacked PMOS tail switch may reduce residual off-state conduction
+- Result:
+  - `tail1_dc` moved
+  - disabled leakage stayed `≈ 16037.8 nA`
+- Decision:
+  - dead branch
 
-Это лучший найденный nominal balance для текущей topology.
+3. Lower `r_stage2_bias`
+- Hypothesis:
+  - more stage-2 PMOS bias current may help
+- Result:
+  - entered slow/ solver-hostile regime
+  - no clean improvement
+- Decision:
+  - do not repeat as a primary lever
 
-## What Is Missing Before Tape-Out
+4. `r_gp` as a tuning lever
+- Hypothesis:
+  - helper-gate coupling may be a lightweight knob
+- Result:
+  - too sensitive and slow
+- Decision:
+  - not a productive primary axis
 
-### Must-Have
+5. Longer first-stage NMOS mirror load on the current `v3` baseline
+- Result:
+  - direct gain `≈ 58.58 dB -> 58.38 dB`
+  - `IQ ≈ 40.60 uA -> 47.10 uA`
+- Decision:
+  - reject
 
-1. Починить corner sensitivity у `AZ`
-- это главный blocker
+6. Smaller stage-2 NMOS as a standalone step
+- Result:
+  - direct gain `≈ 58.58 dB -> 58.72 dB`
+  - `IQ ≈ 40.60 uA -> 36.06 uA`
+  - `VOUT_low ≈ 0.1149 V -> 0.1293 V`
+- Decision:
+  - reject as a balanced baseline
 
-2. Full top-level PVT
-- после стабилизации topology
+7. Lighter bias + longer input + longer load
+- Result:
+  - weaker than the simpler `B5` point
+- Decision:
+  - reject
 
-3. Monte Carlo
-- residual offset
-- pedestal
-- settling
-- startup robustness
+### Side Branch Worth Keeping In Mind
 
-4. Layout / post-layout cycle
-- layout
-- DRC
-- LVS
-- PEX
-- post-layout sims
+1. Lighter bias + longer input + smaller stage-2 NMOS
+- Result:
+  - direct gain `≈ 68.14 dB`
+  - `IQ ≈ 25.05 uA`
+  - `VOUT_low ≈ 0.1291 V`
+- Decision:
+  - do not promote now
+  - keep only as an aggressive high-gain side branch if low-side swing can later be recovered
 
-### Nice-to-Have But Not Immediate
+## Summary Of What Not To Repeat
 
-- более явная separation между debug metrics и signoff metrics
-- cleaner reporting around `mid50` / `mid40`
+Do not repeat on the `v3` core:
+- stronger local shutdown clamps
+- first-stage output-node shutdown clamps
+- direct PMOS input-gate forcing without isolation
+- tail-switch stacking as a shutdown fix
+- lower `r_stage2_bias` as the main lever
+- `r_gp` scalar tuning as the main lever
+- pure helper-strength sweeps as a substitute for output-path redesign
 
-## Recommended Next Steps
+Do not repeat on the baseline `AZ` track:
+- mirrored `VXN` correction
+- floating `PHI3` signal path
+- simple `hold -> apply` split without live `PHI3` input
+- small `R/C` retuning without a topology change
 
-### Next Schematics Step
+## Next Step
 
-Не крутить дальше мелкие `R/C`.
+Keep the current `v3` default baseline and focus on:
+- worst-corner stability first
+- then remaining `AOL / IQ / VOUT_low` closure
 
-Следующий реальный шаг:
-- перепроектировать `frontend_az` в более robust topology
-
-Наиболее вероятные направления:
-1. ввести явную третью фазу:
-   - `PHI1 = sample_zero`
-   - `PHI2 = correction_apply`
-   - `PHI3 = signal_settle`
-2. или перейти на более классическую SC auto-zero topology вокруг входной пары core
-
-### Next Verification Step
-
-После новой `frontend_az` topology:
-1. прогнать nominal top-level budget
-2. прогнать reduced PVT
-3. если reduced PVT стал приемлемым, запускать:
-   - full PVT
-   - MC
-   - layout / PEX
-
-## Practical Note
-
-На сегодня корректное утверждение такое:
-
-- `TT nominal`: устройство выглядит рабочим
-- `reduced PVT`: устройство ещё не готово
-- tape-out readiness: нет
+Most likely next branch:
+- preserve the current default
+- improve low-side swing and bad-corner `GM`
+- do not reopen the shutdown path
