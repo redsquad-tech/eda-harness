@@ -54,7 +54,7 @@ class FrontendAzSpec:
     name: str = "frontend_az"
     purpose: str = "Sample and apply an offset-correction term to the non-inverting input during auto-zero operation."
     component_class: str = "reusable block"
-    pins: tuple[str, ...] = ("VINP", "VINN", "VOFF", "VXP", "VXN", "PHI1", "PHI2", "VDD", "VSS")
+    pins: tuple[str, ...] = ("VINP", "VINN", "VOFF", "VXP", "VXN", "PHI1", "PHI1B", "PHI2", "PHI2B", "PHI3", "PHI3B", "VDD", "VSS")
     measurable_behaviors: tuple[str, ...] = ("pedestal_zero_input", "settling_in_phase_window")
     numeric_pass_fail_criteria: tuple[str, ...] = ("generic transient contract only; product budgets belong in external budget tests",)
     required_corners: tuple[str, ...] = ("TT",)
@@ -84,6 +84,9 @@ class FrontendAzPedestalZeroInputTbParams:
     vdd = h.Param(dtype=h.Scalar, desc="Supply voltage in V", default=1.8)
     period = h.Param(dtype=h.Scalar, desc="Clock period in s", default=20e-6)
     dead_time = h.Param(dtype=h.Scalar, desc="Clock dead time between PHI1 and PHI2 in s", default=2e-6)
+    phi1_share = h.Param(dtype=h.Scalar, desc="Fraction of active time allocated to sample_zero", default=0.4)
+    phi2_share = h.Param(dtype=h.Scalar, desc="Fraction of active time allocated to correction_apply", default=0.2)
+    phi3_share = h.Param(dtype=h.Scalar, desc="Fraction of active time allocated to settle", default=0.4)
     tstop = h.Param(dtype=h.Scalar, desc="Transient stop time in s", default=120e-6)
     tstep = h.Param(dtype=h.Scalar, desc="Transient step in s", default=100e-9)
 
@@ -94,6 +97,9 @@ class FrontendAzSettlingInPhaseWindowTbParams:
     c_load = h.Param(dtype=h.Scalar, desc="Observation capacitance in F", default=100e-15)
     period = h.Param(dtype=h.Scalar, desc="Clock period in s", default=20e-6)
     dead_time = h.Param(dtype=h.Scalar, desc="Clock dead time between PHI1 and PHI2 in s", default=2e-6)
+    phi1_share = h.Param(dtype=h.Scalar, desc="Fraction of active time allocated to sample_zero", default=0.4)
+    phi2_share = h.Param(dtype=h.Scalar, desc="Fraction of active time allocated to correction_apply", default=0.2)
+    phi3_share = h.Param(dtype=h.Scalar, desc="Fraction of active time allocated to settle", default=0.4)
     tstop = h.Param(dtype=h.Scalar, desc="Transient stop time in s", default=120e-6)
     tstep = h.Param(dtype=h.Scalar, desc="Transient step in s", default=100e-9)
 
@@ -144,18 +150,19 @@ def frontend_az(params: FrontendAzParams) -> h.Module:
     cap = sample_hold_cap(cap_params)
 
     mod = h.Module(name="FrontendAz")
-    mod.VINP, mod.VINN, mod.VOFF, mod.VXP, mod.VXN, mod.PHI1, mod.PHI2, mod.VDD, mod.VSS = h.Ports(9)
+    mod.VINP, mod.VINN, mod.VOFF, mod.VXP, mod.VXN, mod.PHI1, mod.PHI1B, mod.PHI2, mod.PHI2B, mod.PHI3, mod.PHI3B, mod.VDD, mod.VSS = h.Ports(13)
     mod.samp_p, mod.samp_n, mod.voff_sense, mod.vxp_sc, mod.vxn_sc = h.Signals(5)
 
     mod.rvoff_top = h.Res(r=params.r_vcm_top)(p=mod.VOFF, n=mod.voff_sense)
     mod.rvoff_bot = h.Res(r=params.r_vcm_bot)(p=mod.voff_sense, n=mod.VSS)
 
     # During sample_zero, store the present output error on the left plate while
-    # the core-facing non-inverting node is reset near ground. During amplify,
-    # reconnect the left plate to VINP, which applies VINP - VOFF(sampled) to VXP.
-    mod.xsw_err_sample = tg(A=mod.voff_sense, B=mod.samp_p, PHI=mod.PHI1, PHIB=mod.PHI2, VDD=mod.VDD, VSS=mod.VSS)
-    mod.xsw_vxp_reset = tg(A=mod.VSS, B=mod.vxp_sc, PHI=mod.PHI1, PHIB=mod.PHI2, VDD=mod.VDD, VSS=mod.VSS)
-    mod.xsw_vxp_apply = tg(A=mod.VINP, B=mod.samp_p, PHI=mod.PHI2, PHIB=mod.PHI1, VDD=mod.VDD, VSS=mod.VSS)
+    # the core-facing non-inverting node is reset near ground. During settle,
+    # reconnect the left plate to VINP so the core sees VINP - VOFF(sampled)
+    # on a live signal path instead of on a floating held node.
+    mod.xsw_err_sample = tg(A=mod.voff_sense, B=mod.samp_p, PHI=mod.PHI1, PHIB=mod.PHI1B, VDD=mod.VDD, VSS=mod.VSS)
+    mod.xsw_vxp_reset = tg(A=mod.VSS, B=mod.vxp_sc, PHI=mod.PHI1, PHIB=mod.PHI1B, VDD=mod.VDD, VSS=mod.VSS)
+    mod.xsw_vxp_apply = tg(A=mod.VINP, B=mod.samp_p, PHI=mod.PHI3, PHIB=mod.PHI3B, VDD=mod.VDD, VSS=mod.VSS)
     mod.xcap_p_phys = cap(P=mod.samp_p, N=mod.vxp_sc)
     mod.xcap_p = h.Cap(c=params.c_az)(p=mod.samp_p, n=mod.vxp_sc)
     mod.rout_p = h.Res(r=params.r_out_p)(p=mod.vxp_sc, n=mod.VXP)
@@ -163,14 +170,14 @@ def frontend_az(params: FrontendAzParams) -> h.Module:
         mod.cout_p = h.Cap(c=params.c_out_p)(p=mod.VXP, n=mod.VSS)
 
     # Keep the inverting path simple and predictable: reset during sample_zero,
-    # then transparently pass the external VINN signal during amplify.
-    mod.xsw_vxn_reset = tg(A=mod.VSS, B=mod.vxn_sc, PHI=mod.PHI1, PHIB=mod.PHI2, VDD=mod.VDD, VSS=mod.VSS)
-    mod.xsw_vxn_track = tg(A=mod.VINN, B=mod.vxn_sc, PHI=mod.PHI2, PHIB=mod.PHI1, VDD=mod.VDD, VSS=mod.VSS)
+    # then transparently pass the external VINN signal during settle.
+    mod.xsw_vxn_reset = tg(A=mod.VSS, B=mod.vxn_sc, PHI=mod.PHI1, PHIB=mod.PHI1B, VDD=mod.VDD, VSS=mod.VSS)
+    mod.xsw_vxn_track = tg(A=mod.VINN, B=mod.vxn_sc, PHI=mod.PHI3, PHIB=mod.PHI3B, VDD=mod.VDD, VSS=mod.VSS)
     mod.xcap_n_phys = cap(P=mod.vxn_sc, N=mod.VSS)
     mod.xcap_n = h.Cap(c=max(0.5 * params.c_az, 1e-15))(p=mod.vxn_sc, n=mod.VSS)
     if c_corr_n_scale > 0:
-        mod.xsw_err_sample_n = tg(A=mod.voff_sense, B=mod.samp_n, PHI=mod.PHI1, PHIB=mod.PHI2, VDD=mod.VDD, VSS=mod.VSS)
-        mod.xsw_vxn_apply_corr = tg(A=mod.VINN, B=mod.samp_n, PHI=mod.PHI2, PHIB=mod.PHI1, VDD=mod.VDD, VSS=mod.VSS)
+        mod.xsw_err_sample_n = tg(A=mod.voff_sense, B=mod.samp_n, PHI=mod.PHI1, PHIB=mod.PHI1B, VDD=mod.VDD, VSS=mod.VSS)
+        mod.xsw_vxn_apply_corr = tg(A=mod.VINN, B=mod.samp_n, PHI=mod.PHI3, PHIB=mod.PHI3B, VDD=mod.VDD, VSS=mod.VSS)
         mod.xcap_corr_n_phys = cap(P=mod.samp_n, N=mod.vxn_sc)
         mod.xcap_corr_n = h.Cap(c=max(c_corr_n_scale * params.c_az, 1e-15))(p=mod.samp_n, n=mod.vxn_sc)
     mod.rout_n = h.Res(r=params.r_out_n)(p=mod.vxn_sc, n=mod.VXN)
@@ -224,17 +231,31 @@ def _build_tran_tb(
     dead_time: float,
     tstop: float,
     tstep: float,
+    phi1_share: float,
+    phi2_share: float,
+    phi3_share: float,
     corner,
 ) -> Sim:
     if corner != h.pdk.Corner.TYP:
         raise ValueError(f"frontend_az transient tests currently support only TT, got {corner}")
     dut = frontend_az(dut_params)
-    phi_width = 0.5 * period - max(dead_time, 0.0)
+    dead_time = max(dead_time, 0.0)
+    active_time = period - 3.0 * dead_time
+    share_sum = phi1_share + phi2_share + phi3_share
+    if active_time <= 0:
+        raise ValueError("period must be greater than 3 * dead_time for three-phase AZ timing")
+    if min(phi1_share, phi2_share, phi3_share) <= 0 or share_sum <= 0:
+        raise ValueError("phase shares must be positive for three-phase AZ timing")
+    phi1_width = active_time * phi1_share / share_sum
+    phi2_width = active_time * phi2_share / share_sum
+    phi3_width = active_time * phi3_share / share_sum
+    phi2_delay = phi1_width + dead_time
+    phi3_delay = phi1_width + dead_time + phi2_width + dead_time
 
     @h.module
     class Tb:
         VSS = h.Port()
-        vinp, vinn, voff, vxp, vxn, phi1, phi2, vdd_sig = h.Signals(8)
+        vinp, vinn, voff, vxp, vxn, phi1, phi1b, phi2, phi2b, phi3, phi3b, vdd_sig = h.Signals(12)
         vvdd = h.Vdc(dc=vdd)(p=vdd_sig, n=VSS)
         vvinp = h.Vpulse(
             v1=0.0,
@@ -253,29 +274,79 @@ def _build_tran_tb(
             delay=0.0,
             rise=20e-9,
             fall=20e-9,
-            width=phi_width,
+            width=phi1_width,
             period=period,
         )(p=phi1, n=VSS)
+        vphi1b = h.Vpulse(
+            v1=vdd,
+            v2=0.0,
+            delay=0.0,
+            rise=20e-9,
+            fall=20e-9,
+            width=phi1_width,
+            period=period,
+        )(p=phi1b, n=VSS)
         vphi2 = h.Vpulse(
             v1=0.0,
             v2=vdd,
-            delay=0.5 * period,
+            delay=phi2_delay,
             rise=20e-9,
             fall=20e-9,
-            width=phi_width,
+            width=phi2_width,
             period=period,
         )(p=phi2, n=VSS)
+        vphi2b = h.Vpulse(
+            v1=vdd,
+            v2=0.0,
+            delay=phi2_delay,
+            rise=20e-9,
+            fall=20e-9,
+            width=phi2_width,
+            period=period,
+        )(p=phi2b, n=VSS)
+        vphi3 = h.Vpulse(
+            v1=0.0,
+            v2=vdd,
+            delay=phi3_delay,
+            rise=20e-9,
+            fall=20e-9,
+            width=phi3_width,
+            period=period,
+        )(p=phi3, n=VSS)
+        vphi3b = h.Vpulse(
+            v1=vdd,
+            v2=0.0,
+            delay=phi3_delay,
+            rise=20e-9,
+            fall=20e-9,
+            width=phi3_width,
+            period=period,
+        )(p=phi3b, n=VSS)
         cload_p = h.Cap(c=c_load)(p=vxp, n=VSS)
         cload_n = h.Cap(c=c_load)(p=vxn, n=VSS)
         rbleed_p = h.Res(r=50e6)(p=vxp, n=VSS)
         rbleed_n = h.Res(r=50e6)(p=vxn, n=VSS)
-        xdut = dut(VINP=vinp, VINN=vinn, VOFF=voff, VXP=vxp, VXN=vxn, PHI1=phi1, PHI2=phi2, VDD=vdd_sig, VSS=VSS)
+        xdut = dut(
+            VINP=vinp,
+            VINN=vinn,
+            VOFF=voff,
+            VXP=vxp,
+            VXN=vxn,
+            PHI1=phi1,
+            PHI1B=phi1b,
+            PHI2=phi2,
+            PHI2B=phi2b,
+            PHI3=phi3,
+            PHI3B=phi3b,
+            VDD=vdd_sig,
+            VSS=VSS,
+        )
 
     return Sim(
         tb=Tb,
         attrs=[
             Tran(tstop=tstop, tstep=tstep),
-            Save("time, v(xtop.vxp), v(xtop.vxn), v(xtop.vinp), v(xtop.voff), v(xtop.phi1), v(xtop.phi2)"),
+            Save("time, v(xtop.vxp), v(xtop.vxn), v(xtop.vinp), v(xtop.voff), v(xtop.phi1), v(xtop.phi2), v(xtop.phi3)"),
             h.sim.Param(name="mc_mm_switch", val=0),
             h.sim.Param(name="mc_pr_switch", val=0),
             *_corner_model_includes(),
@@ -300,6 +371,9 @@ def build_pedestal_zero_input_test(
         dead_time=float(tb_params.dead_time),
         tstop=float(tb_params.tstop),
         tstep=float(tb_params.tstep),
+        phi1_share=float(tb_params.phi1_share),
+        phi2_share=float(tb_params.phi2_share),
+        phi3_share=float(tb_params.phi3_share),
         corner=corner,
     )
 
@@ -316,12 +390,12 @@ def run_pedestal_zero_input_test(
     sim = build_pedestal_zero_input_test(dut_params, tb_params, corner=corner)
     sim_options = sim_options or _default_ngspice_options("frontend_az_pedestal_zero_input")
     result = run_ngspice_sim(sim, sim_options)
-    phi2 = _tran_waveform(result, "v(xtop.phi2)")
+    phi3 = _tran_waveform(result, "v(xtop.phi3)")
     vxp = _tran_waveform(result, "v(xtop.vxp)")
     vxn = _tran_waveform(result, "v(xtop.vxn)")
-    active_idx = [idx for idx, value in enumerate(phi2) if float(value) > 0.5 * float(tb_params.vdd)]
+    active_idx = [idx for idx, value in enumerate(phi3) if float(value) > 0.5 * float(tb_params.vdd)]
     if not active_idx:
-        raise RuntimeError("No amplify-phase window detected in frontend_az pedestal test")
+        raise RuntimeError("No settle-phase window detected in frontend_az pedestal test")
     run_stop = active_idx[-1]
     vdiff_final = float(vxp[run_stop]) - float(vxn[run_stop])
     pedestal_uv = 1e6 * abs(vdiff_final)
@@ -359,6 +433,9 @@ def build_settling_in_phase_window_test(
         dead_time=float(tb_params.dead_time),
         tstop=float(tb_params.tstop),
         tstep=float(tb_params.tstep),
+        phi1_share=float(tb_params.phi1_share),
+        phi2_share=float(tb_params.phi2_share),
+        phi3_share=float(tb_params.phi3_share),
         corner=corner,
     )
 
@@ -378,12 +455,12 @@ def run_settling_in_phase_window_test(
     time = _tran_waveform(result, "time")
     vxp = _tran_waveform(result, "v(xtop.vxp)")
     vxn = _tran_waveform(result, "v(xtop.vxn)")
-    phi2 = _tran_waveform(result, "v(xtop.phi2)")
-    active_idx = [idx for idx, value in enumerate(phi2) if float(value) > 0.5 * float(tb_params.vdd)]
+    phi3 = _tran_waveform(result, "v(xtop.phi3)")
+    active_idx = [idx for idx, value in enumerate(phi3) if float(value) > 0.5 * float(tb_params.vdd)]
     if not active_idx:
-        raise RuntimeError("No amplify-phase window detected in frontend_az settling test")
+        raise RuntimeError("No settle-phase window detected in frontend_az settling test")
     run_start = active_idx[-1]
-    while run_start > 0 and float(phi2[run_start - 1]) > 0.5 * float(tb_params.vdd):
+    while run_start > 0 and float(phi3[run_start - 1]) > 0.5 * float(tb_params.vdd):
         run_start -= 1
     run_stop = active_idx[-1]
     vdiff = np.asarray(vxp, dtype=float) - np.asarray(vxn, dtype=float)

@@ -4,17 +4,17 @@
 
 This document defines a specification-first implementation target for a low-offset auto-zero operational amplifier in `sky130`.
 
-The block target is a reusable analog amplifier for low-bandwidth inference / sensor front-end use, where low residual DC offset is more important than high-speed settling.
+The target block is a reusable analog amplifier for low-bandwidth inference / sensor front-end use, where low residual DC offset is more important than high-speed settling.
 
-This specification is for the `sky130` equivalent target, derived from the provided GF55 goal table and adjusted to realistic 1.8 V SKY130 operating limits.
+This specification targets the `sky130` equivalent implementation, derived from the provided GF55 goal table and adjusted to realistic 1.8 V SKY130 operating limits.
 
 ## 2. Intended Use
 
-- Inference-mode analog front-end
-- Low-frequency sampled signal chain
-- Low-offset closed-loop amplification
-- Moderate capacitive loads
-- Low quiescent current operation
+- inference-mode analog front-end
+- low-frequency sampled signal chain
+- low-offset closed-loop amplification
+- moderate capacitive loads
+- low quiescent current operation
 
 The amplifier is intended to operate with an auto-zero clocked front-end and two-phase non-overlap timing.
 
@@ -40,38 +40,38 @@ Recommended major sub-blocks:
 Recommended starting architecture:
 
 - PMOS-input first stage
-- Auto-zero switched-capacitor input front-end
-- Low-current second gain stage
+- auto-zero switched-capacitor input front-end
+- low-current second gain stage
 - Miller compensation
-- Single-ended output for first implementation pass
-- External non-overlap clock for first implementation pass
+- single-ended output for the first implementation pass
+- external non-overlap clock for the first implementation pass
 
 Rationale:
 
-- PMOS input helps the required low-end input common-mode range
-- Single-ended implementation reduces risk and area for the first revision
-- External AZ timing isolates analog validation from clock-generator issues
+- PMOS input helps satisfy the required low-end input common-mode range
+- single-ended implementation reduces risk and area for the first revision
+- external AZ timing isolates analog validation from clock-generator issues
 
 Second-step architecture option:
 
-- Fully differential two-stage amplifier
-- Common-mode feedback
-- On-chip non-overlap clock generation
+- fully differential two-stage amplifier
+- common-mode feedback
+- on-chip non-overlap clock generation
 
 ## 5. Operating Modes
 
 The amplifier shall support the following modes:
 
-1. `sample_zero`
+1. `sample_zero`  
    The front-end samples its own offset and stores the error on AZ memory capacitors.
-2. `amplify`
+2. `amplify`  
    The stored offset is subtracted from the signal path while the amplifier drives the load.
-3. `disabled`
+3. `disabled`  
    Internal bias is off or strongly reduced and leakage is minimized.
 
 ## 6. Top-Level Interface
 
-### 6.1 Required Pins for First Implementation
+### 6.1 Required Pins for the First Implementation
 
 - `VINP`: non-inverting analog input
 - `VINN`: inverting analog input
@@ -82,7 +82,7 @@ The amplifier shall support the following modes:
 - `PHI1`: auto-zero phase 1 control
 - `PHI2`: auto-zero phase 2 control
 
-### 6.2 Optional Pins for Differential Variant
+### 6.2 Optional Pins for the Differential Variant
 
 - `VOUTP`
 - `VOUTN`
@@ -93,6 +93,13 @@ The amplifier shall support the following modes:
 - `CLK_AZ`
 
 ## 7. Electrical Specification
+
+Unless stated otherwise, the specification is now split into two levels:
+
+- `Minimum requirement`: realistic first-closure requirement for the initial `sky130` implementation
+- `Maximum requirement`: stricter target carried over as the upper product goal for the same architecture
+
+The implementation goal is to close the minimum requirements first and then push toward the maximum requirements.
 
 ### 7.1 Supply and Environment
 
@@ -106,13 +113,13 @@ The amplifier shall support the following modes:
 
 ### 7.2 Load and Output
 
-| Parameter | SKY130 Spec |
-|---|---|
-| Load range | `0 pF ... 2 pF` |
-| Nominal load | `1 pF` |
-| Output compliant swing | `0.1 V ... VDD - 0.1 V` |
-| Relaxed output swing | `0.02 V ... VDD - 0.02 V` |
-| Output current | `+/-25 uA` |
+| Parameter | Minimum SKY130 Requirement | Maximum SKY130 Requirement |
+|---|---:|---:|
+| Load range | `0 pF ... 2 pF` | `0 pF ... 2 pF` |
+| Nominal load | `1 pF` | `1 pF` |
+| Output compliant swing | `0.1 V ... VDD - 0.2 V` | `0.1 V ... VDD - 0.1 V` |
+| Relaxed output swing | `0.02 V ... VDD - 0.02 V` | `0.02 V ... VDD - 0.02 V` |
+| Output current | `+/-20 uA` | `+/-25 uA` |
 
 ### 7.3 Input Operating Range
 
@@ -130,32 +137,32 @@ All nominal AC specs apply at:
 - `T = 27 C`
 - `CL = 1 pF`
 
-| Parameter | SKY130 Spec | Internal Design Target |
-|---|---:|---:|
-| Open-loop gain | `>= 75 dB` | `80 ... 85 dB` |
-| GBW | `0.5 ... 1 MHz` | `0.8 ... 1.2 MHz` |
-| Phase margin | `>= 30 deg` | `50 ... 60 deg` |
-| Gain margin | `>= 5 dB` | `>= 8 dB` |
+| Parameter | Minimum SKY130 Requirement | Maximum SKY130 Requirement | Internal Design Target |
+|---|---:|---:|---:|
+| Open-loop gain | `>= 65 dB` | `>= 75 dB` | `80 ... 85 dB` |
+| GBW | `0.3 ... 1 MHz` | `0.5 ... 1 MHz` | `0.8 ... 1.2 MHz` |
+| Phase margin | `>= 30 deg` | `>= 30 deg` | `50 ... 60 deg` |
+| Gain margin | `>= 5 dB` | `>= 5 dB` | `>= 8 dB` |
 
 ### 7.5 Offset and Error Budget
 
 The guaranteed offset metric is the input-referred residual offset after auto-zero correction.
 
-| Parameter | SKY130 Spec |
-|---|---:|
-| Residual input-referred offset after AZ | `<= 150 uV` |
-| Stretch goal residual offset | `<= 100 uV` |
-| Pedestal-equivalent input error at nominal | `<= 50 uV` |
-| Hold droop contribution per AZ cycle | `<= 30 uV` |
+| Parameter | Minimum SKY130 Requirement | Maximum SKY130 Requirement |
+|---|---:|---:|
+| Residual input-referred offset after AZ | `<= 250 uV` | `<= 150 uV` |
+| Stretch-goal residual offset | `<= 150 uV` | `<= 100 uV` |
+| Pedestal-equivalent input error at nominal | `<= 100 uV` | `<= 50 uV` |
+| Hold droop contribution per AZ cycle | `<= 50 uV` | `<= 30 uV` |
 
-The raw, pre-AZ offset is characterization only and is not a pass/fail production spec.
+Raw pre-AZ offset is characterization only and is not a production pass/fail spec.
 
 ### 7.6 Power and Leakage
 
-| Parameter | SKY130 Spec |
-|---|---:|
-| Quiescent current, enabled | `<= 15 uA` |
-| Disabled leakage current | `<= 15 nA` |
+| Parameter | Minimum SKY130 Requirement | Maximum SKY130 Requirement |
+|---|---:|---:|
+| Quiescent current, enabled | `<= 20 uA` | `<= 15 uA` |
+| Disabled leakage current | `<= 250 nA` | `<= 15 nA` |
 
 If on-chip clock generation is added, the implementation shall clearly separate:
 
@@ -164,9 +171,9 @@ If on-chip clock generation is added, the implementation shall clearly separate:
 
 ### 7.7 Area
 
-| Parameter | SKY130 Spec |
-|---|---:|
-| Active area | `3000 ... 5000 um^2` |
+| Parameter | Minimum SKY130 Requirement | Maximum SKY130 Requirement |
+|---|---:|---:|
+| Active area | `3000 ... 7000 um^2` | `3000 ... 5000 um^2` |
 
 This area budget includes:
 
@@ -187,7 +194,7 @@ The amplifier shall operate with a two-phase non-overlap clock.
 
 - `PHI1` and `PHI2` shall never overlap during normal operation
 - break-before-make timing is required
-- AZ memory nodes shall not be shorted simultaneously to both sampling and amplification paths
+- AZ memory nodes shall not be shorted simultaneously to both the sampling and amplification paths
 
 ### 8.2 Recommended Starting Timing
 
@@ -210,10 +217,10 @@ The amplifier shall operate with a two-phase non-overlap clock.
 The block shall satisfy the following functional requirements:
 
 1. The amplifier shall start reliably over the full supply and temperature range.
-2. The auto-zero mechanism shall reduce the effective DC input offset to the guaranteed residual-offset target.
+2. The auto-zero mechanism shall reduce the effective DC input offset to at least the minimum guaranteed residual-offset target, with the maximum target as the second-step closure goal.
 3. The amplifier shall remain stable for `CL = 0 ... 2 pF`.
-4. The output shall meet the compliant-swing target while sourcing or sinking up to `25 uA`.
-5. The disabled state shall meet the leakage requirement.
+4. The output shall meet at least the minimum compliant swing target while sourcing or sinking the minimum guaranteed output current, with the maximum target as the second-step closure goal.
+5. The disabled state shall meet at least the minimum leakage requirement, with the maximum leakage target as the second-step closure goal.
 6. The AZ timing interface shall tolerate non-overlap control without destructive charge-sharing failures.
 
 ## 10. Design Constraints
@@ -254,8 +261,8 @@ Recommended stage-level targets:
 
 | Subsystem | Target |
 |---|---:|
-| First stage intrinsic gain | `35 ... 45 dB` |
-| Second stage intrinsic gain | `35 ... 45 dB` |
+| First-stage intrinsic gain | `35 ... 45 dB` |
+| Second-stage intrinsic gain | `35 ... 45 dB` |
 | Loaded total gain | `>= 75 dB` |
 
 ## 12. Required Verification Coverage
@@ -298,7 +305,7 @@ Recommended sample count:
 
 Recommended acceptance:
 
-- `99%` of samples meet residual offset target
+- `99%` of samples meet the residual-offset target
 
 ### 12.3 PEX
 
@@ -380,7 +387,7 @@ The following test names follow the repository structural testing guide.
 - pedestal-equivalent input error
 - hold droop error
 - switching residue
-- sampled offset cancellation effectiveness
+- sampled offset-cancellation effectiveness
 
 ### 14.2 `gain_stage`
 
@@ -409,7 +416,7 @@ The following test names follow the repository structural testing guide.
 
 ## 15. Required Nominal Test Conditions
 
-Unless otherwise stated, nominal conditions are:
+Unless stated otherwise, nominal conditions are:
 
 - corner: `TT`
 - `VDD = 1.8 V`
@@ -452,24 +459,26 @@ The first milestone should exclude:
 
 ## 18. SKY130 Summary Table
 
-| Parameter | GF55 Target | SKY130 Equivalent |
-|---|---:|---:|
+| Parameter | GF55 Target | SKY130 Minimum | SKY130 Maximum |
+|---|---:|---:|---:|
 | Mode | Inference mode | Same |
-| VDD range | `1.08 ... 1.32 V` | `1.6 ... 1.98 V` |
-| Nominal VDD | `1.20 V` | `1.8 V` |
-| Temperature range | `-40 ... 125 C` | Same |
-| Nominal temperature | `27 C` | Same |
-| Load range | `0 ... 1 pF` | `0 ... 2 pF` |
-| Nominal load | `1 pF` | `1 pF` |
-| Input CM | `0 ... 0.5 * VDD` | Same |
-| Output swing compliant | `50 mV ... VDD-50 mV` | `100 mV ... VDD-100 mV` |
-| Relaxed swing | `5 mV ... VDD-5 mV` | `20 mV ... VDD-20 mV` |
-| Output current | `+/-25 uA` | Same |
-| Open-loop gain | `>= 80 dB` | `>= 75 dB` |
-| GBW | `>= 1 MHz` | `500 kHz ... 1 MHz` |
-| Phase margin | `>= 30 deg` | Same |
-| Gain margin | `>= 5 dB` | Same |
-| Input offset | `+/-60 uV` | `100 ... 150 uV` |
-| Quiescent current | `<= 10 uA` | `<= 15 uA` |
-| Disabled leakage | `<= 15 nA` | Same |
-| Area | `<= 1000 um^2` | `3000 ... 5000 um^2` |
+| VDD range | `1.08 ... 1.32 V` | `1.6 ... 1.98 V` | `1.6 ... 1.98 V` |
+| Nominal VDD | `1.20 V` | `1.8 V` | `1.8 V` |
+| Temperature range | `-40 ... 125 C` | Same | Same |
+| Nominal temperature | `27 C` | Same | Same |
+| Load range | `0 ... 1 pF` | `0 ... 2 pF` | `0 ... 2 pF` |
+| Nominal load | `1 pF` | `1 pF` | `1 pF` |
+| Input CM | `0 ... 0.5 * VDD` | Same | Same |
+| Output swing compliant | `50 mV ... VDD-50 mV` | `100 mV ... VDD-200 mV` | `100 mV ... VDD-100 mV` |
+| Relaxed swing | `5 mV ... VDD-5 mV` | `20 mV ... VDD-20 mV` | `20 mV ... VDD-20 mV` |
+| Output current | `+/-25 uA` | `+/-20 uA` | `+/-25 uA` |
+| Open-loop gain | `>= 80 dB` | `>= 65 dB` | `>= 75 dB` |
+| GBW | `>= 1 MHz` | `300 kHz ... 1 MHz` | `500 kHz ... 1 MHz` |
+| Phase margin | `>= 30 deg` | `>= 30 deg` | `>= 30 deg` |
+| Gain margin | `>= 5 dB` | `>= 5 dB` | `>= 5 dB` |
+| Input offset after AZ | `+/-60 uV` | `<= 250 uV` | `<= 150 uV` |
+| Pedestal error | n/a | `<= 100 uV` | `<= 50 uV` |
+| Hold droop / settling | n/a | `<= 50 uV` | `<= 30 uV` |
+| Quiescent current | `<= 10 uA` | `<= 20 uA` | `<= 15 uA` |
+| Disabled leakage | `<= 15 nA` | `<= 250 nA` | `<= 15 nA` |
+| Area | `<= 1000 um^2` | `3000 ... 7000 um^2` | `3000 ... 5000 um^2` |

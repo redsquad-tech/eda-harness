@@ -116,6 +116,31 @@ COMPONENT_SPECS = {
 }
 
 
+def _snake_to_pascal(name: str) -> str:
+    return "".join(part.capitalize() for part in name.split("_"))
+
+
+def _plan_schema(payload: dict) -> str:
+    current_keys = {
+        "specification_aspect",
+        "category",
+        "test_name",
+        "analysis_type",
+        "extracted_metrics",
+        "pass_fail_rule",
+        "required_corners",
+        "required_operating_conditions",
+        "monte_carlo_required",
+    }
+    legacy_keys = {"test", "analysis", "metrics", "rule", "corners", "sweeps", "monte_carlo"}
+    keys = set(payload)
+    if keys == current_keys:
+        return "current"
+    if keys == legacy_keys:
+        return "legacy"
+    raise AssertionError(f"Unsupported verification-plan schema keys: {sorted(keys)}")
+
+
 def _init_sky130_install() -> None:
     if sky130.install is not None:
         return
@@ -134,6 +159,15 @@ def _params_cls(component_name: str):
     spec = COMPONENT_SPECS[component_name]
     module = _load_module(component_name)
     return getattr(module, spec["params"])
+
+
+def _load_component_module(component_name: str):
+    return importlib.import_module(f"components.{component_name}")
+
+
+def _component_params_cls(component_name: str):
+    module = _load_component_module(component_name)
+    return getattr(module, f"{_snake_to_pascal(component_name)}Params")
 
 
 def _dut_params(component_name: str, **kwargs):
@@ -158,37 +192,44 @@ class TestComponentLibraryContractCoverage(unittest.TestCase):
 
     def test_component_library__contract__registry_matches_modules_and_params(self) -> None:
         registry = {row["name"]: row for row in _registry_rows()}
-        self.assertEqual(set(registry), set(COMPONENT_SPECS))
 
-        for component_name, spec in COMPONENT_SPECS.items():
+        for component_name, row in registry.items():
             with self.subTest(component=component_name):
-                module = _load_module(component_name)
-                params_cls = getattr(module, spec["params"])
+                module = _load_component_module(component_name)
+                params_cls = _component_params_cls(component_name)
+                csv_params = row["parameters"].split(",")
 
-                self.assertTrue(hasattr(module, spec["generator"]))
-                self.assertEqual(list(params_cls.__dataclass_fields__), spec["csv_params"])
-                self.assertEqual(registry[component_name]["parameters"].split(","), spec["csv_params"])
+                self.assertTrue(hasattr(module, component_name))
+                self.assertEqual(list(params_cls.__dataclass_fields__), csv_params)
 
     def test_component_library__contract__verification_plan_schema(self) -> None:
-        required_keys = {"test", "analysis", "metrics", "rule", "corners", "sweeps", "monte_carlo"}
-        for component_name in COMPONENT_SPECS:
+        for row in _registry_rows():
+            component_name = row["name"]
             with self.subTest(component=component_name):
-                module = _load_module(component_name)
+                module = _load_component_module(component_name)
                 plan = module.VERIFICATION_PLAN
                 self.assertIn("structural", plan)
                 for test_name, payload in plan.items():
-                    self.assertEqual(set(payload), required_keys)
-                    self.assertTrue(callable(getattr(module, payload["test"])))
-                    self.assertIsInstance(payload["metrics"], list)
-                    self.assertIsInstance(payload["corners"], list)
-                    self.assertIsInstance(payload["sweeps"], list)
-                    self.assertIsInstance(payload["monte_carlo"], bool)
+                    schema = _plan_schema(payload)
+                    if schema == "current":
+                        self.assertTrue(callable(getattr(module, payload["test_name"])))
+                        self.assertIsInstance(payload["extracted_metrics"], list)
+                        self.assertIsInstance(payload["required_corners"], list)
+                        self.assertIsInstance(payload["required_operating_conditions"], list)
+                        self.assertIsInstance(payload["monte_carlo_required"], bool)
+                    else:
+                        self.assertTrue(callable(getattr(module, payload["test"])))
+                        self.assertIsInstance(payload["metrics"], list)
+                        self.assertIsInstance(payload["corners"], list)
+                        self.assertIsInstance(payload["sweeps"], list)
+                        self.assertIsInstance(payload["monte_carlo"], bool)
                     self.assertIsInstance(test_name, str)
 
     def test_component_library__contract__build_testbenches_use_single_vss_port(self) -> None:
-        for component_name in COMPONENT_SPECS:
-            module = _load_module(component_name)
-            params = _dut_params(component_name)
+        for row in _registry_rows():
+            component_name = row["name"]
+            module = _load_component_module(component_name)
+            params = _component_params_cls(component_name)()
             for builder_name, builder in inspect.getmembers(module, inspect.isfunction):
                 if not builder_name.startswith("build_"):
                     continue
@@ -197,11 +238,12 @@ class TestComponentLibraryContractCoverage(unittest.TestCase):
                     self.assertEqual(list(sim.tb.ports), ["VSS"])
 
     def test_component_library__contract__export_spice_creates_valid_netlists(self) -> None:
-        for component_name in COMPONENT_SPECS:
+        for row in _registry_rows():
+            component_name = row["name"]
             with self.subTest(component=component_name):
-                module = _load_module(component_name)
+                module = _load_component_module(component_name)
                 out_path = TMP_ROOT / f"{component_name}.sp"
-                exported = module.export_spice(out_path, _dut_params(component_name))
+                exported = module.export_spice(out_path, _component_params_cls(component_name)())
                 text = exported.read_text()
                 subckt_name = extract_subckt_name(text)
 

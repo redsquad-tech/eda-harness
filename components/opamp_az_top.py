@@ -1,6 +1,7 @@
 from pathlib import Path
 import re
 from dataclasses import dataclass
+from uuid import uuid4
 
 import hdl21 as h
 import numpy as np
@@ -22,6 +23,7 @@ from components.opamp_core import (
     run_closed_loop_step_test as run_core_closed_loop_step_test,
     run_open_loop_test as run_core_open_loop_test,
 )
+from opamp.v3.specs import OpampAzV3MaximumSpec, OpampAzV3TargetSpec
 
 
 VERIFICATION_PLAN = {
@@ -77,7 +79,7 @@ class OpampAzTopSpec:
     name: str = "opamp_az_top"
     purpose: str = "Integrate the auto-zero frontend with the opamp core."
     component_class: str = "top-level composition"
-    pins: tuple[str, ...] = ("VINP", "VINN", "VOUT", "EN", "PHI1", "PHI2", "VDD", "VSS")
+    pins: tuple[str, ...] = ("VINP", "VINN", "VOUT", "EN", "PHI1", "PHI1B", "PHI2", "PHI2B", "PHI3", "PHI3B", "VDD", "VSS")
     measurable_behaviors: tuple[str, ...] = ("open_loop", "closed_loop_step", "noise_and_offset")
     numeric_pass_fail_criteria: tuple[str, ...] = ("generic composition contracts only; product budgets belong in external budget tests",)
     required_corners: tuple[str, ...] = ("TT",)
@@ -89,7 +91,7 @@ class OpampAzTopParams:
     frontend_az_params = h.Param(
         dtype=FrontendAzParams,
         desc="Frontend AZ parameters",
-        default=FrontendAzParams(c_az=5e-14, r_vcm_top=1e3, r_vcm_bot=5),
+        default=FrontendAzParams(c_az=200e-15, r_vcm_top=6e2, r_vcm_bot=5, c_out_p=10e-15),
     )
     opamp_core_params = h.Param(dtype=OpampCoreParams, desc="Core opamp parameters", default=OpampCoreParams())
 
@@ -110,9 +112,12 @@ class OpampAzTopClosedLoopStepTbParams:
 @h.paramclass
 class OpampAzTopNoiseAndOffsetTbParams:
     vdd = h.Param(dtype=h.Scalar, desc="Supply voltage in V", default=1.8)
-    period = h.Param(dtype=h.Scalar, desc="AZ clock period in s", default=20e-6)
-    dead_time = h.Param(dtype=h.Scalar, desc="Clock dead time between PHI1 and PHI2 in s", default=2e-6)
-    tstop = h.Param(dtype=h.Scalar, desc="Transient stop time in s", default=200e-6)
+    period = h.Param(dtype=h.Scalar, desc="AZ clock period in s", default=5e-6)
+    dead_time = h.Param(dtype=h.Scalar, desc="Clock dead time between PHI1 and PHI2 in s", default=0.5e-6)
+    phi1_share = h.Param(dtype=h.Scalar, desc="Fraction of active time allocated to sample_zero", default=0.4)
+    phi2_share = h.Param(dtype=h.Scalar, desc="Fraction of active time allocated to correction_apply", default=0.2)
+    phi3_share = h.Param(dtype=h.Scalar, desc="Fraction of active time allocated to settle", default=0.4)
+    tstop = h.Param(dtype=h.Scalar, desc="Transient stop time in s", default=60e-6)
     tstep = h.Param(dtype=h.Scalar, desc="Transient step in s", default=100e-9)
     temp_c = h.Param(dtype=h.Scalar, desc="Simulation temperature in C", default=27.0)
 
@@ -123,10 +128,24 @@ def opamp_az_top(params: OpampAzTopParams) -> h.Module:
     core_inst = opamp_core(params.opamp_core_params)
 
     mod = h.Module(name="OpampAzTop")
-    mod.VINP, mod.VINN, mod.VOUT, mod.EN, mod.PHI1, mod.PHI2, mod.VDD, mod.VSS = h.Ports(8)
+    mod.VINP, mod.VINN, mod.VOUT, mod.EN, mod.PHI1, mod.PHI1B, mod.PHI2, mod.PHI2B, mod.PHI3, mod.PHI3B, mod.VDD, mod.VSS = h.Ports(12)
     mod.vxp, mod.vxn = h.Signals(2)
 
-    mod.xfront = frontend_inst(VINP=mod.VINP, VINN=mod.VINN, VOFF=mod.VOUT, VXP=mod.vxp, VXN=mod.vxn, PHI1=mod.PHI1, PHI2=mod.PHI2, VDD=mod.VDD, VSS=mod.VSS)
+    mod.xfront = frontend_inst(
+        VINP=mod.VINP,
+        VINN=mod.VINN,
+        VOFF=mod.VOUT,
+        VXP=mod.vxp,
+        VXN=mod.vxn,
+        PHI1=mod.PHI1,
+        PHI1B=mod.PHI1B,
+        PHI2=mod.PHI2,
+        PHI2B=mod.PHI2B,
+        PHI3=mod.PHI3,
+        PHI3B=mod.PHI3B,
+        VDD=mod.VDD,
+        VSS=mod.VSS,
+    )
     mod.xcore = core_inst(VINP=mod.vxp, VINN=mod.vxn, VOUT=mod.VOUT, EN=mod.EN, VDD=mod.VDD, VSS=mod.VSS)
     return mod
 
@@ -144,13 +163,18 @@ def _build_top_smoke_tb(
     install = require_sky130_install()
     dut = opamp_az_top(dut_params)
     period = 2e-6
-    nonoverlap = 0.1 * period
-    phi_width = 0.5 * period - nonoverlap
+    dead_time = 0.1 * period
+    active_time = period - 3.0 * dead_time
+    phi1_width = 0.4 * active_time
+    phi2_width = 0.2 * active_time
+    phi3_width = 0.4 * active_time
+    phi2_delay = phi1_width + dead_time
+    phi3_delay = phi1_width + dead_time + phi2_width + dead_time
 
     @h.module
     class Tb:
         VSS = h.Port()
-        vinp, vinn, vout, en, phi1, phi2, vdd_sig = h.Signals(7)
+        vinp, vinn, vout, en, phi1, phi1b, phi2, phi2b, phi3, phi3b, vdd_sig = h.Signals(11)
         vvdd = h.Vdc(dc=vdd)(p=vdd_sig, n=VSS)
         ven = h.Vdc(dc=vdd)(p=en, n=VSS)
         vvinp = h.Vpulse(v1=0.0, v2=v_step, delay=3 * period, rise=50e-9, fall=50e-9, width=tstop, period=2 * tstop)(p=vinp, n=VSS)
@@ -161,21 +185,70 @@ def _build_top_smoke_tb(
             delay=0.0,
             rise=20e-9,
             fall=20e-9,
-            width=phi_width,
+            width=phi1_width,
             period=period,
         )(p=phi1, n=VSS)
+        vphi1b = h.Vpulse(
+            v1=vdd,
+            v2=0.0,
+            delay=0.0,
+            rise=20e-9,
+            fall=20e-9,
+            width=phi1_width,
+            period=period,
+        )(p=phi1b, n=VSS)
         vphi2 = h.Vpulse(
             v1=0.0,
             v2=vdd,
-            delay=0.5 * period,
+            delay=phi2_delay,
             rise=20e-9,
             fall=20e-9,
-            width=phi_width,
+            width=phi2_width,
             period=period,
         )(p=phi2, n=VSS)
+        vphi2b = h.Vpulse(
+            v1=vdd,
+            v2=0.0,
+            delay=phi2_delay,
+            rise=20e-9,
+            fall=20e-9,
+            width=phi2_width,
+            period=period,
+        )(p=phi2b, n=VSS)
+        vphi3 = h.Vpulse(
+            v1=0.0,
+            v2=vdd,
+            delay=phi3_delay,
+            rise=20e-9,
+            fall=20e-9,
+            width=phi3_width,
+            period=period,
+        )(p=phi3, n=VSS)
+        vphi3b = h.Vpulse(
+            v1=vdd,
+            v2=0.0,
+            delay=phi3_delay,
+            rise=20e-9,
+            fall=20e-9,
+            width=phi3_width,
+            period=period,
+        )(p=phi3b, n=VSS)
         cload = h.Cap(c=c_load)(p=vout, n=VSS)
         rload = h.Res(r=1e6)(p=vout, n=VSS)
-        xdut = dut(VINP=vinp, VINN=vinn, VOUT=vout, EN=en, PHI1=phi1, PHI2=phi2, VDD=vdd_sig, VSS=VSS)
+        xdut = dut(
+            VINP=vinp,
+            VINN=vinn,
+            VOUT=vout,
+            EN=en,
+            PHI1=phi1,
+            PHI1B=phi1b,
+            PHI2=phi2,
+            PHI2B=phi2b,
+            PHI3=phi3,
+            PHI3B=phi3b,
+            VDD=vdd_sig,
+            VSS=VSS,
+        )
 
     return Sim(tb=Tb, attrs=[Tran(tstop=tstop, tstep=tstep), Save(SaveMode.ALL), install.include(corner)])
 
@@ -303,12 +376,23 @@ def build_noise_and_offset_test(
     install = require_sky130_install()
     dut = opamp_az_top(dut_params)
     period = float(tb_params.period)
-    phi_width = 0.5 * period - max(float(tb_params.dead_time), 0.0)
+    dead_time = max(float(tb_params.dead_time), 0.0)
+    active_time = period - 3.0 * dead_time
+    share_sum = float(tb_params.phi1_share) + float(tb_params.phi2_share) + float(tb_params.phi3_share)
+    if active_time <= 0:
+        raise ValueError("period must be greater than 3 * dead_time for three-phase AZ timing")
+    if min(float(tb_params.phi1_share), float(tb_params.phi2_share), float(tb_params.phi3_share)) <= 0 or share_sum <= 0:
+        raise ValueError("phase shares must be positive for three-phase AZ timing")
+    phi1_width = active_time * float(tb_params.phi1_share) / share_sum
+    phi2_width = active_time * float(tb_params.phi2_share) / share_sum
+    phi3_width = active_time * float(tb_params.phi3_share) / share_sum
+    phi2_delay = phi1_width + dead_time
+    phi3_delay = phi1_width + dead_time + phi2_width + dead_time
 
     @h.module
     class Tb:
         VSS = h.Port()
-        vinp, vinn, vout, en, phi1, phi2, vdd_sig = h.Signals(7)
+        vinp, vinn, vout, en, phi1, phi1b, phi2, phi2b, phi3, phi3b, vdd_sig = h.Signals(11)
         vvdd = h.Vdc(dc=tb_params.vdd)(p=vdd_sig, n=VSS)
         ven = h.Vdc(dc=tb_params.vdd)(p=en, n=VSS)
         vvinp = h.Vdc(dc=0.0)(p=vinp, n=VSS)
@@ -319,29 +403,143 @@ def build_noise_and_offset_test(
             delay=0.0,
             rise=20e-9,
             fall=20e-9,
-            width=phi_width,
+            width=phi1_width,
             period=period,
         )(p=phi1, n=VSS)
+        vphi1b = h.Vpulse(
+            v1=tb_params.vdd,
+            v2=0.0,
+            delay=0.0,
+            rise=20e-9,
+            fall=20e-9,
+            width=phi1_width,
+            period=period,
+        )(p=phi1b, n=VSS)
         vphi2 = h.Vpulse(
             v1=0.0,
             v2=tb_params.vdd,
-            delay=0.5 * period,
+            delay=phi2_delay,
             rise=20e-9,
             fall=20e-9,
-            width=phi_width,
+            width=phi2_width,
             period=period,
         )(p=phi2, n=VSS)
+        vphi2b = h.Vpulse(
+            v1=tb_params.vdd,
+            v2=0.0,
+            delay=phi2_delay,
+            rise=20e-9,
+            fall=20e-9,
+            width=phi2_width,
+            period=period,
+        )(p=phi2b, n=VSS)
+        vphi3 = h.Vpulse(
+            v1=0.0,
+            v2=tb_params.vdd,
+            delay=phi3_delay,
+            rise=20e-9,
+            fall=20e-9,
+            width=phi3_width,
+            period=period,
+        )(p=phi3, n=VSS)
+        vphi3b = h.Vpulse(
+            v1=tb_params.vdd,
+            v2=0.0,
+            delay=phi3_delay,
+            rise=20e-9,
+            fall=20e-9,
+            width=phi3_width,
+            period=period,
+        )(p=phi3b, n=VSS)
         cload = h.Cap(c=1e-12)(p=vout, n=VSS)
         rload = h.Res(r=1e6)(p=vout, n=VSS)
-        xdut = dut(VINP=vinp, VINN=vinn, VOUT=vout, EN=en, PHI1=phi1, PHI2=phi2, VDD=vdd_sig, VSS=VSS)
+        xdut = dut(
+            VINP=vinp,
+            VINN=vinn,
+            VOUT=vout,
+            EN=en,
+            PHI1=phi1,
+            PHI1B=phi1b,
+            PHI2=phi2,
+            PHI2B=phi2b,
+            PHI3=phi3,
+            PHI3B=phi3b,
+            VDD=vdd_sig,
+            VSS=VSS,
+        )
 
     return Sim(
         tb=Tb,
         attrs=[
             Tran(tstop=float(tb_params.tstop), tstep=float(tb_params.tstep)),
-            Save("time, v(xtop.vout), v(xtop.phi1), v(xtop.phi2)"),
+            Save("time, v(xtop.vout), v(xtop.phi1), v(xtop.phi2), v(xtop.phi3)"),
             h.sim.Literal(f".temp {float(tb_params.temp_c)}"),
             install.include(corner),
+        ],
+    )
+
+
+def build_noise_and_offset_mc_test(
+    dut_params: OpampAzTopParams,
+    tb_params: OpampAzTopNoiseAndOffsetTbParams | None = None,
+    *,
+    model_section: str = "tt_mm",
+):
+    tb_params = tb_params or OpampAzTopNoiseAndOffsetTbParams()
+    install = require_sky130_install()
+    dut = opamp_az_top(dut_params)
+    period = float(tb_params.period)
+    dead_time = max(float(tb_params.dead_time), 0.0)
+    active_time = period - 3.0 * dead_time
+    share_sum = float(tb_params.phi1_share) + float(tb_params.phi2_share) + float(tb_params.phi3_share)
+    if active_time <= 0:
+        raise ValueError("period must be greater than 3 * dead_time for three-phase AZ timing")
+    if min(float(tb_params.phi1_share), float(tb_params.phi2_share), float(tb_params.phi3_share)) <= 0 or share_sum <= 0:
+        raise ValueError("phase shares must be positive for three-phase AZ timing")
+    phi1_width = active_time * float(tb_params.phi1_share) / share_sum
+    phi2_width = active_time * float(tb_params.phi2_share) / share_sum
+    phi3_width = active_time * float(tb_params.phi3_share) / share_sum
+    phi2_delay = phi1_width + dead_time
+    phi3_delay = phi1_width + dead_time + phi2_width + dead_time
+
+    @h.module
+    class Tb:
+        VSS = h.Port()
+        vinp, vinn, vout, en, phi1, phi1b, phi2, phi2b, phi3, phi3b, vdd_sig = h.Signals(11)
+        vvdd = h.Vdc(dc=tb_params.vdd)(p=vdd_sig, n=VSS)
+        ven = h.Vdc(dc=tb_params.vdd)(p=en, n=VSS)
+        vvinp = h.Vdc(dc=0.0)(p=vinp, n=VSS)
+        rfb = h.Res(r=1.0)(p=vout, n=vinn)
+        vphi1 = h.Vpulse(v1=0.0, v2=tb_params.vdd, delay=0.0, rise=20e-9, fall=20e-9, width=phi1_width, period=period)(p=phi1, n=VSS)
+        vphi1b = h.Vpulse(v1=tb_params.vdd, v2=0.0, delay=0.0, rise=20e-9, fall=20e-9, width=phi1_width, period=period)(p=phi1b, n=VSS)
+        vphi2 = h.Vpulse(v1=0.0, v2=tb_params.vdd, delay=phi2_delay, rise=20e-9, fall=20e-9, width=phi2_width, period=period)(p=phi2, n=VSS)
+        vphi2b = h.Vpulse(v1=tb_params.vdd, v2=0.0, delay=phi2_delay, rise=20e-9, fall=20e-9, width=phi2_width, period=period)(p=phi2b, n=VSS)
+        vphi3 = h.Vpulse(v1=0.0, v2=tb_params.vdd, delay=phi3_delay, rise=20e-9, fall=20e-9, width=phi3_width, period=period)(p=phi3, n=VSS)
+        vphi3b = h.Vpulse(v1=tb_params.vdd, v2=0.0, delay=phi3_delay, rise=20e-9, fall=20e-9, width=phi3_width, period=period)(p=phi3b, n=VSS)
+        cload = h.Cap(c=1e-12)(p=vout, n=VSS)
+        rload = h.Res(r=1e6)(p=vout, n=VSS)
+        xdut = dut(
+            VINP=vinp,
+            VINN=vinn,
+            VOUT=vout,
+            EN=en,
+            PHI1=phi1,
+            PHI1B=phi1b,
+            PHI2=phi2,
+            PHI2B=phi2b,
+            PHI3=phi3,
+            PHI3B=phi3b,
+            VDD=vdd_sig,
+            VSS=VSS,
+        )
+
+    return Sim(
+        tb=Tb,
+        attrs=[
+            Tran(tstop=float(tb_params.tstop), tstep=float(tb_params.tstep)),
+            Save("time, v(xtop.vout), v(xtop.phi1), v(xtop.phi2), v(xtop.phi3)"),
+            h.sim.Literal(f".temp {float(tb_params.temp_c)}"),
+            h.sim.Lib(install.pdk_path / install.lib_path, model_section),
         ],
     )
 
@@ -356,16 +554,17 @@ def run_noise_and_offset_test(
     dut_params = dut_params or OpampAzTopParams()
     tb_params = tb_params or OpampAzTopNoiseAndOffsetTbParams()
     sim = build_noise_and_offset_test(dut_params, tb_params, corner=corner)
-    sim_options = sim_options or SimOptions(rundir="./tmp/opamp_az_top_noise_and_offset")
+    if sim_options is None:
+        sim_options = SimOptions(rundir=f"./tmp/opamp_az_top_noise_and_offset_{uuid4().hex[:8]}")
     result = run_ngspice_sim(sim, sim_options)
     time = _tran_waveform(result, "time")
     vout = _tran_waveform(result, "v(xtop.vout)")
-    phi2 = _tran_waveform(result, "v(xtop.phi2)")
-    active_idx = np.flatnonzero(phi2 > 0.5 * float(tb_params.vdd))
+    phi3 = _tran_waveform(result, "v(xtop.phi3)")
+    active_idx = np.flatnonzero(phi3 > 0.5 * float(tb_params.vdd))
     if len(active_idx) == 0:
-        raise RuntimeError("No amplify-phase window detected in opamp_az_top noise_and_offset test")
+        raise RuntimeError("No settle-phase window detected in opamp_az_top noise_and_offset test")
     run_start = int(active_idx[-1])
-    while run_start > 0 and float(phi2[run_start - 1]) > 0.5 * float(tb_params.vdd):
+    while run_start > 0 and float(phi3[run_start - 1]) > 0.5 * float(tb_params.vdd):
         run_start -= 1
     run_stop = int(active_idx[-1])
     residual_offset_uv = 1e6 * abs(float(vout[run_stop]))
@@ -413,6 +612,97 @@ def run_noise_and_offset_test(
         purpose="noise_and_offset",
         metrics=metrics,
         passed=bool(np.isfinite(residual_offset_uv) and np.isfinite(pedestal_uv)),
+    )
+
+
+def run_noise_and_offset_monte_carlo(
+    dut_params: OpampAzTopParams | None = None,
+    tb_params: OpampAzTopNoiseAndOffsetTbParams | None = None,
+    *,
+    samples: int = 50,
+    model_section: str = "tt_mm",
+):
+    dut_params = dut_params or OpampAzTopParams()
+    tb_params = tb_params or OpampAzTopNoiseAndOffsetTbParams()
+    if samples <= 0:
+        raise ValueError("samples must be positive")
+
+    residual_vals_uV: list[float] = []
+    pedestal_vals_uV: list[float] = []
+    settling_vals_uV: list[float] = []
+    failures = 0
+
+    for _ in range(samples):
+        try:
+            sim = build_noise_and_offset_mc_test(dut_params, tb_params, model_section=model_section)
+            result = run_ngspice_sim(sim, SimOptions(rundir=f"./tmp/opamp_az_top_mc_{uuid4().hex[:8]}"))
+            time = _tran_waveform(result, "time")
+            vout = _tran_waveform(result, "v(xtop.vout)")
+            phi3 = _tran_waveform(result, "v(xtop.phi3)")
+            active_idx = np.flatnonzero(phi3 > 0.5 * float(tb_params.vdd))
+            if len(active_idx) == 0:
+                raise RuntimeError("No settle-phase window detected in opamp_az_top MC test")
+            run_start = int(active_idx[-1])
+            while run_start > 0 and float(phi3[run_start - 1]) > 0.5 * float(tb_params.vdd):
+                run_start -= 1
+            run_stop = int(active_idx[-1])
+            residual_offset_uv = 1e6 * abs(float(vout[run_stop]))
+
+            def _window_p2p(start_frac: float, stop_frac: float) -> float:
+                npts = run_stop - run_start + 1
+                w_start = run_start + int(npts * start_frac)
+                w_stop = run_start + int(npts * stop_frac)
+                arr = vout[w_start : w_stop + 1]
+                return 1e6 * abs(float(np.max(arr) - np.min(arr)))
+
+            pedestal_mid50_uv = _window_p2p(0.25, 0.75)
+            mid50_start = run_start + int((run_stop - run_start + 1) * 0.25)
+            mid50_stop = run_start + int((run_stop - run_start + 1) * 0.75)
+            mid50 = vout[mid50_start : mid50_stop + 1]
+            mid50_tail_start = max(len(mid50) * 3 // 4, 1)
+            settling_mid50_uv = 1e6 * abs(float(np.max(mid50[mid50_tail_start:]) - np.min(mid50[mid50_tail_start:])))
+
+            residual_vals_uV.append(residual_offset_uv)
+            pedestal_vals_uV.append(pedestal_mid50_uv)
+            settling_vals_uV.append(settling_mid50_uv)
+        except Exception:
+            failures += 1
+
+    if not residual_vals_uV:
+        raise RuntimeError("All Monte Carlo AZ samples failed")
+
+    def _summarize(values: list[float], *, target_limit: float, maximum_limit: float, prefix: str) -> dict[str, float | int | str]:
+        arr = np.asarray(values, dtype=float)
+        percentiles = np.percentile(arr, [50, 90, 95, 99])
+        return {
+            f"{prefix}_mean_uV": float(np.mean(arr)),
+            f"{prefix}_sigma_uV": float(np.std(arr)),
+            f"{prefix}_max_uV": float(np.max(arr)),
+            f"{prefix}_p50_uV": float(percentiles[0]),
+            f"{prefix}_p90_uV": float(percentiles[1]),
+            f"{prefix}_p95_uV": float(percentiles[2]),
+            f"{prefix}_p99_uV": float(percentiles[3]),
+            f"{prefix}_pass_rate_vs_target": float(np.sum(arr <= target_limit)) / float(len(arr)),
+            f"{prefix}_pass_rate_vs_maximum": float(np.sum(arr <= maximum_limit)) / float(len(arr)),
+        }
+
+    target = OpampAzV3TargetSpec()
+    maximum = OpampAzV3MaximumSpec()
+    metrics = {
+        "samples_requested": int(samples),
+        "samples_completed": int(len(residual_vals_uV)),
+        "samples_failed": int(failures),
+        "model_section": model_section,
+        **_summarize(residual_vals_uV, target_limit=target.residual_offset_uV_max, maximum_limit=maximum.residual_offset_uV_max, prefix="residual_offset"),
+        **_summarize(pedestal_vals_uV, target_limit=target.pedestal_mid50_uV_max, maximum_limit=maximum.pedestal_mid50_uV_max, prefix="pedestal_mid50"),
+        **_summarize(settling_vals_uV, target_limit=target.settling_mid50_uV_max, maximum_limit=maximum.settling_mid50_uV_max, prefix="settling_mid50"),
+    }
+    return make_test_result(
+        component="opamp_az_top",
+        category="mc",
+        purpose="noise_and_offset",
+        metrics=metrics,
+        passed=bool(metrics["residual_offset_pass_rate_vs_target"] >= 0.99),
     )
 
 

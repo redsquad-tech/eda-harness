@@ -1,71 +1,77 @@
 # EDA Harness
 
-Репозиторий для разработки, тестирования и поэтапного доведения аналоговых блоков на `hdl21`, в первую очередь ОУ с `auto-zero` в `sky130`.
+Repository for developing, testing, and incrementally closing analog blocks in `hdl21`, primarily an `auto-zero` opamp in `sky130`.
 
-Этот документ описывает:
-- что находится в проекте
-- как в нём работать
-- какие правила разработки обязательны
-- как тестировать изменения
-- где смотреть текущий статус и целевые требования
+This document explains:
+- what is in the project
+- how to work in the repo
+- which development rules are mandatory
+- how to test changes
+- where to find current status and target requirements
 
-## Проект
+## Project
 
-Основной целевой блок сейчас:
-- ОУ с `auto-zero` и низким остаточным offset в `sky130`
+Current primary target block:
+- a low-residual-offset `auto-zero` opamp in `sky130`
 
-Базовая спецификация:
+Base specification:
 - [opamp_az_spec.md](/home/vadim/work/eda-harness/opamp_az_spec.md)
 
-Текущее инженерное состояние:
+Current engineering status:
 - [track.md](/home/vadim/work/eda-harness/track.md)
 
-Правила по компонентам, генераторам и структуре тестов:
+Rules for components, generators, and test structure:
 - [hdl21.md](/home/vadim/work/eda-harness/hdl21.md)
 - [tesing_guide.md](/home/vadim/work/eda-harness/tesing_guide.md)
 
-Дополнительный служебный документ:
+Additional utility document:
 - [spice2xschem/README.md](/home/vadim/work/eda-harness/spice2xschem/README.md)
 
-## Главный принцип работы
+## Core Working Principle
 
-Проект ведётся **через тесты**.
+The project is run **through tests**.
 
-Главное правило:
-- **всё должно быть покрыто тестами**
+Mandatory organizational rule:
+- every new opamp architecture lives in its own folder: `opamp/<amp_arch_name>`
+- tests for that architecture live alongside it in `opamp/<amp_arch_name>/tests`
+- `components/` is used only for low-level reusable blocks that are unlikely to change often
+- top-level opamp pieces (`opamp_core`, `opamp_az_top`, `frontend_az`, stage composition, and related test logic) should not evolve in `components/` by default
 
-Практический процесс всегда такой:
-1. сформулировать требование как тест
-2. запустить тест и получить реальную красную метрику
-3. локализовать узкое место по этим метрикам
-4. если нужно, уточнить или исправить тест
-5. только после этого выдвигать гипотезу по схеме
-6. проверять гипотезу автотестами
-7. повторять цикл, пока метрика не станет зелёной
+Main rule:
+- **everything must be covered by tests**
 
-## Обязательные правила разработки
+The practical process is always:
+1. express the requirement as a test
+2. run the test and get a real red metric
+3. localize the bottleneck from the metrics
+4. refine or fix the test if needed
+5. only then propose a circuit hypothesis
+6. validate that hypothesis with automated tests
+7. repeat until the metric turns green
 
-### 1. Сначала тест, потом схема
+## Mandatory Development Rules
 
-Перед любой серьёзной схемотехнической правкой должно быть ясно:
-- какая метрика плохая
-- каким тестом она измеряется
-- какой ожидается выигрыш после правки
+### 1. Test First, Then Circuit
 
-Если теста нет:
-- сначала добавить тест
+Before any substantial circuit change, it must be clear:
+- which metric is bad
+- which test measures it
+- what improvement is expected after the change
 
-Если тест есть, но он не даёт однозначного сигнала:
-- сначала улучшить тест
+If there is no test:
+- add the test first
 
-### 2. Узкие места выявляются только через метрики
+If the test exists but does not give an unambiguous signal:
+- improve the test first
 
-Нельзя крутить размеры или topology “на ощущениях”.
+### 2. Bottlenecks Are Identified Only Through Metrics
 
-Нужно:
-- измерить текущее состояние
-- зафиксировать реальные числа
-- понять, где именно теряется качество:
+Do not tune sizes or topology by intuition alone.
+
+You must:
+- measure the current state
+- record real numbers
+- understand where quality is being lost:
   - gain
   - swing
   - drive
@@ -75,149 +81,166 @@
   - leakage
   - corner robustness
 
-Только после этого выбирать следующую гипотезу.
+Only after that should you choose the next hypothesis.
 
-### 3. Тесты могут быть сломаны
+### 3. Tests Can Be Wrong
 
-Это ключевое правило проекта.
+This is a key repository rule.
 
-Всегда помнить:
-- тесты могут быть неверно сформулированы
-- измерительное окно может быть выбрано неправильно
-- bench может искажать operating point
-- loop-break может мерить не то, что кажется
-- top-level budget test может случайно считать артефакты edge feedthrough как полезную ошибку
+Always remember:
+- the test can be formulated incorrectly
+- the measurement window can be wrong
+- the bench can distort the operating point
+- the loop-break setup can measure something other than what it seems
+- a top-level budget test can accidentally count edge feedthrough artifacts as useful error
 
-Если проблема долго не решается:
-- **в первую очередь искать ошибку в тесте**
+If a problem is not getting solved:
+- **first look for an error in the test**
 
-Это не исключение, а обязательная проверка.
+This is not an exception. It is a mandatory check.
 
-### 4. Если результат не сходится с физической интуицией, сначала проверять measurement
+### 4. If the Result Does Not Match Physical Intuition, Check Measurement First
 
-Типовые примеры:
-- слишком большой gain
-- слишком странный phase margin
-- неожиданный провал после “разумной” правки
-- номинал хороший, а standalone блок показывает абсурд
+Typical examples:
+- suspiciously large gain
+- very strange phase margin
+- an unexpected collapse after a "reasonable" change
+- nominal looks good but a standalone block produces nonsense
 
-В таких случаях сначала проверять:
-- правильность fixture
-- смысл измеряемой метрики
-- окно измерения
+In such cases, first check:
+- fixture correctness
+- meaning of the metric being measured
+- measurement window
 - bias point
 - sign convention
 
-И только потом переделывать схему.
+Only after that should you redesign the circuit.
 
-### 5. Разделять уровень компонента и уровень продукта
+### 5. Separate the Primitive Library from the Opamp Architecture
 
 `components/`:
-- reusable block tests
-- `smoke`
-- `contract`
-- `char`
+- library of low-level reusable generators
+- leaf / primitive analog blocks
+- shared simulation helpers
+
+`opamp/<amp_arch_name>/`:
+- the entire concrete opamp architecture
+- its top-level blocks
+- its local `specs`, `tb`, `run_*`, and `tests`
 
 `tests/structural/...`:
-- product-level budgets
-- top-level requirements
-- system-level checks
+- legacy baseline tests
+- repo-wide checks
+- migration target only while the old architecture is still supported
 
-Нельзя смешивать:
+Do not mix:
+- low-level reusable primitives
+- frequently changing top-level opamp architecture
 - generic component characterization
 - product-specific spec assertions
 
-Подробности:
+Details:
 - [tesing_guide.md](/home/vadim/work/eda-harness/tesing_guide.md)
 
-### 6. После каждой важной правки нужен быстрый прогон
+### 6. Every Important Change Needs a Quick Run
 
-Минимум:
-- быстрый nominal screen
-- затронутые budget tests
+Minimum:
+- a fast nominal screen
+- the affected budget tests
 
-Нельзя делать серию схемных правок без промежуточных прогонов.
+Do not make a long series of circuit changes without intermediate runs.
 
-### 7. После nominal closure обязательно идти в corners
+### 7. After Nominal Closure, Go to Corners
 
-Нельзя считать устройство готовым только потому, что оно прошло `TT nominal`.
+Do not treat the design as ready just because it passes `TT nominal`.
 
-Минимум перед утверждением, что схема “почти готова”:
+Minimum before saying the circuit is "almost ready":
 - nominal tests
 - reduced `PVT`
 
-Минимум перед tape-out:
+Minimum before tape-out:
 - full `PVT`
 - `MC`
 - `PEX`
 - post-layout verification
 
-## Рекомендуемый рабочий цикл
+## Recommended Work Cycle
 
-Для любой проблемы:
+For any problem:
 
-1. Найти текущий тест или добавить новый.
-2. Получить численную красную метрику.
-3. Проверить, что тест меряет именно то, что нужно.
-4. Снять debug-метрики и raw waveform, если есть сомнение.
-5. Сформулировать 1 гипотезу.
-6. Проверить гипотезу на автотестах.
-7. Если гипотеза не сработала, зафиксировать это в [track.md](/home/vadim/work/eda-harness/track.md).
-8. Если серия гипотез не помогает, вернуться к тесту и искать ошибку в measurement.
+1. Find the current test or add a new one.
+2. Get a numerical red metric.
+3. Check that the test is measuring the intended behavior.
+4. Capture debug metrics and raw waveforms if there is doubt.
+5. Formulate one hypothesis.
+6. Validate the hypothesis with automated tests.
+7. If the hypothesis fails, record that in [track.md](/home/vadim/work/eda-harness/track.md).
+8. If several hypotheses fail, return to the test and look for a measurement problem.
 
-## Как читать проект
+## How to Read the Project
 
-Рекомендуемый порядок:
+Recommended order:
 1. [README.md](/home/vadim/work/eda-harness/README.md)
 2. [opamp_az_spec.md](/home/vadim/work/eda-harness/opamp_az_spec.md)
 3. [track.md](/home/vadim/work/eda-harness/track.md)
 4. [tesing_guide.md](/home/vadim/work/eda-harness/tesing_guide.md)
 5. [hdl21.md](/home/vadim/work/eda-harness/hdl21.md)
+6. `opamp/<amp_arch_name>/` for the active architecture, if it already exists
 
-## Как тестировать
+## How to Test
 
-### Быстрые проверки
+For a new opamp architecture:
+
+```bash
+python3 -m unittest discover -s opamp/<amp_arch_name>/tests -v
+```
+
+Legacy baseline examples:
+
+### Fast Checks
 
 ```bash
 python3 -m unittest -v tests.structural.opamp_core.test_opamp_core__screen__fast_nominal
 python3 -m unittest -v tests.structural.opamp_az_top.test_opamp_az_top__budget__precision_ppa
 ```
 
-### Длинные, но полезные проверки
+### Long but Useful Checks
 
 ```bash
 python3 -m unittest -v tests.structural.opamp_core.test_opamp_core__char__pvt
 python3 -m unittest -v tests.structural.opamp_az_top.test_opamp_az_top__char__reduced_pvt
 ```
 
-### Полный прогон
+### Full Run
 
 ```bash
 python3 -m unittest discover -s tests -v
 ```
 
-## Что сейчас важно
+For an active new architecture, the full run should start from its local test directory, not from `tests/structural` by default.
 
-На момент написания:
-- `opamp_core` выглядит достаточно зрелым на nominal и лучше покрыт тестами
-- `opamp_az_top` проходит top-level nominal budget
-- главный blocker до tape-out сейчас в corner sensitivity `AZ`
+## What Matters Right Now
 
-Актуальные метрики и история экспериментов:
+At the moment:
+- `opamp_core` looks fairly mature at nominal and is better covered by tests
+- `opamp_az_top` passes the top-level nominal budget
+- the main blocker before tape-out is still `AZ` corner sensitivity
+
+Current metrics and experiment history:
 - [track.md](/home/vadim/work/eda-harness/track.md)
 
-## Что нужно до tape-out
+## What Is Needed Before Tape-Out
 
-Минимальный путь:
-1. довести схемотехнику до устойчивого reduced/full `PVT`
-2. прогнать `MC`
-3. сделать layout
-4. прогнать `PEX`
-5. повторить signoff-проверки post-layout
+Minimum path:
+1. close the schematics across reduced/full `PVT`
+2. run `MC`
+3. do layout
+4. run `PEX`
+5. repeat signoff checks post-layout
 
-На сегодня tape-out readiness ещё нет.
+As of now, tape-out readiness is not there yet.
 
-## Индекс Markdown-документов
+## Markdown Document Index
 
 - [README.md](/home/vadim/work/eda-harness/README.md)
 - [hdl21.md](/home/vadim/work/eda-harness/hdl21.md)

@@ -2,9 +2,14 @@
 
 ## 1. Scope
 
-This guide defines tests for structural Hdl21 generators built from verified SKY130 leaf cells.
+This guide defines tests for structural HDL21 generators built from verified SKY130 leaf cells and for architecture-local opamp workspaces.
 
-Covered components:
+Default rule for new opamp work:
+- each new opamp architecture requested by the user lives in `opamp/<amp_arch_name>/`
+- its tests live alongside it in `opamp/<amp_arch_name>/tests`
+- `tests/structural` is legacy/baseline territory unless there is a specific cross-architecture reason to add a repo-level test
+
+Covered low-level or legacy components:
 
 - `frontend_az`
 - `gain_stage`
@@ -43,7 +48,7 @@ Rules:
 
 ## 3. Naming
 
-### Test files and functions
+### Test Files and Functions
 
 ```text
 test_<component>__<category>__<purpose>.py
@@ -62,19 +67,19 @@ test_gain_stage__char__gain_gmro.py
 test_opamp_az_top__budget__precision_ppa.py
 ```
 
-### Testbench files
+### Testbench Files
 
 ```text
 tb_<component>__<purpose>__<fixture>.py
 ```
 
-### Spec classes
+### Spec Classes
 
 ```text
 <ComponentPascalCase>Spec
 ```
 
-### Result files
+### Result Files
 
 ```text
 <component>__<category>__<purpose>.json
@@ -87,9 +92,9 @@ Optional artifacts:
 <component>__<metric>__vs_<sweep>.png
 ```
 
-### Naming rules
+### Naming Rules
 
-Do not put any of these in a file name:
+Do not include any of the following in a file name:
 
 - process corner
 - temperature
@@ -132,9 +137,10 @@ Do not create synonyms for the same check.
 ## 5. Directory Layout
 
 ```text
-tests/
-  structural/
-    <component>/
+opamp/
+  <amp_arch_name>/
+    <block>.py
+    tests/
       test_<component>__smoke__basic.py
       test_<component>__contract__*.py
       test_<component>__char__*.py
@@ -142,9 +148,17 @@ tests/
       test_<component>__mc__*.py
       test_<component>__pex__*.py
       test_<component>__budget__*.py
-      tb_<component>__*.py
       specs_<component>.py
+
+Legacy baseline layout still allowed while migrating:
+
+tests/
+  structural/
+    <component>/
+      ...
 ```
+
+For new opamp architectures, local tests next to the architecture are the default and preferred layout.
 
 ## 6. Result Format
 
@@ -223,7 +237,7 @@ Recommended budget names:
 - `ripple_attenuation`
 - `precision_ppa`
 
-Budget result should include:
+Budget results should include:
 
 - `spec_name`
 - `pass`
@@ -233,7 +247,7 @@ Budget result should include:
 
 ### PVT
 
-Use a purpose name that tells what is worst-cased.
+Use a purpose name that tells what is being worst-cased.
 
 Good:
 
@@ -290,4 +304,3 @@ test_<component>__pvt__<main_worst_case>.py
 ```
 
 For precision, auto-zero, and fully differential blocks, add `mc` and `pex` early.
-

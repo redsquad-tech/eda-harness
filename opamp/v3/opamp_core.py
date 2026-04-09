@@ -65,21 +65,28 @@ class OpampCoreParams:
     w_tail_sw = h.Param(dtype=h.Scalar, desc="PMOS tail enable-switch width in um", default=12.0)
     l_tail_sw = h.Param(dtype=h.Scalar, desc="PMOS tail enable-switch length in um", default=0.15)
     tail_switch_stack = h.Param(dtype=int, desc="Number of stacked PMOS devices in the tail enable path", default=1)
-    w_stage2_n = h.Param(dtype=h.Scalar, desc="Second-stage NMOS width in um", default=24.0)
-    l_stage2_n = h.Param(dtype=h.Scalar, desc="Second-stage NMOS length in um", default=4.0)
+    w_stage2_n = h.Param(dtype=h.Scalar, desc="Second-stage NMOS width in um", default=20.0)
+    l_stage2_n = h.Param(dtype=h.Scalar, desc="Second-stage NMOS length in um", default=6.0)
     w_stage2_p = h.Param(dtype=h.Scalar, desc="Second-stage PMOS load width in um", default=12.0)
-    l_stage2_p = h.Param(dtype=h.Scalar, desc="Second-stage PMOS load length in um", default=8.0)
+    l_stage2_p = h.Param(dtype=h.Scalar, desc="Second-stage PMOS load length in um", default=10.0)
     w_stage2_bias_ref = h.Param(dtype=h.Scalar, desc="Second-stage PMOS bias reference width in um", default=3.0)
     l_stage2_bias_ref = h.Param(dtype=h.Scalar, desc="Second-stage PMOS bias reference length in um", default=4.0)
     r_stage2_bias = h.Param(dtype=h.Scalar, desc="Second-stage PMOS bias reference resistor in ohm", default=300e3)
-    w_out_n = h.Param(dtype=h.Scalar, desc="Output helper PMOS width in um", default=3.0)
+    w_out_n = h.Param(dtype=h.Scalar, desc="Output helper PMOS width in um", default=1.2)
     l_out_n = h.Param(dtype=h.Scalar, desc="Output follower NMOS length in um", default=0.5)
+    w_out_boost = h.Param(dtype=h.Scalar, desc="Optional secondary PMOS assist width in um; <= 0 disables it", default=0.0)
+    l_out_boost = h.Param(dtype=h.Scalar, desc="Optional secondary PMOS assist length in um", default=0.5)
+    w_out_pd = h.Param(dtype=h.Scalar, desc="Optional low-side NMOS assist width in um; <= 0 disables it", default=0.0)
+    l_out_pd = h.Param(dtype=h.Scalar, desc="Optional low-side NMOS assist length in um", default=0.5)
     r_vdrv_out = h.Param(dtype=h.Scalar, desc="Direct output-link resistance in ohm", default=1.0)
     r_gp = h.Param(dtype=h.Scalar, desc="PMOS helper gate coupling resistance in ohm", default=1e6)
+    r_gp_pullup = h.Param(dtype=h.Scalar, desc="Optional weak pull-up from helper gate to VDD in ohm; <= 0 disables it", default=0.0)
+    r_gp_boost = h.Param(dtype=h.Scalar, desc="Optional secondary helper gate coupling resistance in ohm", default=1e6)
+    r_gp_boost_pullup = h.Param(dtype=h.Scalar, desc="Optional weak pull-up from secondary helper gate to VDD in ohm; <= 0 disables it", default=0.0)
     isolate_gp_link_in_shutdown = h.Param(dtype=bool, desc="Insert an EN-controlled transmission gate in series with the helper gate-link", default=True)
     w_gp_sw = h.Param(dtype=h.Scalar, desc="Helper gate-link switch width in um", default=1.0)
     l_gp_sw = h.Param(dtype=h.Scalar, desc="Helper gate-link switch length in um", default=0.15)
-    c_comp = h.Param(dtype=h.Scalar, desc="Miller compensation capacitor in F", default=200e-15)
+    c_comp = h.Param(dtype=h.Scalar, desc="Miller compensation capacitor in F", default=220e-15)
     debug_current_probes = h.Param(dtype=bool, desc="Insert internal 0 V current probes for debug-only diagnostics", default=False)
 
 
@@ -222,8 +229,24 @@ def opamp_core(params: OpampCoreParams) -> h.Module:
     else:
         gp_link_node = vdrv_gp_link
     mod.r_gp = pdk_resistor(params.r_gp, p=gp_link_node, n=mod.gp, bulk=mod.VSS)
+    if float(params.r_gp_pullup) > 0.0:
+        mod.r_gp_pullup = pdk_resistor(params.r_gp_pullup, p=mod.VDD, n=mod.gp, bulk=mod.VSS)
     mod.m_gp_off = pmos(inv_ppar)(d=mod.gp, g=mod.EN, s=mod.VDD, b=mod.VDD)
     mod.m_out_p = pmos(out_p_par)(d=mod.VOUT, g=mod.gp, s=mod.VDD, b=mod.VDD)
+    if float(params.w_out_boost) > 0.0:
+        out_boost_par = _mos_params(params.w_out_boost, params.l_out_boost)
+        mod.gp_boost = h.Signal(name="gp_boost")
+        mod.r_gp_boost = pdk_resistor(params.r_gp_boost, p=gp_link_node, n=mod.gp_boost, bulk=mod.VSS)
+        if float(params.r_gp_boost_pullup) > 0.0:
+            mod.r_gp_boost_pullup = pdk_resistor(params.r_gp_boost_pullup, p=mod.VDD, n=mod.gp_boost, bulk=mod.VSS)
+        mod.m_gp_boost_off = pmos(inv_ppar)(d=mod.gp_boost, g=mod.EN, s=mod.VDD, b=mod.VDD)
+        mod.m_out_p_boost = pmos(out_boost_par)(d=mod.VOUT, g=mod.gp_boost, s=mod.VDD, b=mod.VDD)
+    if float(params.w_out_pd) > 0.0:
+        out_pd_par = _mos_params(params.w_out_pd, params.l_out_pd)
+        mod.gn = h.Signal(name="gn")
+        mod.m_gn_p = pmos(inv_ppar)(d=mod.gn, g=mod.vdrv, s=mod.VDD, b=mod.VDD)
+        mod.m_gn_n = nmos(inv_npar)(d=mod.gn, g=mod.vdrv, s=mod.VSS, b=mod.VSS)
+        mod.m_out_n_assist = nmos(out_pd_par)(d=mod.VOUT, g=mod.gn, s=mod.VSS, b=mod.VSS)
 
     # Compensation between the two explicit gain nodes.
     mod.cc = pdk_mim_capacitor(params.c_comp, p=mod.vx, n=mod.vdrv)

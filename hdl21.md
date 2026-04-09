@@ -1,6 +1,6 @@
 # HDL21 Component Standard
 
-This document defines the mandatory repository standard for reusable HDL21 components.
+This document defines the mandatory repository standard for reusable HDL21 components and opamp-architecture workspaces.
 
 ## 1. Keywords
 
@@ -8,7 +8,7 @@ The key words **MUST**, **MUST NOT**, **SHOULD**, and **MAY** are normative.
 
 ## 2. Repository Structure
 
-Each reusable component **MUST** have:
+Each reusable low-level reusable component **MUST** have:
 
 - one module file: `components/<component_name>.py`
 - one registry entry in `components.csv`
@@ -21,9 +21,23 @@ Component-level verification code **MUST** live in the same module as the compon
 
 A separate `tests/` package for component verification code **MUST NOT** be created by default.
 
+Each new opamp architecture requested by the user **MUST** live in:
+
+- `opamp/<amp_arch_name>/`
+
+That architecture workspace **MUST** contain:
+
+- its own top-level HDL21 modules
+- its own local test files
+- its own architecture-local helpers and specs as needed
+
+Higher-level opamp blocks under active development **MUST NOT** be added to `components/` by default.
+
+`components/` is reserved for low-level reusable blocks that are expected to remain stable across opamp architectures.
+
 ## 3. Registry Contract
 
-Each reusable component **MUST** be registered in `components.csv`.
+Each reusable low-level component **MUST** be registered in `components.csv`.
 
 Each registry entry **MUST** include:
 
@@ -151,7 +165,9 @@ Analog or SPICE-style terminals **MUST** use `h.Port` or `h.Ports` unless direct
 
 ## 10. Shared Helpers
 
-Shared repository helpers **MUST** be imported from `components`.
+Shared repository helpers for low-level library blocks **MUST** be imported from `components`.
+
+Architecture-local helpers for `opamp/<amp_arch_name>/` **SHOULD** live inside that architecture workspace instead of `components/__init__.py`.
 
 Component modules **MUST NOT** import ngspice compatibility internals directly from `components/ngspice_netlister.py` unless repository maintenance requires it.
 
@@ -382,7 +398,9 @@ This repository targets SKY130.
 
 Leaf-level generators **MUST** instantiate SKY130 devices or passives directly unless a documented abstraction layer is required.
 
-Higher-level generators **MAY** compose registered local components from `components/`.
+Higher-level generators inside `opamp/<amp_arch_name>/` **MAY** compose low-level registered components from `components/`.
+
+Higher-level generators inside `opamp/<amp_arch_name>/` **SHOULD** prefer local imports from the same architecture workspace for all opamp-specific blocks.
 
 Unregistered reusable local components **MUST NOT** be used as dependencies.
 

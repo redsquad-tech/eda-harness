@@ -9,7 +9,7 @@ from pathlib import Path
 import hdl21 as h
 
 from components.frontend_az import FrontendAzParams
-from components.opamp_az_top import OpampAzTopParams
+from components.opamp_az_top import OpampAzTopNoiseAndOffsetTbParams, OpampAzTopParams
 from tests.structural._helpers import init_sky130_install
 
 from .autonomous_az_batches import (
@@ -27,6 +27,7 @@ from .autonomous_az_batches import (
 from .az_research_plan import AzResearchHypothesis, AzResearchTest, AzResearchVariant, build_az_research_plan, build_az_research_tests
 from components.frontend_az import run_pedestal_zero_input_test, run_settling_in_phase_window_test
 from components.opamp_az_top import run_noise_and_offset_test
+from components.opamp_az_top import run_noise_and_offset_monte_carlo
 
 
 LOG_PATH: Path | None = None
@@ -82,6 +83,20 @@ def _frontend_tt_metrics(frontend_params: FrontendAzParams, timing: dict[str, fl
             corner=h.pdk.Corner.TYP,
         )["metrics"],
     }
+
+
+def _top_tb_params(timing: dict[str, float], *, vdd: float = 1.8, temp_c: float = 27.0) -> OpampAzTopNoiseAndOffsetTbParams:
+    return OpampAzTopNoiseAndOffsetTbParams(
+        vdd=vdd,
+        period=timing["period"],
+        dead_time=timing["dead_time"],
+        phi1_share=timing["phi1_share"],
+        phi2_share=timing["phi2_share"],
+        phi3_share=timing["phi3_share"],
+        tstop=timing["tstop"],
+        tstep=timing["tstep"],
+        temp_c=temp_c,
+    )
 
 
 def _timing_sanity_metrics(frontend_params: FrontendAzParams, timing: dict[str, float]) -> dict:
@@ -158,13 +173,16 @@ def build_executable_variants() -> dict[str, ExecutableAzVariant]:
                 timing = _timing(dead_time=200e-9, tstop=120e-6)
                 variants[variant.variant_id] = ExecutableAzVariant(variant, frontend, timing, True)
             elif variant.hypothesis_id == "az_h4":
-                variants[variant.variant_id] = ExecutableAzVariant(
-                    variant=variant,
-                    frontend_params=None,
-                    timing=None,
-                    runnable=False,
-                    unavailable_reason="top-level mismatch-only MC bench is not implemented yet",
-                )
+                if variant.variant_id == "az_h4_v1_mc_cap200_shuntp10_freq200k":
+                    frontend = _frontend_params(c_az=200e-15, r_vcm_top=8e2, r_vcm_bot=5.0, c_out_p=10e-15)
+                    timing = _timing(period=5e-6, tstop=60e-6, dead_time=0.5e-6)
+                    variants[variant.variant_id] = ExecutableAzVariant(variant, frontend, timing, True)
+                elif variant.variant_id == "az_h4_v2_mc_cap200_shuntp10_rtop600":
+                    frontend = _frontend_params(c_az=200e-15, r_vcm_top=6e2, r_vcm_bot=5.0, c_out_p=10e-15)
+                    timing = _default_timing()
+                    variants[variant.variant_id] = ExecutableAzVariant(variant, frontend, timing, True)
+                else:
+                    raise ValueError(f"Unhandled AZ research MC variant: {variant.variant_id}")
             else:
                 raise ValueError(f"Unhandled AZ research variant: {variant.variant_id}")
     return variants
@@ -195,10 +213,30 @@ def _run_variant(executable: ExecutableAzVariant, hypothesis: AzResearchHypothes
         elif test_id == "az_deadtime_sweep":
             results[test_id] = _deadtime_sweep_metrics(executable.frontend_params, executable.timing)
         elif test_id in {"az_mc_offset", "az_mc_pedestal_settling"}:
-            results[test_id] = {
-                "status": "unavailable",
-                "reason": "top-level mismatch-only MC bench is not implemented yet",
-            }
+            mc = run_noise_and_offset_monte_carlo(top_params, _top_tb_params(executable.timing, vdd=1.8, temp_c=27.0), samples=50, model_section="tt_mm")
+            metrics = mc["metrics"]
+            if test_id == "az_mc_offset":
+                results[test_id] = {
+                    "mean_uV": float(metrics["residual_offset_mean_uV"]),
+                    "sigma_uV": float(metrics["residual_offset_sigma_uV"]),
+                    "p99_uV": float(metrics["residual_offset_p99_uV"]),
+                    "max_uV": float(metrics["residual_offset_max_uV"]),
+                    "pass_rate_vs_target": float(metrics["residual_offset_pass_rate_vs_target"]),
+                    "pass_rate_vs_maximum": float(metrics["residual_offset_pass_rate_vs_maximum"]),
+                    "samples_completed": int(metrics["samples_completed"]),
+                    "samples_failed": int(metrics["samples_failed"]),
+                }
+            else:
+                results[test_id] = {
+                    "pedestal_mean_uV": float(metrics["pedestal_mid50_mean_uV"]),
+                    "pedestal_sigma_uV": float(metrics["pedestal_mid50_sigma_uV"]),
+                    "pedestal_p99_uV": float(metrics["pedestal_mid50_p99_uV"]),
+                    "settling_mean_uV": float(metrics["settling_mid50_mean_uV"]),
+                    "settling_sigma_uV": float(metrics["settling_mid50_sigma_uV"]),
+                    "settling_p99_uV": float(metrics["settling_mid50_p99_uV"]),
+                    "samples_completed": int(metrics["samples_completed"]),
+                    "samples_failed": int(metrics["samples_failed"]),
+                }
         else:
             raise ValueError(f"Unhandled AZ research test: {test.test_id}")
     payload = {

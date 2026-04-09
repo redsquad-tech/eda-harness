@@ -10,6 +10,8 @@ TARGETS: dict[str, list[str]] = {
         "opamp.v3.tests.test_v3__smoke__architecture",
         "opamp.v3.tests.test_v3__smoke__current_experiment",
         "opamp.v3.tests.test_v3__smoke__autonomous_az_batches",
+        "opamp.v3.tests.test_v3__smoke__autonomous_az_mismatch_batches",
+        "opamp.v3.tests.test_v3__smoke__autonomous_az_mismatch_repair_batches",
         "opamp.v3.tests.test_v3__smoke__autonomous_followup_batches",
         "opamp.v3.tests.test_v3__smoke__az_research_plan",
         "opamp.v3.tests.test_v3__smoke__az_research_runner",
