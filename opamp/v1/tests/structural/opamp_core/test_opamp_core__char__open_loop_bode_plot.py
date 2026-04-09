@@ -13,7 +13,7 @@ import numpy as np
 from hdl21.sim.proto import to_proto
 
 from components.ngspice_netlister import _export_save_compat, write_compatible_netlist
-from components.opamp_core import (
+from opamp.v1.opamp_core import (
     OpampCoreOpenLoopTbParams,
     OpampCoreParams,
     _build_open_loop_tb,
@@ -24,7 +24,7 @@ from components.opamp_core import (
     _negative_feedback_phase_trace,
     run_ngspice_sim,
 )
-from tests.structural._helpers import init_sky130_install
+from opamp.v1.tests.structural._helpers import init_sky130_install
 
 
 ROOT = Path(__file__).resolve().parents[3]

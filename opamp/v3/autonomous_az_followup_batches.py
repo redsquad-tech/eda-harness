@@ -6,8 +6,8 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-from components.frontend_az import FrontendAzParams
-from tests.structural._helpers import init_sky130_install
+from opamp.v1.frontend_az import FrontendAzParams
+from opamp.v1.tests.structural._helpers import init_sky130_install
 
 from .autonomous_az_batches import (
     _default_timing,

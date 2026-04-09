@@ -4,11 +4,11 @@ import sys
 import unittest
 from pathlib import Path
 
-from components.frontend_az import (
+from opamp.v1.frontend_az import (
     run_pedestal_zero_input_test,
     run_settling_in_phase_window_test,
 )
-from tests.structural._helpers import init_sky130_install
+from opamp.v1.tests.structural._helpers import init_sky130_install
 
 
 ROOT = Path(__file__).resolve().parents[3]

@@ -8,9 +8,9 @@ from pathlib import Path
 
 import hdl21 as h
 
-from components.frontend_az import FrontendAzParams
-from components.opamp_az_top import OpampAzTopNoiseAndOffsetTbParams, OpampAzTopParams, run_noise_and_offset_monte_carlo, run_noise_and_offset_test
-from tests.structural._helpers import init_sky130_install
+from opamp.v1.frontend_az import FrontendAzParams
+from opamp.v1.opamp_az_top import OpampAzTopNoiseAndOffsetTbParams, OpampAzTopParams, run_noise_and_offset_monte_carlo, run_noise_and_offset_test
+from opamp.v1.tests.structural._helpers import init_sky130_install
 
 from .autonomous_az_batches import _frontend_params, _timing, run_reduced_pvt_custom
 

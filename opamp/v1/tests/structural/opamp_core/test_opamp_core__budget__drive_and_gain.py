@@ -5,9 +5,9 @@ import sys
 import unittest
 from pathlib import Path
 
-from components.opamp_core import run_open_loop_test
-from tests.structural._helpers import init_sky130_install
-from tests.structural.opamp_core.specs_opamp_core import (
+from opamp.v1.opamp_core import run_open_loop_test
+from opamp.v1.tests.structural._helpers import init_sky130_install
+from opamp.v1.tests.structural.opamp_core.specs_opamp_core import (
     AOL_DB_MIN,
     GAIN_MARGIN_DB_MIN,
     GBW_HZ_MAX,

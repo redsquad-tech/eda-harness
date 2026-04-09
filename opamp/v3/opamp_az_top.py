@@ -24,9 +24,9 @@ VERIFICATION_PLAN = {
 @dataclass(frozen=True)
 class OpampAzTopSpec:
     name: str = "opamp_az_top_v3"
-    purpose: str = "Compose the v3 AZ front end and v3 static core."
-    component_class: str = "architecture branch"
-    pins: tuple[str, ...] = ("VINP", "VINN", "VOUT", "EN", "PHI1", "PHI2", "VDD", "VSS")
+    purpose: str = "Compose the native v3 AZ front end and v3 static core."
+    component_class: str = "main-branch integrated device"
+    pins: tuple[str, ...] = ("VINP", "VINN", "VOUT", "EN", "PHI1", "PHI1B", "PHI2", "PHI2B", "PHI3", "PHI3B", "VDD", "VSS")
 
 
 @h.paramclass
@@ -41,9 +41,23 @@ def opamp_az_top(params: OpampAzTopParams) -> h.Module:
     core = opamp_core(params.opamp_core_params)
 
     mod = h.Module(name="OpampAzTopV3")
-    mod.VINP, mod.VINN, mod.VOUT, mod.EN, mod.PHI1, mod.PHI2, mod.VDD, mod.VSS = h.Ports(8)
+    mod.VINP, mod.VINN, mod.VOUT, mod.EN, mod.PHI1, mod.PHI1B, mod.PHI2, mod.PHI2B, mod.PHI3, mod.PHI3B, mod.VDD, mod.VSS = h.Ports(12)
     mod.vcorep, mod.vcoren = h.Signals(2)
-    mod.xfront = front(VINP=mod.VINP, VINN=mod.VINN, VOUTP=mod.vcorep, VOUTN=mod.vcoren, PHI1=mod.PHI1, PHI2=mod.PHI2, VDD=mod.VDD, VSS=mod.VSS)
+    mod.xfront = front(
+        VINP=mod.VINP,
+        VINN=mod.VINN,
+        VOFF=mod.VOUT,
+        VXP=mod.vcorep,
+        VXN=mod.vcoren,
+        PHI1=mod.PHI1,
+        PHI1B=mod.PHI1B,
+        PHI2=mod.PHI2,
+        PHI2B=mod.PHI2B,
+        PHI3=mod.PHI3,
+        PHI3B=mod.PHI3B,
+        VDD=mod.VDD,
+        VSS=mod.VSS,
+    )
     mod.xcore = core(VINP=mod.vcorep, VINN=mod.vcoren, VOUT=mod.VOUT, EN=mod.EN, VDD=mod.VDD, VSS=mod.VSS)
     return mod
 

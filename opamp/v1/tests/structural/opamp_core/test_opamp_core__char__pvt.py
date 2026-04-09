@@ -5,8 +5,8 @@ import sys
 import unittest
 from pathlib import Path
 
-from components.opamp_core import run_pvt_test
-from tests.structural._helpers import init_sky130_install
+from opamp.v1.opamp_core import run_pvt_test
+from opamp.v1.tests.structural._helpers import init_sky130_install
 
 
 ROOT = Path(__file__).resolve().parents[3]

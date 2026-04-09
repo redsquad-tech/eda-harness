@@ -4,13 +4,13 @@ import sys
 import unittest
 from pathlib import Path
 
-from components.opamp_core import (
+from opamp.v1.opamp_core import (
     run_disabled_leakage_test,
     run_output_drive_test,
     run_output_swing_test,
 )
-from tests.structural._helpers import init_sky130_install
-from tests.structural.opamp_core.specs_opamp_core import (
+from opamp.v1.tests.structural._helpers import init_sky130_install
+from opamp.v1.tests.structural.opamp_core.specs_opamp_core import (
     DISABLED_LEAKAGE_NA_MAX,
     OUTPUT_CURRENT_ABS_MIN_UA,
     OUTPUT_SWING_HIGH_MIN,

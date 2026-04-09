@@ -8,9 +8,9 @@ from pathlib import Path
 
 import hdl21 as h
 
-from components.frontend_az import FrontendAzParams
-from components.opamp_az_top import OpampAzTopNoiseAndOffsetTbParams, OpampAzTopParams
-from tests.structural._helpers import init_sky130_install
+from opamp.v1.frontend_az import FrontendAzParams
+from opamp.v1.opamp_az_top import OpampAzTopNoiseAndOffsetTbParams, OpampAzTopParams
+from opamp.v1.tests.structural._helpers import init_sky130_install
 
 from .autonomous_az_batches import (
     REDUCED_PVT_CASES,
@@ -25,9 +25,9 @@ from .autonomous_az_batches import (
     run_reduced_pvt_custom,
 )
 from .az_research_plan import AzResearchHypothesis, AzResearchTest, AzResearchVariant, build_az_research_plan, build_az_research_tests
-from components.frontend_az import run_pedestal_zero_input_test, run_settling_in_phase_window_test
-from components.opamp_az_top import run_noise_and_offset_test
-from components.opamp_az_top import run_noise_and_offset_monte_carlo
+from opamp.v1.frontend_az import run_pedestal_zero_input_test, run_settling_in_phase_window_test
+from opamp.v1.opamp_az_top import run_noise_and_offset_test
+from opamp.v1.opamp_az_top import run_noise_and_offset_monte_carlo
 
 
 LOG_PATH: Path | None = None

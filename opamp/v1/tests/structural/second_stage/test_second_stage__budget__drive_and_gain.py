@@ -5,8 +5,8 @@ import unittest
 from pathlib import Path
 
 from components.second_stage import run_gain_gmro_test, run_load_drive_test, run_swing_test
-from tests.structural._helpers import init_sky130_install
-from tests.structural.second_stage.specs_second_stage import (
+from opamp.v1.tests.structural._helpers import init_sky130_install
+from opamp.v1.tests.structural.second_stage.specs_second_stage import (
     OUTPUT_CURRENT_ABS_MIN_UA,
     OUTPUT_SWING_HIGH_MIN,
     OUTPUT_SWING_LOW_MAX,

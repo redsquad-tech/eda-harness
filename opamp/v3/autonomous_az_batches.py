@@ -8,19 +8,19 @@ from pathlib import Path
 
 import hdl21 as h
 
-from components.frontend_az import (
+from opamp.v1.frontend_az import (
     FrontendAzParams,
     FrontendAzPedestalZeroInputTbParams,
     FrontendAzSettlingInPhaseWindowTbParams,
     run_pedestal_zero_input_test,
     run_settling_in_phase_window_test,
 )
-from components.opamp_az_top import (
+from opamp.v1.opamp_az_top import (
     OpampAzTopNoiseAndOffsetTbParams,
     OpampAzTopParams,
     run_noise_and_offset_test,
 )
-from tests.structural._helpers import init_sky130_install
+from opamp.v1.tests.structural._helpers import init_sky130_install
 from .specs import OpampAzV3MaximumSpec, OpampAzV3TargetSpec
 
 

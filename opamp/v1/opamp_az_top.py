@@ -9,13 +9,13 @@ from hdl21.sim import Save, SaveMode, Sim, Tran
 from vlsirtools.spice import SimOptions
 
 from components import extract_subckt_name, make_test_result, print_metrics_table, require_sky130_install, run_ngspice_sim
-from components.frontend_az import (
+from opamp.v1.frontend_az import (
     FrontendAzParams,
     frontend_az,
     run_pedestal_zero_input_test,
     run_settling_in_phase_window_test,
 )
-from components.opamp_core import (
+from opamp.v1.opamp_core import (
     OpampCoreClosedLoopStepTbParams,
     OpampCoreOpenLoopTbParams,
     OpampCoreParams,

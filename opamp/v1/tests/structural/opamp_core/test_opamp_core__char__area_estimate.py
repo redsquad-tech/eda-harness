@@ -4,7 +4,7 @@ import sys
 import unittest
 from pathlib import Path
 
-from components.opamp_core import run_area_estimate
+from opamp.v1.opamp_core import run_area_estimate
 
 
 ROOT = Path(__file__).resolve().parents[3]

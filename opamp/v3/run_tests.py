@@ -12,6 +12,7 @@ TARGETS: dict[str, list[str]] = {
         "opamp.v3.tests.test_v3__smoke__autonomous_az_batches",
         "opamp.v3.tests.test_v3__smoke__autonomous_az_mismatch_batches",
         "opamp.v3.tests.test_v3__smoke__autonomous_az_mismatch_repair_batches",
+        "opamp.v3.tests.test_v3__smoke__autonomous_az_residual_shaping_batches",
         "opamp.v3.tests.test_v3__smoke__autonomous_followup_batches",
         "opamp.v3.tests.test_v3__smoke__az_research_plan",
         "opamp.v3.tests.test_v3__smoke__az_research_runner",
@@ -26,8 +27,28 @@ TARGETS: dict[str, list[str]] = {
     "tapeout_available": [
         "opamp.v3.tests.test_opamp_core_v3__screen__fast_nominal",
         "opamp.v3.tests.test_opamp_core_v3__char__tt_nominal",
-        "tests.structural.opamp_az_top.test_opamp_az_top__budget__precision_ppa",
-        "tests.structural.opamp_az_top.test_opamp_az_top__char__reduced_pvt",
+        "opamp.v1.tests.structural.opamp_az_top.test_opamp_az_top__budget__precision_ppa",
+        "opamp.v1.tests.structural.opamp_az_top.test_opamp_az_top__char__reduced_pvt",
+    ],
+    "prod_acceptance": [
+        "opamp.v3.prod.tests.test_prod__acceptance__maximum_spec",
+    ],
+    "prod_reduced_acceptance": [
+        "opamp.v3.prod.tests.test_prod__acceptance__maximum_spec",
+    ],
+    "prod_full_acceptance": [
+        "opamp.v3.prod.tests.test_prod__acceptance__maximum_spec",
+        "opamp.v3.prod.tests.test_prod__acceptance__full_pvt_core",
+        "opamp.v3.prod.tests.test_prod__acceptance__full_pvt_top",
+        "opamp.v3.prod.tests.test_prod__acceptance__load_sweep",
+        "opamp.v3.prod.tests.test_prod__acceptance__timing_and_mc",
+    ],
+    "prod_release": [
+        "opamp.v3.prod.tests.test_prod__acceptance__maximum_spec",
+        "opamp.v3.prod.tests.test_prod__acceptance__full_pvt_core",
+        "opamp.v3.prod.tests.test_prod__acceptance__full_pvt_top",
+        "opamp.v3.prod.tests.test_prod__acceptance__load_sweep",
+        "opamp.v3.prod.tests.test_prod__acceptance__timing_and_mc",
     ],
 }
 

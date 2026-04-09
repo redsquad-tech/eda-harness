@@ -30,7 +30,7 @@ class TestV3SmokeTapeoutValidation(BaseV3Test):
     def test_status_values_are_expected(self) -> None:
         plan = build_tapeout_validation_plan()
         statuses = {case.implementation_status for case in plan}
-        self.assertEqual(statuses, {"legacy_available", "planned", "v3_available"})
+        self.assertEqual(statuses, {"v1_available", "planned", "v3_available"})
         json.dumps([case.case_id for case in plan])
 
 

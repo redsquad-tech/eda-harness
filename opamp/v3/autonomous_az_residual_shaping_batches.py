@@ -16,7 +16,7 @@ from .autonomous_az_batches import _frontend_params, _timing, run_reduced_pvt_cu
 
 
 @dataclass(frozen=True)
-class AzMismatchRepairCase:
+class AzResidualShapeCase:
     name: str
     hypothesis: str
     frontend_params: FrontendAzParams
@@ -53,56 +53,39 @@ def _top_tb_params(timing: dict[str, float], *, vdd: float = 1.8, temp_c: float 
     )
 
 
-def build_cases() -> list[AzMismatchRepairCase]:
-    baseline_timing = _timing(period=5e-6, tstop=60e-6, dead_time=0.5e-6)
+def build_cases() -> list[AzResidualShapeCase]:
+    timing = _timing(period=5e-6, tstop=60e-6, dead_time=0.5e-6)
+    base = dict(c_az=200e-15, r_vcm_top=7e2, r_vcm_bot=5.0, w_sw_n=1.1, w_sw_p=1.6, nf_sw=2)
     return [
-        AzMismatchRepairCase(
-            name="repair_baseline",
-            hypothesis="Current AZ baseline repair reference.",
-            frontend_params=_frontend_params(c_az=200e-15, r_vcm_top=6e2, r_vcm_bot=5.0, c_out_p=10e-15),
-            timing=baseline_timing,
+        AzResidualShapeCase(
+            name="shape_baseline_m3r2",
+            hypothesis="Best current deep-valid residual branch used as shaping baseline.",
+            frontend_params=_frontend_params(**base, c_out_p=10e-15, c_out_n=0.0),
+            timing=timing,
         ),
-        AzMismatchRepairCase(
-            name="m4r1_cap300_wswn1p1_wswp1p6_nf2",
-            hypothesis="Slightly softer big-switch branch may keep most MC benefit while avoiding deep-corner model failure.",
-            frontend_params=_frontend_params(c_az=300e-15, r_vcm_top=6e2, r_vcm_bot=5.0, c_out_p=10e-15, w_sw_n=1.1, w_sw_p=1.6, nf_sw=2),
-            timing=baseline_timing,
+        AzResidualShapeCase(
+            name="shape_sym_5f",
+            hypothesis="Small symmetric shunts may reduce residual asymmetry better than positive-only shaping.",
+            frontend_params=_frontend_params(**base, c_out_p=5e-15, c_out_n=5e-15),
+            timing=timing,
         ),
-        AzMismatchRepairCase(
-            name="m4r2_cap300_wswn1p2_wswp1p8_nf2",
-            hypothesis="Intermediate big-switch sizing tests the highest MC gain that still survives deep PVT.",
-            frontend_params=_frontend_params(c_az=300e-15, r_vcm_top=6e2, r_vcm_bot=5.0, c_out_p=10e-15, w_sw_n=1.2, w_sw_p=1.8, nf_sw=2),
-            timing=baseline_timing,
+        AzResidualShapeCase(
+            name="shape_sym_10f",
+            hypothesis="Larger symmetric shunts may further reduce mismatch spread if one-sided shaping is the residual source.",
+            frontend_params=_frontend_params(**base, c_out_p=10e-15, c_out_n=10e-15),
+            timing=timing,
         ),
-        AzMismatchRepairCase(
-            name="m4r3_cap300_wswn1p3_wswp2p0_nf1",
-            hypothesis="Keep wide devices but remove switch finger split to reduce model stress in cold corners.",
-            frontend_params=_frontend_params(c_az=300e-15, r_vcm_top=6e2, r_vcm_bot=5.0, c_out_p=10e-15, w_sw_n=1.3, w_sw_p=2.0, nf_sw=1),
-            timing=baseline_timing,
+        AzResidualShapeCase(
+            name="shape_p10_n5",
+            hypothesis="Slight positive-side bias with added negative shunt may preserve nominal behavior while reducing asymmetry.",
+            frontend_params=_frontend_params(**base, c_out_p=10e-15, c_out_n=5e-15),
+            timing=timing,
         ),
-        AzMismatchRepairCase(
-            name="m4r4_cap300_wswn1p1_wswp1p6_lsw0p20_nf2",
-            hypothesis="Longer softer switches may keep symmetry gains while backing away from cold-corner model limits.",
-            frontend_params=_frontend_params(c_az=300e-15, r_vcm_top=6e2, r_vcm_bot=5.0, c_out_p=10e-15, w_sw_n=1.1, w_sw_p=1.6, l_sw=0.20, nf_sw=2),
-            timing=baseline_timing,
-        ),
-        AzMismatchRepairCase(
-            name="m3r1_cap200_wswn1p1_wswp1p6_rtop600",
-            hypothesis="Safe big-switch branch around current baseline should improve MC without deep-PVT invalidity.",
-            frontend_params=_frontend_params(c_az=200e-15, r_vcm_top=6e2, r_vcm_bot=5.0, c_out_p=10e-15, w_sw_n=1.1, w_sw_p=1.6, nf_sw=2),
-            timing=baseline_timing,
-        ),
-        AzMismatchRepairCase(
-            name="m3r2_cap200_wswn1p1_wswp1p6_rtop700",
-            hypothesis="Combine safe big switches with slightly weaker top attenuation for a better MC/corner tradeoff.",
-            frontend_params=_frontend_params(c_az=200e-15, r_vcm_top=7e2, r_vcm_bot=5.0, c_out_p=10e-15, w_sw_n=1.1, w_sw_p=1.6, nf_sw=2),
-            timing=baseline_timing,
-        ),
-        AzMismatchRepairCase(
-            name="m3r3_cap300_wswn1p1_wswp1p6_rtop700",
-            hypothesis="Moderate cap increase plus safe big switches plus weaker top attenuation is the balanced repair candidate.",
-            frontend_params=_frontend_params(c_az=300e-15, r_vcm_top=7e2, r_vcm_bot=5.0, c_out_p=10e-15, w_sw_n=1.1, w_sw_p=1.6, nf_sw=2),
-            timing=baseline_timing,
+        AzResidualShapeCase(
+            name="shape_p5_n10",
+            hypothesis="Negative-side-heavier shunt may counter one-sided residual injection better than current positive-only shaping.",
+            frontend_params=_frontend_params(**base, c_out_p=5e-15, c_out_n=10e-15),
+            timing=timing,
         ),
     ]
 
@@ -128,20 +111,21 @@ def _serialize_frontend_params(params: FrontendAzParams) -> dict[str, float | in
 
 def _rank_key(case: dict) -> tuple[float, float, float, float, float, float]:
     quick = case["quick_mc"]
-    tt = case["top_tt"]
+    rpvt = case.get("reduced_pvt")
+    worst_resid = float(rpvt["worst_residual_offset_uV"]) if rpvt else 1e12
     return (
+        worst_resid,
         float(quick["residual_offset_sigma_uV"]),
         float(quick["residual_offset_mean_uV"]),
         float(quick["pedestal_mid50_sigma_uV"]),
-        float(tt["residual_offset_uV"]),
-        float(tt["pedestal_mid50_uV"]),
-        float(tt["settling_mid50_uV"]),
+        float(case["top_tt"]["residual_offset_uV"]),
+        float(case["top_tt"]["pedestal_mid50_uV"]),
     )
 
 
 def _render_markdown(payload: dict) -> str:
     lines = [
-        "# AZ Mismatch-Repair Batch",
+        "# AZ Residual-Shaping Batch",
         "",
         f"Generated: `{utc_ts()}`",
         "",
@@ -158,7 +142,7 @@ def _render_markdown(payload: dict) -> str:
             f"{float(quick['pedestal_mid50_sigma_uV']):.2f} | {float(quick['settling_mid50_sigma_uV']):.2f} | "
             f"{'yes' if case.get('survivor') else 'no'} |"
         )
-    lines.extend(["", f"Best quick-MC case: `{payload.get('best_case_by_priority')}`", ""])
+    lines.extend(["", f"Best case by priority: `{payload.get('best_case_by_priority')}`", ""])
     if payload.get("survivors"):
         lines.append("## Survivors")
         lines.append("")
@@ -185,12 +169,12 @@ def _render_markdown(payload: dict) -> str:
     return "\n".join(lines)
 
 
-def _top_tt(case: AzMismatchRepairCase) -> dict:
+def _top_tt(case: AzResidualShapeCase) -> dict:
     params = OpampAzTopParams(frontend_az_params=case.frontend_params)
     return run_noise_and_offset_test(params, _top_tb_params(case.timing), corner=h.pdk.Corner.TYP)["metrics"]
 
 
-def _quick_mc(case: AzMismatchRepairCase, *, samples: int) -> dict:
+def _quick_mc(case: AzResidualShapeCase, *, samples: int) -> dict:
     params = OpampAzTopParams(frontend_az_params=case.frontend_params)
     metrics = run_noise_and_offset_monte_carlo(params, _top_tb_params(case.timing), samples=samples, model_section="tt_mm")["metrics"]
     return {
@@ -206,18 +190,14 @@ def _quick_mc(case: AzMismatchRepairCase, *, samples: int) -> dict:
     }
 
 
-def _full_mc(case: AzMismatchRepairCase, *, samples: int) -> dict:
-    return _quick_mc(case, samples=samples)
-
-
-def run_batch(*, outdir: str, quick_mc_samples: int = 20, full_mc_samples: int = 50, survivor_count: int = 3) -> Path:
+def run_batch(*, outdir: str, quick_mc_samples: int = 20, full_mc_samples: int = 50, survivor_count: int = 2) -> Path:
     init_sky130_install()
     outroot = Path(outdir)
     outroot.mkdir(parents=True, exist_ok=True)
     global LOG_PATH
     LOG_PATH = outroot / "run.log"
 
-    json_path = outroot / "mismatch_repair.json"
+    json_path = outroot / "residual_shaping.json"
     if json_path.exists():
         payload = json.loads(json_path.read_text(encoding="utf-8"))
         completed = {case["case"]: case for case in payload.get("cases", [])}
@@ -228,9 +208,9 @@ def run_batch(*, outdir: str, quick_mc_samples: int = 20, full_mc_samples: int =
 
     for case in build_cases():
         if case.name in completed and "quick_mc" in completed[case.name] and "top_tt" in completed[case.name]:
-            log(f"[az_mismatch_repair] skip quick {case.name}")
+            log(f"[az_residual_shape] skip quick {case.name}")
             continue
-        log(f"[az_mismatch_repair] running quick screen {case.name}")
+        log(f"[az_residual_shape] running quick screen {case.name}")
         try:
             entry = {
                 "case": case.name,
@@ -242,17 +222,21 @@ def run_batch(*, outdir: str, quick_mc_samples: int = 20, full_mc_samples: int =
             }
             completed[case.name] = entry
             log(
-                f"[az_mismatch_repair] done quick {case.name} "
+                f"[az_residual_shape] done quick {case.name} "
                 f"tt_resid={float(entry['top_tt']['residual_offset_uV']):.2f}uV "
                 f"quick_sigma={float(entry['quick_mc']['residual_offset_sigma_uV']):.2f}uV "
-                f"quick_ped_sigma={float(entry['quick_mc']['pedestal_mid50_sigma_uV']):.2f}uV "
-                f"quick_set_sigma={float(entry['quick_mc']['settling_mid50_sigma_uV']):.2f}uV"
+                f"quick_ped_sigma={float(entry['quick_mc']['pedestal_mid50_sigma_uV']):.2f}uV"
             )
         except Exception as err:
             failures.append({"case": case.name, "error": f"{type(err).__name__}: {err}"})
-            log(f"[az_mismatch_repair] failed quick {case.name}: {type(err).__name__}: {err}")
+            log(f"[az_residual_shape] failed quick {case.name}: {type(err).__name__}: {err}")
 
-        ranked = sorted(completed.values(), key=_rank_key)
+        ranked = sorted(completed.values(), key=lambda item: (
+            float(item["quick_mc"]["residual_offset_sigma_uV"]),
+            float(item["quick_mc"]["residual_offset_mean_uV"]),
+            float(item["quick_mc"]["pedestal_mid50_sigma_uV"]),
+            float(item["top_tt"]["residual_offset_uV"]),
+        ))
         survivors = {item["case"] for item in ranked[: max(1, min(survivor_count, len(ranked)))]}
         for item in completed.values():
             item["survivor"] = item["case"] in survivors
@@ -263,49 +247,54 @@ def run_batch(*, outdir: str, quick_mc_samples: int = 20, full_mc_samples: int =
             "best_case_by_priority": ranked[0]["case"] if ranked else None,
         }
         json_path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
-        (outroot / "mismatch_repair.md").write_text(_render_markdown(payload), encoding="utf-8")
+        (outroot / "residual_shaping.md").write_text(_render_markdown(payload), encoding="utf-8")
 
-    ranked = sorted(completed.values(), key=_rank_key)
+    ranked = sorted(completed.values(), key=lambda item: (
+        float(item["quick_mc"]["residual_offset_sigma_uV"]),
+        float(item["quick_mc"]["residual_offset_mean_uV"]),
+        float(item["quick_mc"]["pedestal_mid50_sigma_uV"]),
+        float(item["top_tt"]["residual_offset_uV"]),
+    ))
     survivors = ranked[: max(1, min(survivor_count, len(ranked)))]
     for item in completed.values():
         item["survivor"] = item["case"] in {case["case"] for case in survivors}
     for case in survivors:
         if "reduced_pvt" in case and "full_mc" in case:
-            log(f"[az_mismatch_repair] skip deep {case['case']}")
+            log(f"[az_residual_shape] skip deep {case['case']}")
             continue
         original = next(candidate for candidate in build_cases() if candidate.name == case["case"])
-        log(f"[az_mismatch_repair] running deep screen {case['case']}")
+        log(f"[az_residual_shape] running deep screen {case['case']}")
         try:
             params = OpampAzTopParams(frontend_az_params=original.frontend_params)
             case["reduced_pvt"] = run_reduced_pvt_custom(params, original.timing)
-            case["full_mc"] = _full_mc(original, samples=full_mc_samples)
+            case["full_mc"] = _quick_mc(original, samples=full_mc_samples)
             log(
-                f"[az_mismatch_repair] done deep {case['case']} "
+                f"[az_residual_shape] done deep {case['case']} "
                 f"rpvt_worst_resid={float(case['reduced_pvt']['worst_residual_offset_uV']):.2f}uV "
                 f"full_sigma={float(case['full_mc']['residual_offset_sigma_uV']):.2f}uV"
             )
         except Exception as err:
             failures.append({"case": case["case"], "error": f"{type(err).__name__}: {err}"})
-            log(f"[az_mismatch_repair] failed deep {case['case']}: {type(err).__name__}: {err}")
+            log(f"[az_residual_shape] failed deep {case['case']}: {type(err).__name__}: {err}")
         payload = {
-            "cases": ranked,
-            "survivors": [item for item in ranked if item.get("survivor")],
+            "cases": sorted(completed.values(), key=_rank_key),
+            "survivors": [item for item in completed.values() if item.get("survivor")],
             "failures": failures,
-            "best_case_by_priority": ranked[0]["case"] if ranked else None,
+            "best_case_by_priority": sorted(completed.values(), key=_rank_key)[0]["case"] if completed else None,
         }
         json_path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
-        (outroot / "mismatch_repair.md").write_text(_render_markdown(payload), encoding="utf-8")
+        (outroot / "residual_shaping.md").write_text(_render_markdown(payload), encoding="utf-8")
 
-    log("[az_mismatch_repair] complete")
+    log("[az_residual_shape] complete")
     return outroot
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--outdir", default="tmp/opamp_v3_az_mismatch_repair")
+    parser.add_argument("--outdir", default="tmp/opamp_v3_az_residual_shaping")
     parser.add_argument("--quick-mc-samples", type=int, default=20)
     parser.add_argument("--full-mc-samples", type=int, default=50)
-    parser.add_argument("--survivor-count", type=int, default=3)
+    parser.add_argument("--survivor-count", type=int, default=2)
     args = parser.parse_args(argv)
     outroot = run_batch(
         outdir=args.outdir,

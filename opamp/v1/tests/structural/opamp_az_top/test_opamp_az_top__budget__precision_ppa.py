@@ -4,9 +4,9 @@ import sys
 import unittest
 from pathlib import Path
 
-from components.opamp_az_top import run_noise_and_offset_test
-from tests.structural._helpers import init_sky130_install
-from tests.structural.opamp_az_top.specs_opamp_az_top import (
+from opamp.v1.opamp_az_top import run_noise_and_offset_test
+from opamp.v1.tests.structural._helpers import init_sky130_install
+from opamp.v1.tests.structural.opamp_az_top.specs_opamp_az_top import (
     PEDESTAL_UV_MAX,
     RESIDUAL_OFFSET_UV_MAX,
     SETTLING_RESIDUE_UV_MAX,

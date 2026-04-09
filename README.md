@@ -11,6 +11,13 @@ This document explains:
 
 ## Project
 
+Branch layout:
+
+- `opamp/v3` is the main active branch
+- `opamp/v3/prod` is the release-candidate integration, acceptance, and bundle path
+- `opamp/v1` contains the legacy baseline opamp and legacy tests
+- `components/` now keeps only reusable low-level blocks and shared utilities
+
 Current primary target block:
 - a low-residual-offset `auto-zero` opamp in `sky130`
 
@@ -35,7 +42,7 @@ Mandatory organizational rule:
 - every new opamp architecture lives in its own folder: `opamp/<amp_arch_name>`
 - tests for that architecture live alongside it in `opamp/<amp_arch_name>/tests`
 - `components/` is used only for low-level reusable blocks that are unlikely to change often
-- top-level opamp pieces (`opamp_core`, `opamp_az_top`, `frontend_az`, stage composition, and related test logic) should not evolve in `components/` by default
+- top-level opamp pieces (`opamp_core`, `opamp_az_top`, `frontend_az`, stage composition, and related test logic) should live in versioned architecture folders, not in `components/`
 
 Main rule:
 - **everything must be covered by tests**
@@ -128,10 +135,14 @@ Only after that should you redesign the circuit.
 - its top-level blocks
 - its local `specs`, `tb`, `run_*`, and `tests`
 
-`tests/structural/...`:
+`opamp/v1/tests/...`:
 - legacy baseline tests
-- repo-wide checks
-- migration target only while the old architecture is still supported
+- kept for comparison and migration only
+
+`opamp/v3/prod/...`:
+- release-candidate integrated DUT
+- acceptance tests
+- bundle generation
 
 Do not mix:
 - low-level reusable primitives
@@ -185,7 +196,9 @@ Recommended order:
 3. [track.md](/home/vadim/work/eda-harness/track.md)
 4. [tesing_guide.md](/home/vadim/work/eda-harness/tesing_guide.md)
 5. [hdl21.md](/home/vadim/work/eda-harness/hdl21.md)
-6. `opamp/<amp_arch_name>/` for the active architecture, if it already exists
+6. [opamp/v3](/home/vadim/work/eda-harness/opamp/v3) for active research
+7. [opamp/v3/prod](/home/vadim/work/eda-harness/opamp/v3/prod) for RC, acceptance, and bundle flow
+8. [opamp/v1](/home/vadim/work/eda-harness/opamp/v1) only if legacy comparison is needed
 
 ## How to Test
 
@@ -200,31 +213,42 @@ Legacy baseline examples:
 ### Fast Checks
 
 ```bash
-python3 -m unittest -v tests.structural.opamp_core.test_opamp_core__screen__fast_nominal
-python3 -m unittest -v tests.structural.opamp_az_top.test_opamp_az_top__budget__precision_ppa
+python3 -m unittest -v opamp.v1.tests.structural.opamp_core.test_opamp_core__screen__fast_nominal
+python3 -m unittest -v opamp.v1.tests.structural.opamp_az_top.test_opamp_az_top__budget__precision_ppa
 ```
 
 ### Long but Useful Checks
 
 ```bash
-python3 -m unittest -v tests.structural.opamp_core.test_opamp_core__char__pvt
-python3 -m unittest -v tests.structural.opamp_az_top.test_opamp_az_top__char__reduced_pvt
+python3 -m unittest -v opamp.v1.tests.structural.opamp_core.test_opamp_core__char__pvt
+python3 -m unittest -v opamp.v1.tests.structural.opamp_az_top.test_opamp_az_top__char__reduced_pvt
 ```
 
-### Full Run
+### Main Active Branch
+
+For the main branch:
 
 ```bash
-python3 -m unittest discover -s tests -v
+python3 -m opamp.v3.run_tests quick_tt
+python3 -m opamp.v3.run_tests prod_reduced_acceptance
+python3 -m opamp.v3.run_tests prod_release
 ```
 
-For an active new architecture, the full run should start from its local test directory, not from `tests/structural` by default.
+### Legacy Full Run
+
+```bash
+python3 -m unittest discover -s opamp/v1/tests -v
+```
+
+For active work, the default path is no longer the legacy root test tree. Use `opamp/v3` and `opamp/v3/prod`.
 
 ## What Matters Right Now
 
 At the moment:
-- `opamp_core` looks fairly mature at nominal and is better covered by tests
-- `opamp_az_top` passes the top-level nominal budget
-- the main blocker before tape-out is still `AZ` corner sensitivity
+- `v3` is the main active branch
+- `opamp/v3/prod` is the RC path for integrated DUT, acceptance, SPICE export, and bundle generation
+- `v1` is legacy baseline only
+- the main blocker before tape-out is still `AZ` reduced-PVT and MC closure
 
 Current metrics and experiment history:
 - [track.md](/home/vadim/work/eda-harness/track.md)
@@ -247,4 +271,5 @@ As of now, tape-out readiness is not there yet.
 - [opamp_az_spec.md](/home/vadim/work/eda-harness/opamp_az_spec.md)
 - [track.md](/home/vadim/work/eda-harness/track.md)
 - [tesing_guide.md](/home/vadim/work/eda-harness/tesing_guide.md)
+- [opamp/v1/README.md](/home/vadim/work/eda-harness/opamp/v1/README.md)
 - [spice2xschem/README.md](/home/vadim/work/eda-harness/spice2xschem/README.md)

@@ -17,30 +17,53 @@ Keep entries short:
 
 ## Current Status
 
-Two tracks exist:
+Three concrete layers exist:
 
-1. Baseline `AZ` product track
-- nominal `AZ` precision works
-- reduced-PVT `AZ` precision still fails badly, especially hot/fast pedestal and settling
-- not tapeout-ready
+1. `v3` research core
+- source: `opamp/v3/opamp_core.py`
+- this is the static-core experiment track
 
-2. `v3` static-core track
-- shutdown leakage is now essentially solved
-- worst-corner stability is now closed
-- enabled-core is close on static specs
-- remaining miss is a tiny low-side swing gap of about `1 to 2 mV`
+2. `v3/prod` RC integration layer
+- source: `opamp/v3/prod`
+- this is the current release-candidate source of truth for:
+  - integrated DUT
+  - acceptance tests
+  - customer bundle
 
-## Active `v3` Baseline
+3. `v1` legacy product path
+- kept only as the source of the proven AZ frontend while `v3` frontend is still not implemented
+- not the RC source of truth anymore
 
-Current promoted default in `opamp/v3/opamp_core.py`:
+## Active RC Baseline
+
+### Core
+
+Current promoted default in [`opamp/v3/opamp_core.py`](/home/vadim/work/eda-harness/opamp/v3/opamp_core.py):
 - helper-link isolation in shutdown enabled
 - `w_tail = 4.0 um`
 - `r_stage1_bias = 2.5e6 ohm`
 - `l_in = 3.0 um`
 - `w_stage2_n = 20.0 um`
 - `l_stage2_n = 6.0 um`
+- `l_stage2_p = 10.0 um`
 - `c_comp = 220 fF`
 - `w_out_n = 1.2 um`
+
+### Integrated DUT
+
+Current RC DUT in [`opamp/v3/prod/opamp_az_top.py`](/home/vadim/work/eda-harness/opamp/v3/prod/opamp_az_top.py):
+- real AZ frontend from `components/frontend_az.py`
+- `v3` core from `opamp/v3/opamp_core.py`
+- default promoted frontend params:
+  - `c_az = 200 fF`
+  - `r_vcm_top = 700 ohm`
+  - `r_vcm_bot = 5 ohm`
+  - `c_out_p = 10 fF`
+  - `w_sw_n = 1.1`
+  - `w_sw_p = 1.6`
+  - `nf_sw = 2`
+  - `period = 5 us`
+  - `dead_time = 0.5 us`
 
 Current measured metrics:
 
@@ -72,34 +95,31 @@ Interpretation:
 
 ### Current Patch Candidates
 
-1. Core patch candidate
+1. Core promoted RC patch
 - `K1_stage2p10`
 - change:
   - `l_stage2_p = 10 um`
-- reason:
-  - strongest verified gain improvement so far without breaking checked-corner stability
+- decision:
+  - promoted into `opamp/v3/opamp_core.py`
 
-2. AZ aggressive patch candidate
-- `cap200_shuntp10_rtop600_freq200k`
-- change:
-  - `c_az = 200 fF`
-  - `r_vcm_top = 600 ohm`
-  - `c_out_p = 10 fF`
-  - `period = 5 us`
-  - `dead_time = 0.5 us`
-- reason:
-  - best balanced nominal-plus-corner follow-up result so far
-
-3. AZ conservative fallback
-- `cap200_shuntp10_rtop600`
-- keep as fallback if the fast-timing baseline proves too aggressive in wider confirmation
+2. AZ mismatch-hardening frontier
+- current best deep-valid leads:
+  - `m3r1_cap200_wswn1p1_wswp1p6_rtop600`
+  - `m3r2_cap200_wswn1p1_wswp1p6_rtop700`
+- decision:
+  - not yet promoted into RC defaults
+  - still under experiment because reduced-PVT residual and MC residual remain far from spec
 
 ## Current Priorities
 
-1. Find a real gain-building branch that does not weaken the present current backbone.
-2. Keep `FF` GBW from running too high without making `SS` even slower.
-3. Treat the residual low-side swing miss as secondary until the max-spec gain/current problem has a credible path.
-4. After static-core direction is clear, return to `v3` AZ integration and offset/ MC work.
+1. Keep `opamp/v3/prod` as the only RC promotion target.
+2. Close AZ reduced-PVT residual offset and mismatch MC on top of the current RC DUT.
+3. Keep the customer bundle aligned with the same bench families as `prod_release`.
+4. Avoid adding new promoted defaults unless they are reflected in:
+   - `opamp/v3/prod`
+   - `track.md`
+   - bundle contents
+   - acceptance targets
 
 ## Autonomous Batch Findings In Progress
 
@@ -147,9 +167,9 @@ Interpretation:
   - dead branch
   - small positive live-path weakening is not the `FF/hot` fix
 
-## Baseline `AZ` Track
+## `v1` Legacy `AZ` Track
 
-### Current Best Known Baseline `AZ` Point
+### Current Best Known `v1` Baseline `AZ` Point
 
 Default:
 - `FrontendAzParams(c_az=70 fF, r_vcm_top=8e2, r_vcm_bot=5)`
@@ -169,7 +189,7 @@ Conclusion:
 - nominal `AZ` is good
 - reduced-PVT `AZ` is still not signoff-ready
 
-### Baseline `AZ` Hypothesis Ledger
+### `v1` Baseline `AZ` Hypothesis Ledger
 
 #### Promoted
 
