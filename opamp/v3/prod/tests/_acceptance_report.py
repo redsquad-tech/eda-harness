@@ -17,6 +17,29 @@ LOAD_CASES = (
     ("ff", "ff_v1p98_tm40", 1.98, -40.0),
 )
 
+METRIC_DISPLAY_NAMES = {
+    "core.aol_db": "Open-loop gain",
+    "core.gbw_hz": "GBW",
+    "core.phase_margin_deg": "Phase margin",
+    "core.gain_margin_db": "Gain margin",
+    "core.iq_uA": "Quiescent current, enabled",
+    "core.vout_low_actual": "Output compliant swing low",
+    "core.vout_high_actual": "Output compliant swing high",
+    "core.vout_source": "Output voltage while sourcing 25 uA",
+    "core.vout_sink": "Output voltage while sinking 25 uA",
+    "core.disabled_leakage_nA": "Disabled leakage current",
+    "top.residual_offset_uV": "Residual input-referred offset after AZ",
+    "top.pedestal_mid50_uV": "Pedestal-equivalent input error at nominal",
+    "top.settling_mid50_uV": "Hold droop contribution per AZ cycle",
+    "top.offset_mean_uV": "MC residual offset mean",
+    "top.offset_stddev_uV": "MC residual offset stddev",
+    "top.residual_offset_pass_rate": "MC residual offset pass rate",
+    "top.residual_offset_p99_uV": "MC residual offset p99",
+    "top.pedestal_mid50_p99_uV": "MC pedestal-equivalent input error p99",
+    "top.settling_mid50_p99_uV": "MC hold droop contribution p99",
+    "report.build": "Report build status",
+}
+
 
 @dataclass(frozen=True)
 class AcceptanceRow:
@@ -50,6 +73,10 @@ def _row_between(metric: str, condition: str, measured: float, lo: float, hi: fl
     return AcceptanceRow(metric, condition, f"{_fmt_num(lo, unit)} .. {_fmt_num(hi, unit)}", _fmt_num(measured, unit), lo <= measured <= hi)
 
 
+def _row_info(metric: str, condition: str, measured: float, unit: str, requirement: str = "report-only") -> AcceptanceRow:
+    return AcceptanceRow(metric, condition, requirement, _fmt_num(measured, unit), True)
+
+
 def _condition(corner_label: str, vdd: float, temp_c: float) -> str:
     return f"{corner_label} / {vdd:.2f} V / {temp_c:.0f} C"
 
@@ -65,6 +92,10 @@ def _error_row(metric: str, condition: str, exc: BaseException) -> AcceptanceRow
         passed=False,
         details=details,
     )
+
+
+def metric_display_name(metric: str) -> str:
+    return METRIC_DISPLAY_NAMES.get(metric, metric)
 
 
 def _safe_collect(metric_prefix: str, condition: str, builder: Callable[[], list[AcceptanceRow]]) -> list[AcceptanceRow]:
@@ -157,12 +188,16 @@ def reduced_acceptance_rows() -> list[AcceptanceRow]:
         _safe_collect(
             "top.mc",
             "TT mismatch-only MC / 50 samples",
-            lambda: [
-                _row_ge("top.residual_offset_pass_rate", "TT mismatch-only MC / 50 samples", float(top_noise_offset_mc(samples=50)["residual_offset_pass_rate_vs_maximum"]), 0.99, ""),
-                _row_le("top.residual_offset_p99_uV", "TT mismatch-only MC / 50 samples", float(top_noise_offset_mc(samples=50)["residual_offset_p99_uV"]), MAX_SPEC.residual_offset_uV_max, "uV"),
-                _row_le("top.pedestal_mid50_p99_uV", "TT mismatch-only MC / 50 samples", float(top_noise_offset_mc(samples=50)["pedestal_mid50_p99_uV"]), MAX_SPEC.pedestal_mid50_uV_max, "uV"),
-                _row_le("top.settling_mid50_p99_uV", "TT mismatch-only MC / 50 samples", float(top_noise_offset_mc(samples=50)["settling_mid50_p99_uV"]), MAX_SPEC.settling_mid50_uV_max, "uV"),
-            ],
+            lambda: (
+                lambda mc: [
+                    _row_info("top.offset_mean_uV", "TT mismatch-only MC / 50 samples", float(mc["residual_offset_mean_uV"]), "uV"),
+                    _row_info("top.offset_stddev_uV", "TT mismatch-only MC / 50 samples", float(mc["residual_offset_sigma_uV"]), "uV"),
+                    _row_ge("top.residual_offset_pass_rate", "TT mismatch-only MC / 50 samples", float(mc["residual_offset_pass_rate_vs_maximum"]), 0.99, ""),
+                    _row_le("top.residual_offset_p99_uV", "TT mismatch-only MC / 50 samples", float(mc["residual_offset_p99_uV"]), MAX_SPEC.residual_offset_uV_max, "uV"),
+                    _row_le("top.pedestal_mid50_p99_uV", "TT mismatch-only MC / 50 samples", float(mc["pedestal_mid50_p99_uV"]), MAX_SPEC.pedestal_mid50_uV_max, "uV"),
+                    _row_le("top.settling_mid50_p99_uV", "TT mismatch-only MC / 50 samples", float(mc["settling_mid50_p99_uV"]), MAX_SPEC.settling_mid50_uV_max, "uV"),
+                ]
+            )(top_noise_offset_mc(samples=50)),
         )
     )
     return rows
@@ -232,12 +267,16 @@ def timing_mc_rows() -> list[AcceptanceRow]:
         _safe_collect(
             "top.mc",
             "TT mismatch-only MC / 50 samples",
-            lambda: [
-                _row_ge("top.residual_offset_pass_rate", "TT mismatch-only MC / 50 samples", float(top_noise_offset_mc(samples=50)["residual_offset_pass_rate_vs_maximum"]), 0.99, ""),
-                _row_le("top.residual_offset_p99_uV", "TT mismatch-only MC / 50 samples", float(top_noise_offset_mc(samples=50)["residual_offset_p99_uV"]), MAX_SPEC.residual_offset_uV_max, "uV"),
-                _row_le("top.pedestal_mid50_p99_uV", "TT mismatch-only MC / 50 samples", float(top_noise_offset_mc(samples=50)["pedestal_mid50_p99_uV"]), MAX_SPEC.pedestal_mid50_uV_max, "uV"),
-                _row_le("top.settling_mid50_p99_uV", "TT mismatch-only MC / 50 samples", float(top_noise_offset_mc(samples=50)["settling_mid50_p99_uV"]), MAX_SPEC.settling_mid50_uV_max, "uV"),
-            ],
+            lambda: (
+                lambda mc: [
+                    _row_info("top.offset_mean_uV", "TT mismatch-only MC / 50 samples", float(mc["residual_offset_mean_uV"]), "uV"),
+                    _row_info("top.offset_stddev_uV", "TT mismatch-only MC / 50 samples", float(mc["residual_offset_sigma_uV"]), "uV"),
+                    _row_ge("top.residual_offset_pass_rate", "TT mismatch-only MC / 50 samples", float(mc["residual_offset_pass_rate_vs_maximum"]), 0.99, ""),
+                    _row_le("top.residual_offset_p99_uV", "TT mismatch-only MC / 50 samples", float(mc["residual_offset_p99_uV"]), MAX_SPEC.residual_offset_uV_max, "uV"),
+                    _row_le("top.pedestal_mid50_p99_uV", "TT mismatch-only MC / 50 samples", float(mc["pedestal_mid50_p99_uV"]), MAX_SPEC.pedestal_mid50_uV_max, "uV"),
+                    _row_le("top.settling_mid50_p99_uV", "TT mismatch-only MC / 50 samples", float(mc["settling_mid50_p99_uV"]), MAX_SPEC.settling_mid50_uV_max, "uV"),
+                ]
+            )(top_noise_offset_mc(samples=50)),
         )
     )
     return rows
@@ -249,12 +288,12 @@ def failing_rows(rows: Iterable[AcceptanceRow]) -> list[AcceptanceRow]:
 
 def rows_to_markdown(rows: Iterable[AcceptanceRow]) -> str:
     lines = [
-        "| Metric | Condition | Requirement | Measured | Pass | Details |",
+        "| Name | Condition | Requirement | Measured | Pass | Details |",
         "|---|---|---|---:|:---:|---|",
     ]
     for row in rows:
         details = row.details.replace("\n", "<br>") if row.details else ""
-        lines.append(f"| {row.metric} | {row.condition} | {row.requirement} | {row.measured} | {'PASS' if row.passed else 'FAIL'} | {details} |")
+        lines.append(f"| {metric_display_name(row.metric)} | {row.condition} | {row.requirement} | {row.measured} | {'PASS' if row.passed else 'FAIL'} | {details} |")
     return "\n".join(lines)
 
 

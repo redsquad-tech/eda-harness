@@ -11,6 +11,7 @@ from .tests._acceptance_report import (
     failing_rows,
     full_pvt_core_rows,
     full_pvt_top_rows,
+    metric_display_name,
     load_sweep_rows,
     reduced_acceptance_rows,
     rows_to_markdown,
@@ -30,7 +31,7 @@ PRODUCTION_ROOT = ROOT / "opamp" / "v3" / "production"
 
 
 def _rows_to_jsonable(rows: list[AcceptanceRow]) -> list[dict[str, object]]:
-    return [asdict(r) for r in rows]
+    return [{**asdict(r), "metric_name": metric_display_name(r.metric)} for r in rows]
 
 
 def build_report(section: str) -> dict[str, object]:

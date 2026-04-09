@@ -1,37 +1,31 @@
 # Opamp V3
 
-Clean-sheet workspace for the next opamp architecture after the `v2`
-exploration plateau.
+`v3` is the main active opamp architecture.
 
-Rules:
-- do not modify the baseline in `components/` unless needed
-- do not reuse `v2` architectural hacks by default
-- local tests live next to the code in `opamp/v3/tests`
-- `components/*` is only for low-level reusable blocks
+Structure:
 
-Design intent:
-- PMOS-input first stage remains the baseline assumption
-- the final output path must be non-inverting by construction
-- disable behavior is a first-class requirement, not a later patch
-- sampled-data `AZ` remains separate from the static core
+- `experiments/` — independent experiment directories
+- `prod/components/` — promoted HDL21 generators
+- `prod/rc/` — current RC assembly and selected parameters
+- `prod/tests/` — acceptance gates for the current RC
 
-Current status:
-- simulation-backed core verification is active
-- current `v3` baseline closes minimum nominal `TT` goals for:
-  - `AOL`
-  - `GBW`
-  - `PM`
-  - `GM`
-  - `IQ`
-- current main open issues:
-  - shutdown leakage
-  - source drive across corners
-  - low-VDD / cold loop robustness
-- shutdown-clamp experiments on the existing loop have been exhausted and are tracked in `track.md`
-- next `v3` work should be a shutdown-aware topology revision, not more local clamp patches
+Experiment rule:
 
-Recommended test target:
+- every experiment gets its own directory under `experiments/`
+- if a hypothesis needs a modified generator, create a new generator file inside that experiment
+- do not edit the baseline generator in place for a hypothesis
+- store experiment results in `metrics.json`
+- record the short outcome in [track.md](/home/vadim/work/eda-harness/track.md)
+
+Promotion rule:
+
+- if an experiment beats the baseline on the intended metrics, promote the winning generator logic into `prod/components/`
+- update `prod/rc/` to build the new release candidate from promoted blocks
+
+Recommended entry points:
 
 ```bash
 python3 -m opamp.v3.run_tests quick_tt
+python3 -m opamp.v3.run_tests prod_reduced_acceptance
+python3 -m opamp.v3.run_tests prod_release
 ```

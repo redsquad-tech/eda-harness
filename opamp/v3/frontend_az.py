@@ -9,8 +9,8 @@ from hdl21.sim import Save, Sim, Tran
 from vlsirtools.spice import SimOptions, SupportedSimulators
 
 from components import extract_subckt_name, make_test_result, print_metrics_table, require_sky130_install, run_ngspice_sim
-from components.sample_hold_cap import SampleHoldCapParams, sample_hold_cap
 from components.tg_switch import TgSwitchParams, tg_switch
+from .pdk_passives import pdk_mim_capacitor, pdk_resistor
 
 
 VERIFICATION_PLAN = {
@@ -19,7 +19,7 @@ VERIFICATION_PLAN = {
         "category": "structural",
         "test_name": "run_structural_checks",
         "analysis_type": "generator/elaboration/export",
-        "extracted_metrics": ["generator_call", "elaboration", "subckt_name", "contains_tg_switch", "contains_sample_hold_cap"],
+        "extracted_metrics": ["generator_call", "elaboration", "subckt_name", "contains_tg_switch", "contains_pdk_resistor", "contains_pdk_mim_cap"],
         "pass_fail_rule": "all structural checks pass",
         "required_corners": [],
         "required_operating_conditions": [],
@@ -145,42 +145,36 @@ def frontend_az(params: FrontendAzParams) -> h.Module:
         m_p=params.m_sw,
         use_dummy_switch=params.use_dummy_switch,
     )
-    cap_params = SampleHoldCapParams(c_target=params.c_az)
-
     tg = tg_switch(tg_params)
-    cap = sample_hold_cap(cap_params)
 
     mod = h.Module(name="FrontendAzV3")
     mod.VINP, mod.VINN, mod.VOFF, mod.VXP, mod.VXN, mod.PHI1, mod.PHI1B, mod.PHI2, mod.PHI2B, mod.PHI3, mod.PHI3B, mod.VDD, mod.VSS = h.Ports(13)
     mod.samp_p, mod.samp_n, mod.voff_sense, mod.vxp_sc, mod.vxn_sc = h.Signals(5)
 
-    mod.rvoff_top = h.Res(r=params.r_vcm_top)(p=mod.VOFF, n=mod.voff_sense)
-    mod.rvoff_bot = h.Res(r=params.r_vcm_bot)(p=mod.voff_sense, n=mod.VSS)
+    mod.rvoff_top = pdk_resistor(params.r_vcm_top, p=mod.VOFF, n=mod.voff_sense, bulk=mod.VSS)
+    mod.rvoff_bot = pdk_resistor(params.r_vcm_bot, p=mod.voff_sense, n=mod.VSS, bulk=mod.VSS)
 
     mod.xsw_err_sample = tg(A=mod.voff_sense, B=mod.samp_p, PHI=mod.PHI1, PHIB=mod.PHI1B, VDD=mod.VDD, VSS=mod.VSS)
     mod.xsw_vxp_reset = tg(A=mod.VSS, B=mod.vxp_sc, PHI=mod.PHI1, PHIB=mod.PHI1B, VDD=mod.VDD, VSS=mod.VSS)
     mod.xsw_vxp_apply = tg(A=mod.VINP, B=mod.samp_p, PHI=mod.PHI3, PHIB=mod.PHI3B, VDD=mod.VDD, VSS=mod.VSS)
-    mod.xcap_p_phys = cap(P=mod.samp_p, N=mod.vxp_sc)
-    mod.xcap_p = h.Cap(c=params.c_az)(p=mod.samp_p, n=mod.vxp_sc)
-    mod.rout_p = h.Res(r=params.r_out_p)(p=mod.vxp_sc, n=mod.VXP)
+    mod.xcap_p = pdk_mim_capacitor(params.c_az, p=mod.samp_p, n=mod.vxp_sc)
+    mod.rout_p = pdk_resistor(params.r_out_p, p=mod.vxp_sc, n=mod.VXP, bulk=mod.VSS)
     if c_out_p > 0:
-        mod.cout_p = h.Cap(c=params.c_out_p)(p=mod.VXP, n=mod.VSS)
+        mod.cout_p = pdk_mim_capacitor(params.c_out_p, p=mod.VXP, n=mod.VSS)
 
     mod.xsw_vxn_reset = tg(A=mod.VSS, B=mod.vxn_sc, PHI=mod.PHI1, PHIB=mod.PHI1B, VDD=mod.VDD, VSS=mod.VSS)
     mod.xsw_vxn_track = tg(A=mod.VINN, B=mod.vxn_sc, PHI=mod.PHI3, PHIB=mod.PHI3B, VDD=mod.VDD, VSS=mod.VSS)
-    mod.xcap_n_phys = cap(P=mod.vxn_sc, N=mod.VSS)
-    mod.xcap_n = h.Cap(c=max(0.5 * params.c_az, 1e-15))(p=mod.vxn_sc, n=mod.VSS)
+    mod.xcap_n = pdk_mim_capacitor(max(0.5 * params.c_az, 1e-15), p=mod.vxn_sc, n=mod.VSS)
     if c_corr_n_scale > 0:
         mod.xsw_err_sample_n = tg(A=mod.voff_sense, B=mod.samp_n, PHI=mod.PHI1, PHIB=mod.PHI1B, VDD=mod.VDD, VSS=mod.VSS)
         mod.xsw_vxn_apply_corr = tg(A=mod.VINN, B=mod.samp_n, PHI=mod.PHI3, PHIB=mod.PHI3B, VDD=mod.VDD, VSS=mod.VSS)
-        mod.xcap_corr_n_phys = cap(P=mod.samp_n, N=mod.vxn_sc)
-        mod.xcap_corr_n = h.Cap(c=max(c_corr_n_scale * params.c_az, 1e-15))(p=mod.samp_n, n=mod.vxn_sc)
-    mod.rout_n = h.Res(r=params.r_out_n)(p=mod.vxn_sc, n=mod.VXN)
+        mod.xcap_corr_n = pdk_mim_capacitor(max(c_corr_n_scale * params.c_az, 1e-15), p=mod.samp_n, n=mod.vxn_sc)
+    mod.rout_n = pdk_resistor(params.r_out_n, p=mod.vxn_sc, n=mod.VXN, bulk=mod.VSS)
     if c_out_n > 0:
-        mod.cout_n = h.Cap(c=params.c_out_n)(p=mod.VXN, n=mod.VSS)
+        mod.cout_n = pdk_mim_capacitor(params.c_out_n, p=mod.VXN, n=mod.VSS)
 
-    mod.rbleed_p = h.Res(r=500e6)(p=mod.VXP, n=mod.VSS)
-    mod.rbleed_n = h.Res(r=500e6)(p=mod.VXN, n=mod.VSS)
+    mod.rbleed_p = pdk_resistor(500e6, p=mod.VXP, n=mod.VSS, bulk=mod.VSS)
+    mod.rbleed_n = pdk_resistor(500e6, p=mod.VXN, n=mod.VSS, bulk=mod.VSS)
     return mod
 
 
@@ -365,7 +359,8 @@ def run_structural_checks(params: FrontendAzParams | None = None):
         "elaboration": mod is not None,
         "subckt_name": subckt_name,
         "contains_tg_switch": re.search(r"TgSwitch", netlist_text, re.IGNORECASE) is not None,
-        "contains_sample_hold_cap": re.search(r"SampleHoldCap", netlist_text, re.IGNORECASE) is not None,
+        "contains_pdk_resistor": re.search(r"sky130_fd_pr__res_", netlist_text, re.IGNORECASE) is not None,
+        "contains_pdk_mim_cap": re.search(r"sky130_fd_pr__cap_mim_", netlist_text, re.IGNORECASE) is not None,
     }
 
 

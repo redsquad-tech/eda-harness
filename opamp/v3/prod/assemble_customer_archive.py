@@ -16,6 +16,29 @@ DEFAULT_BASE_BUNDLE = PRODUCTION_ROOT / "opamp_v3_prod_bundle"
 DEFAULT_REPORT_DIR = PRODUCTION_ROOT / "release_report"
 
 
+METRIC_DISPLAY_NAMES = {
+    "core.aol_db": "Open-loop gain",
+    "core.gbw_hz": "GBW",
+    "core.phase_margin_deg": "Phase margin",
+    "core.gain_margin_db": "Gain margin",
+    "core.iq_uA": "Quiescent current, enabled",
+    "core.vout_low_actual": "Output compliant swing low",
+    "core.vout_high_actual": "Output compliant swing high",
+    "core.vout_source": "Output voltage while sourcing 25 uA",
+    "core.vout_sink": "Output voltage while sinking 25 uA",
+    "core.disabled_leakage_nA": "Disabled leakage current",
+    "top.residual_offset_uV": "Residual input-referred offset after AZ",
+    "top.pedestal_mid50_uV": "Pedestal-equivalent input error at nominal",
+    "top.settling_mid50_uV": "Hold droop contribution per AZ cycle",
+    "top.offset_mean_uV": "MC residual offset mean",
+    "top.offset_stddev_uV": "MC residual offset stddev",
+    "top.residual_offset_pass_rate": "MC residual offset pass rate",
+    "top.residual_offset_p99_uV": "MC residual offset p99",
+    "top.pedestal_mid50_p99_uV": "MC pedestal-equivalent input error p99",
+    "top.settling_mid50_p99_uV": "MC hold droop contribution p99",
+}
+
+
 def _utc_ts() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -45,6 +68,8 @@ def _need_have_rows(report: dict) -> list[dict[str, str]]:
         "top.residual_offset_uV",
         "top.pedestal_mid50_uV",
         "top.settling_mid50_uV",
+        "top.offset_mean_uV",
+        "top.offset_stddev_uV",
         "top.residual_offset_pass_rate",
         "top.residual_offset_p99_uV",
         "top.pedestal_mid50_p99_uV",
@@ -57,7 +82,7 @@ def _need_have_rows(report: dict) -> list[dict[str, str]]:
             if row["metric"] == metric and row["metric"] not in used:
                 chosen.append(
                     {
-                        "name": row["metric"],
+                        "name": row.get("metric_name", METRIC_DISPLAY_NAMES.get(row["metric"], row["metric"])),
                         "need": row["requirement"],
                         "have": row["measured"],
                     }
@@ -98,8 +123,8 @@ the latest reduced acceptance report, and {"SPICE-only collateral" if spice_only
 
 - native AZ frontend: `opamp/v3/frontend_az.py`
 - static core: `opamp/v3/opamp_core.py`
-- integrated production DUT: `opamp/v3/prod/opamp_az_top.py`
-- promoted RC configuration: `opamp/v3/prod/rc.py`
+- integrated production DUT: `opamp/v3/prod/components/opamp_az_top.py`
+- promoted RC configuration: `opamp/v3/prod/rc/`
 
 ## Files
 

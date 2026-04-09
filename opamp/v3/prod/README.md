@@ -1,37 +1,32 @@
 # v3 Product Layer
 
-This package contains the production-facing `v3` RC integration layer:
+This package contains the promoted `v3` release-candidate layer.
 
-- integrated hybrid DUT generator
-- customer bundle assembly
-- production acceptance tests
-- local copy of the maximum requirement set
+Structure:
 
-Current integration strategy:
+- `components/` — HDL21 generators taken from the best completed experiments
+- `rc/` — script-level selection of promoted generators and their parameters
+- `tests/` — acceptance gates for the current RC
+- bundle/report scripts — export the current RC and its test collateral
 
-- native AZ frontend from `opamp/v3/frontend_az.py`
-- `v3` core from `opamp/v3/opamp_core.py`
+Process:
 
-This package is the current release-candidate source of truth for the
-integrated `v3` product path.
+1. run independent experiments in `opamp/v3/experiments/`
+2. if a result is better than the baseline, copy its generator logic into `prod/components/`
+3. update `prod/rc/` to select the winning blocks and parameter values
+4. run acceptance in `prod/tests/`
+5. export bundle/report from the promoted RC
 
 Current promoted RC cases:
 
 - core: `K1_stage2p10`
 - az: `m4r1_cap300_wswn1p1_wswp1p6_nf2`
 
-Process:
-
-1. run autonomous research in `opamp/v3`
-2. promote the best completed branch into `opamp/v3/prod/rc.py`
-3. run `prod_release`
-4. export the production bundle from `opamp/v3/prod`
-
 Important files:
 
 - `MAXIMUM_SPEC.md`: copied maximum requirements used by acceptance tests
-- `rc.py`: current promoted RC configuration and metadata
-- `opamp_az_top.py`: integrated production DUT generator
+- `rc/`: current promoted RC configuration and metadata
+- `components/opamp_az_top.py`: integrated production DUT generator
 - `tests/test_prod__acceptance__maximum_spec.py`: reduced release gate
 - `tests/test_prod__acceptance__full_pvt_core.py`: full-PVT core acceptance
 - `tests/test_prod__acceptance__full_pvt_top.py`: full-PVT top-level AZ acceptance
