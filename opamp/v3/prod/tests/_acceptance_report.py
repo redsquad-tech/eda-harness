@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import traceback
 from dataclasses import dataclass
 from typing import Callable, Iterable
 
@@ -24,6 +25,7 @@ class AcceptanceRow:
     requirement: str
     measured: str
     passed: bool
+    details: str = ""
 
 
 def _fmt_num(value: float, unit: str = "") -> str:
@@ -52,6 +54,26 @@ def _condition(corner_label: str, vdd: float, temp_c: float) -> str:
     return f"{corner_label} / {vdd:.2f} V / {temp_c:.0f} C"
 
 
+def _error_row(metric: str, condition: str, exc: BaseException) -> AcceptanceRow:
+    tb = traceback.format_exc().strip()
+    details = tb if tb and tb != "NoneType: None" else repr(exc)
+    return AcceptanceRow(
+        metric=metric,
+        condition=condition,
+        requirement="system-error-free",
+        measured=f"ERROR: {type(exc).__name__}: {exc}",
+        passed=False,
+        details=details,
+    )
+
+
+def _safe_collect(metric_prefix: str, condition: str, builder: Callable[[], list[AcceptanceRow]]) -> list[AcceptanceRow]:
+    try:
+        return builder()
+    except BaseException as exc:
+        return [_error_row(metric_prefix, condition, exc)]
+
+
 def _core_rows_for_case(label: str, corner, vdd: float, temp_c: float, c_load: float = 1e-12, drive_uA: float | None = None) -> list[AcceptanceRow]:
     cond = _condition(label.upper(), vdd, temp_c)
     ac = core_open_loop(label, corner, vdd, temp_c, c_load)
@@ -78,17 +100,39 @@ def _core_rows_for_case(label: str, corner, vdd: float, temp_c: float, c_load: f
 
 def reduced_acceptance_rows() -> list[AcceptanceRow]:
     rows: list[AcceptanceRow] = []
-    rows.extend(_core_rows_for_case("tt", h.pdk.Corner.TYP, 1.8, 27.0, drive_uA=MAX_SPEC.output_current_abs_min_uA))
-    leak = core_leakage("ff", h.pdk.Corner.FAST, 1.98, -40.0)
-    rows.append(_row_le("core.disabled_leakage_nA", _condition("FF", 1.98, -40.0), float(leak["disabled_leakage_nA"]), MAX_SPEC.disabled_leakage_nA_max, "nA"))
-
-    tt = top_noise_offset("tt", h.pdk.Corner.TYP, 1.8, 27.0)
     rows.extend(
-        [
-            _row_le("top.residual_offset_uV", _condition("TT", 1.8, 27.0), float(tt["residual_offset_uV"]), MAX_SPEC.residual_offset_uV_max, "uV"),
-            _row_le("top.pedestal_mid50_uV", _condition("TT", 1.8, 27.0), float(tt["pedestal_mid50_uV"]), MAX_SPEC.pedestal_mid50_uV_max, "uV"),
-            _row_le("top.settling_mid50_uV", _condition("TT", 1.8, 27.0), float(tt["settling_mid50_uV"]), MAX_SPEC.settling_mid50_uV_max, "uV"),
-        ]
+        _safe_collect(
+            "core.reduced.tt",
+            _condition("TT", 1.8, 27.0),
+            lambda: _core_rows_for_case("tt", h.pdk.Corner.TYP, 1.8, 27.0, drive_uA=MAX_SPEC.output_current_abs_min_uA),
+        )
+    )
+    rows.extend(
+        _safe_collect(
+            "core.disabled_leakage_nA",
+            _condition("FF", 1.98, -40.0),
+            lambda: [
+                _row_le(
+                    "core.disabled_leakage_nA",
+                    _condition("FF", 1.98, -40.0),
+                    float(core_leakage("ff", h.pdk.Corner.FAST, 1.98, -40.0)["disabled_leakage_nA"]),
+                    MAX_SPEC.disabled_leakage_nA_max,
+                    "nA",
+                )
+            ],
+        )
+    )
+
+    rows.extend(
+        _safe_collect(
+            "top.reduced.tt",
+            _condition("TT", 1.8, 27.0),
+            lambda: [
+                _row_le("top.residual_offset_uV", _condition("TT", 1.8, 27.0), float(top_noise_offset("tt", h.pdk.Corner.TYP, 1.8, 27.0)["residual_offset_uV"]), MAX_SPEC.residual_offset_uV_max, "uV"),
+                _row_le("top.pedestal_mid50_uV", _condition("TT", 1.8, 27.0), float(top_noise_offset("tt", h.pdk.Corner.TYP, 1.8, 27.0)["pedestal_mid50_uV"]), MAX_SPEC.pedestal_mid50_uV_max, "uV"),
+                _row_le("top.settling_mid50_uV", _condition("TT", 1.8, 27.0), float(top_noise_offset("tt", h.pdk.Corner.TYP, 1.8, 27.0)["settling_mid50_uV"]), MAX_SPEC.settling_mid50_uV_max, "uV"),
+            ],
+        )
     )
     for label, corner, vdd, temp_c in [
         ("tt", h.pdk.Corner.TYP, 1.8, 27.0),
@@ -97,23 +141,29 @@ def reduced_acceptance_rows() -> list[AcceptanceRow]:
         ("ss_cold", h.pdk.Corner.SLOW, 1.6, -40.0),
         ("ff_hot", h.pdk.Corner.FAST, 1.98, 125.0),
     ]:
-        m = top_noise_offset(label, corner, vdd, temp_c)
         cond = _condition(label.upper(), vdd, temp_c)
         rows.extend(
-            [
-                _row_le("top.residual_offset_uV", cond, float(m["residual_offset_uV"]), MAX_SPEC.residual_offset_uV_max, "uV"),
-                _row_le("top.pedestal_mid50_uV", cond, float(m["pedestal_mid50_uV"]), MAX_SPEC.pedestal_mid50_uV_max, "uV"),
-                _row_le("top.settling_mid50_uV", cond, float(m["settling_mid50_uV"]), MAX_SPEC.settling_mid50_uV_max, "uV"),
-            ]
+            _safe_collect(
+                "top.reduced.pvt",
+                cond,
+                lambda label=label, corner=corner, vdd=vdd, temp_c=temp_c, cond=cond: [
+                    _row_le("top.residual_offset_uV", cond, float(top_noise_offset(label, corner, vdd, temp_c)["residual_offset_uV"]), MAX_SPEC.residual_offset_uV_max, "uV"),
+                    _row_le("top.pedestal_mid50_uV", cond, float(top_noise_offset(label, corner, vdd, temp_c)["pedestal_mid50_uV"]), MAX_SPEC.pedestal_mid50_uV_max, "uV"),
+                    _row_le("top.settling_mid50_uV", cond, float(top_noise_offset(label, corner, vdd, temp_c)["settling_mid50_uV"]), MAX_SPEC.settling_mid50_uV_max, "uV"),
+                ],
+            )
         )
-    mc = top_noise_offset_mc(samples=50)
     rows.extend(
-        [
-            _row_ge("top.residual_offset_pass_rate", "TT mismatch-only MC / 50 samples", float(mc["residual_offset_pass_rate_vs_maximum"]), 0.99, ""),
-            _row_le("top.residual_offset_p99_uV", "TT mismatch-only MC / 50 samples", float(mc["residual_offset_p99_uV"]), MAX_SPEC.residual_offset_uV_max, "uV"),
-            _row_le("top.pedestal_mid50_p99_uV", "TT mismatch-only MC / 50 samples", float(mc["pedestal_mid50_p99_uV"]), MAX_SPEC.pedestal_mid50_uV_max, "uV"),
-            _row_le("top.settling_mid50_p99_uV", "TT mismatch-only MC / 50 samples", float(mc["settling_mid50_p99_uV"]), MAX_SPEC.settling_mid50_uV_max, "uV"),
-        ]
+        _safe_collect(
+            "top.mc",
+            "TT mismatch-only MC / 50 samples",
+            lambda: [
+                _row_ge("top.residual_offset_pass_rate", "TT mismatch-only MC / 50 samples", float(top_noise_offset_mc(samples=50)["residual_offset_pass_rate_vs_maximum"]), 0.99, ""),
+                _row_le("top.residual_offset_p99_uV", "TT mismatch-only MC / 50 samples", float(top_noise_offset_mc(samples=50)["residual_offset_p99_uV"]), MAX_SPEC.residual_offset_uV_max, "uV"),
+                _row_le("top.pedestal_mid50_p99_uV", "TT mismatch-only MC / 50 samples", float(top_noise_offset_mc(samples=50)["pedestal_mid50_p99_uV"]), MAX_SPEC.pedestal_mid50_uV_max, "uV"),
+                _row_le("top.settling_mid50_p99_uV", "TT mismatch-only MC / 50 samples", float(top_noise_offset_mc(samples=50)["settling_mid50_p99_uV"]), MAX_SPEC.settling_mid50_uV_max, "uV"),
+            ],
+        )
     )
     return rows
 
@@ -121,23 +171,34 @@ def reduced_acceptance_rows() -> list[AcceptanceRow]:
 def full_pvt_core_rows() -> list[AcceptanceRow]:
     rows: list[AcceptanceRow] = []
     for label, corner, vdd, temp_c in PVT_GRID:
-        rows.extend(_core_rows_for_case(label, corner, vdd, temp_c, drive_uA=MAX_SPEC.output_current_abs_min_uA))
-        leak = core_leakage(label, corner, vdd, temp_c)
-        rows.append(_row_le("core.disabled_leakage_nA", _condition(label.upper(), vdd, temp_c), float(leak["disabled_leakage_nA"]), MAX_SPEC.disabled_leakage_nA_max, "nA"))
+        cond = _condition(label.upper(), vdd, temp_c)
+        rows.extend(_safe_collect("core.full_pvt", cond, lambda label=label, corner=corner, vdd=vdd, temp_c=temp_c: _core_rows_for_case(label, corner, vdd, temp_c, drive_uA=MAX_SPEC.output_current_abs_min_uA)))
+        rows.extend(
+            _safe_collect(
+                "core.disabled_leakage_nA",
+                cond,
+                lambda label=label, corner=corner, vdd=vdd, temp_c=temp_c, cond=cond: [
+                    _row_le("core.disabled_leakage_nA", cond, float(core_leakage(label, corner, vdd, temp_c)["disabled_leakage_nA"]), MAX_SPEC.disabled_leakage_nA_max, "nA")
+                ],
+            )
+        )
     return rows
 
 
 def full_pvt_top_rows() -> list[AcceptanceRow]:
     rows: list[AcceptanceRow] = []
     for label, corner, vdd, temp_c in PVT_GRID:
-        m = top_noise_offset(label, corner, vdd, temp_c)
         cond = _condition(label.upper(), vdd, temp_c)
         rows.extend(
-            [
-                _row_le("top.residual_offset_uV", cond, float(m["residual_offset_uV"]), MAX_SPEC.residual_offset_uV_max, "uV"),
-                _row_le("top.pedestal_mid50_uV", cond, float(m["pedestal_mid50_uV"]), MAX_SPEC.pedestal_mid50_uV_max, "uV"),
-                _row_le("top.settling_mid50_uV", cond, float(m["settling_mid50_uV"]), MAX_SPEC.settling_mid50_uV_max, "uV"),
-            ]
+            _safe_collect(
+                "top.full_pvt",
+                cond,
+                lambda label=label, corner=corner, vdd=vdd, temp_c=temp_c, cond=cond: [
+                    _row_le("top.residual_offset_uV", cond, float(top_noise_offset(label, corner, vdd, temp_c)["residual_offset_uV"]), MAX_SPEC.residual_offset_uV_max, "uV"),
+                    _row_le("top.pedestal_mid50_uV", cond, float(top_noise_offset(label, corner, vdd, temp_c)["pedestal_mid50_uV"]), MAX_SPEC.pedestal_mid50_uV_max, "uV"),
+                    _row_le("top.settling_mid50_uV", cond, float(top_noise_offset(label, corner, vdd, temp_c)["settling_mid50_uV"]), MAX_SPEC.settling_mid50_uV_max, "uV"),
+                ],
+            )
         )
     return rows
 
@@ -148,30 +209,36 @@ def load_sweep_rows() -> list[AcceptanceRow]:
     for prefix, label, vdd, temp_c in LOAD_CASES:
         for c_load in LOAD_SWEEP:
             case = f"{label}_cl_{c_load:.2e}"
-            rows.extend(_core_rows_for_case(case, corner_map[prefix], vdd, temp_c, c_load))
+            rows.extend(_safe_collect("core.load_sweep", _condition(case.upper(), vdd, temp_c), lambda case=case, prefix=prefix, vdd=vdd, temp_c=temp_c, c_load=c_load: _core_rows_for_case(case, corner_map[prefix], vdd, temp_c, c_load)))
     return rows
 
 
 def timing_mc_rows() -> list[AcceptanceRow]:
     rows: list[AcceptanceRow] = []
     for label, period, dead_time in TIMING_SWEEP:
-        m = top_noise_offset(label, h.pdk.Corner.TYP, 1.8, 27.0, period=period, dead_time=dead_time)
         cond = f"{label} / TT / 1.80 V / 27 C"
         rows.extend(
-            [
-                _row_le("top.residual_offset_uV", cond, float(m["residual_offset_uV"]), MAX_SPEC.residual_offset_uV_max, "uV"),
-                _row_le("top.pedestal_mid50_uV", cond, float(m["pedestal_mid50_uV"]), MAX_SPEC.pedestal_mid50_uV_max, "uV"),
-                _row_le("top.settling_mid50_uV", cond, float(m["settling_mid50_uV"]), MAX_SPEC.settling_mid50_uV_max, "uV"),
-            ]
+            _safe_collect(
+                "top.timing",
+                cond,
+                lambda label=label, period=period, dead_time=dead_time, cond=cond: [
+                    _row_le("top.residual_offset_uV", cond, float(top_noise_offset(label, h.pdk.Corner.TYP, 1.8, 27.0, period=period, dead_time=dead_time)["residual_offset_uV"]), MAX_SPEC.residual_offset_uV_max, "uV"),
+                    _row_le("top.pedestal_mid50_uV", cond, float(top_noise_offset(label, h.pdk.Corner.TYP, 1.8, 27.0, period=period, dead_time=dead_time)["pedestal_mid50_uV"]), MAX_SPEC.pedestal_mid50_uV_max, "uV"),
+                    _row_le("top.settling_mid50_uV", cond, float(top_noise_offset(label, h.pdk.Corner.TYP, 1.8, 27.0, period=period, dead_time=dead_time)["settling_mid50_uV"]), MAX_SPEC.settling_mid50_uV_max, "uV"),
+                ],
+            )
         )
-    mc = top_noise_offset_mc(samples=50)
     rows.extend(
-        [
-            _row_ge("top.residual_offset_pass_rate", "TT mismatch-only MC / 50 samples", float(mc["residual_offset_pass_rate_vs_maximum"]), 0.99, ""),
-            _row_le("top.residual_offset_p99_uV", "TT mismatch-only MC / 50 samples", float(mc["residual_offset_p99_uV"]), MAX_SPEC.residual_offset_uV_max, "uV"),
-            _row_le("top.pedestal_mid50_p99_uV", "TT mismatch-only MC / 50 samples", float(mc["pedestal_mid50_p99_uV"]), MAX_SPEC.pedestal_mid50_uV_max, "uV"),
-            _row_le("top.settling_mid50_p99_uV", "TT mismatch-only MC / 50 samples", float(mc["settling_mid50_p99_uV"]), MAX_SPEC.settling_mid50_uV_max, "uV"),
-        ]
+        _safe_collect(
+            "top.mc",
+            "TT mismatch-only MC / 50 samples",
+            lambda: [
+                _row_ge("top.residual_offset_pass_rate", "TT mismatch-only MC / 50 samples", float(top_noise_offset_mc(samples=50)["residual_offset_pass_rate_vs_maximum"]), 0.99, ""),
+                _row_le("top.residual_offset_p99_uV", "TT mismatch-only MC / 50 samples", float(top_noise_offset_mc(samples=50)["residual_offset_p99_uV"]), MAX_SPEC.residual_offset_uV_max, "uV"),
+                _row_le("top.pedestal_mid50_p99_uV", "TT mismatch-only MC / 50 samples", float(top_noise_offset_mc(samples=50)["pedestal_mid50_p99_uV"]), MAX_SPEC.pedestal_mid50_uV_max, "uV"),
+                _row_le("top.settling_mid50_p99_uV", "TT mismatch-only MC / 50 samples", float(top_noise_offset_mc(samples=50)["settling_mid50_p99_uV"]), MAX_SPEC.settling_mid50_uV_max, "uV"),
+            ],
+        )
     )
     return rows
 
@@ -182,11 +249,12 @@ def failing_rows(rows: Iterable[AcceptanceRow]) -> list[AcceptanceRow]:
 
 def rows_to_markdown(rows: Iterable[AcceptanceRow]) -> str:
     lines = [
-        "| Metric | Condition | Requirement | Measured | Pass |",
-        "|---|---|---|---:|:---:|",
+        "| Metric | Condition | Requirement | Measured | Pass | Details |",
+        "|---|---|---|---:|:---:|---|",
     ]
     for row in rows:
-        lines.append(f"| {row.metric} | {row.condition} | {row.requirement} | {row.measured} | {'PASS' if row.passed else 'FAIL'} |")
+        details = row.details.replace("\n", "<br>") if row.details else ""
+        lines.append(f"| {row.metric} | {row.condition} | {row.requirement} | {row.measured} | {'PASS' if row.passed else 'FAIL'} | {details} |")
     return "\n".join(lines)
 
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import traceback
 from dataclasses import asdict
 from pathlib import Path
 
@@ -24,6 +25,8 @@ REPORT_BUILDERS = {
     "load_sweep": load_sweep_rows,
     "timing_mc": timing_mc_rows,
 }
+ROOT = Path(__file__).resolve().parents[3]
+PRODUCTION_ROOT = ROOT / "opamp" / "v3" / "production"
 
 
 def _rows_to_jsonable(rows: list[AcceptanceRow]) -> list[dict[str, object]]:
@@ -31,8 +34,21 @@ def _rows_to_jsonable(rows: list[AcceptanceRow]) -> list[dict[str, object]]:
 
 
 def build_report(section: str) -> dict[str, object]:
-    rows = REPORT_BUILDERS[section]()
-    failed = failing_rows(rows)
+    try:
+        rows = REPORT_BUILDERS[section]()
+        failed = failing_rows(rows)
+    except BaseException as exc:
+        rows = [
+            AcceptanceRow(
+                metric="report.build",
+                condition=section,
+                requirement="system-error-free",
+                measured=f"ERROR: {type(exc).__name__}: {exc}",
+                passed=False,
+                details=traceback.format_exc().strip(),
+            )
+        ]
+        failed = rows
     return {
         "section": section,
         "total_checks": len(rows),
@@ -63,7 +79,7 @@ def write_report(section: str, outdir: Path) -> tuple[Path, Path]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("section", choices=sorted(REPORT_BUILDERS))
-    parser.add_argument("--outdir", default="tmp/opamp_v3_prod_release_report")
+    parser.add_argument("--outdir", default=str(PRODUCTION_ROOT / "release_report"))
     args = parser.parse_args(argv)
     md_path, json_path = write_report(args.section, Path(args.outdir))
     print(md_path)

@@ -31,6 +31,7 @@ from .rc import CURRENT_AZ_RC_CASE, CURRENT_CORE_RC_CASE, current_rc_summary
 
 
 ROOT = Path(__file__).resolve().parents[3]
+PRODUCTION_ROOT = ROOT / "opamp" / "v3" / "production"
 PVT_CASES = (
     ("tt_v1p60_tm40", h.pdk.Corner.TYP, 1.6, -40.0),
     ("tt_v1p60_t27", h.pdk.Corner.TYP, 1.6, 27.0),
@@ -261,7 +262,7 @@ def build_bundle(outdir: str) -> tuple[Path, Path]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--outdir", default="tmp/opamp_v3_prod_bundle")
+    parser.add_argument("--outdir", default=str(PRODUCTION_ROOT / "opamp_v3_prod_bundle"))
     args = parser.parse_args(argv)
     outdir, archive = build_bundle(args.outdir)
     print(outdir)

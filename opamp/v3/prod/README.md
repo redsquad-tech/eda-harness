@@ -44,5 +44,9 @@ Recommended commands:
   - `python3 -m opamp.v3.run_tests prod_reduced_acceptance`
 - full release gate:
   - `python3 -m opamp.v3.run_tests prod_release`
+- structured reduced report:
+  - `python3 -m opamp.v3.prod.release_report reduced`
 - rebuild customer bundle:
-  - `python3 -m opamp.v3.prod.assemble_bundle --outdir tmp/opamp_v3_prod_bundle`
+  - `python3 -m opamp.v3.prod.assemble_bundle`
+- rebuild SPICE-only customer archive:
+  - `python3 -m opamp.v3.prod.assemble_customer_archive --spice-only`
