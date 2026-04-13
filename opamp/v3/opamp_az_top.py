@@ -61,23 +61,26 @@ def _default_ngspice_options(test_name: str) -> SimOptions:
 @h.paramclass
 class OpampAzTopParams:
     opamp_core_params = h.Param(dtype=OpampCoreParams, desc="Core-derived sizing baseline", default=OpampCoreParams())
-    c_az = h.Param(dtype=h.Scalar, desc="Held correction capacitance per side in F", default=1e-12)
-    vcm_az = h.Param(dtype=h.Scalar, desc="Internal auto-zero common-mode reference in V", default=0.45)
+    c_az = h.Param(dtype=h.Scalar, desc="Held correction capacitance per side in F", default=4e-12)
+    vcm_az = h.Param(dtype=h.Scalar, desc="Internal auto-zero common-mode reference in V", default=0.9)
     r_vdrv_ref_top = h.Param(dtype=h.Scalar, desc="Top resistor for internal VDRV_Q replica in ohm", default=2.4e6)
     r_vdrv_ref_bot = h.Param(dtype=h.Scalar, desc="Bottom resistor for internal VDRV_Q replica in ohm", default=1.0e6)
-    w_trim_in = h.Param(dtype=h.Scalar, desc="Weak trim-pair PMOS width in um", default=0.5)
+    w_trim_in = h.Param(dtype=h.Scalar, desc="Weak trim-pair PMOS width in um", default=4.0)
     l_trim_in = h.Param(dtype=h.Scalar, desc="Weak trim-pair PMOS length in um", default=12.0)
-    w_trim_ref = h.Param(dtype=h.Scalar, desc="Trim-tail PMOS reference width in um", default=0.5)
+    w_trim_ref = h.Param(dtype=h.Scalar, desc="Trim-tail PMOS reference width in um", default=4.0)
     l_trim_ref = h.Param(dtype=h.Scalar, desc="Trim-tail PMOS reference length in um", default=12.0)
-    w_trim_tail = h.Param(dtype=h.Scalar, desc="Trim-tail PMOS mirror width in um", default=0.5)
+    w_trim_tail = h.Param(dtype=h.Scalar, desc="Trim-tail PMOS mirror width in um", default=4.0)
     l_trim_tail = h.Param(dtype=h.Scalar, desc="Trim-tail PMOS mirror length in um", default=12.0)
-    r_trim_bias = h.Param(dtype=h.Scalar, desc="Trim-tail PMOS reference resistor in ohm", default=2e9)
+    r_trim_bias = h.Param(dtype=h.Scalar, desc="Trim-tail PMOS reference resistor in ohm", default=1e8)
     w_sw_n = h.Param(dtype=h.Scalar, desc="MUX/hold NMOS switch width in um", default=1.0)
     w_sw_p = h.Param(dtype=h.Scalar, desc="MUX/hold PMOS switch width in um", default=1.6)
     l_sw = h.Param(dtype=h.Scalar, desc="MUX/hold switch length in um", default=0.15)
     w_out_sw_n = h.Param(dtype=h.Scalar, desc="Output-isolation NMOS switch width in um", default=8.0)
     w_out_sw_p = h.Param(dtype=h.Scalar, desc="Output-isolation PMOS switch width in um", default=12.0)
     l_out_sw = h.Param(dtype=h.Scalar, desc="Output-isolation switch length in um", default=0.15)
+    g_az_servo = h.Param(dtype=h.Scalar, desc="AZ servo transconductance in A/V", default=5e-6)
+    r_az_reset_delay = h.Param(dtype=h.Scalar, desc="AZ reset pulse RC delay resistor in ohm", default=1e6)
+    c_az_reset_delay = h.Param(dtype=h.Scalar, desc="AZ reset pulse RC delay capacitor in F", default=5e-13)
 
 
 @h.generator
@@ -134,6 +137,8 @@ def opamp_az_top(params: OpampAzTopParams) -> h.Module:
 
     # Mode-control complements.
     mod.enb, mod.azb, mod.infb = h.Signals(3)
+    mod.az_reset_raw, mod.az_reset_rawb, mod.az_reset, mod.az_reset_b, mod.az_null, mod.az_null_b = h.Signals(6)
+    mod.az_rc, mod.az_nand_reset_b, mod.az_nand_null_b = h.Signals(3)
     inv_npar = _mos_params(1.0, 0.15)
     inv_ppar = _mos_params(2.0, 0.15)
     mod.m_enb_p = pmos(inv_ppar)(d=mod.enb, g=mod.D_EN_OA, s=mod.VDD, b=mod.VDD)
@@ -143,11 +148,46 @@ def opamp_az_top(params: OpampAzTopParams) -> h.Module:
     mod.m_infb_p = pmos(inv_ppar)(d=mod.infb, g=mod.D_INF_OA, s=mod.VDD, b=mod.VDD)
     mod.m_infb_n = nmos(inv_npar)(d=mod.infb, g=mod.D_INF_OA, s=mod.VSS, b=mod.VSS)
 
+    # Internal AZ sequencing:
+    # D_AZ rising edge generates a short AZ_RESET pulse, then transitions into AZ_NULL.
+    mod.r_az_reset_delay = pdk_precision_resistor(params.r_az_reset_delay, p=mod.D_AZ_OA, n=mod.az_rc, bulk=mod.VSS)
+    mod.c_az_reset_delay = pdk_mim_capacitor(params.c_az_reset_delay, p=mod.az_rc, n=mod.VSS)
+    mod.m_az_reset_raw_p = pmos(inv_ppar)(d=mod.az_reset_raw, g=mod.az_rc, s=mod.VDD, b=mod.VDD)
+    mod.m_az_reset_raw_n = nmos(inv_npar)(d=mod.az_reset_raw, g=mod.az_rc, s=mod.VSS, b=mod.VSS)
+    mod.m_az_reset_rawb_p = pmos(inv_ppar)(d=mod.az_reset_rawb, g=mod.az_reset_raw, s=mod.VDD, b=mod.VDD)
+    mod.m_az_reset_rawb_n = nmos(inv_npar)(d=mod.az_reset_rawb, g=mod.az_reset_raw, s=mod.VSS, b=mod.VSS)
+
+    # az_reset = D_AZ & az_reset_raw
+    mod.m_az_nand_reset_p0 = pmos(inv_ppar)(d=mod.az_nand_reset_b, g=mod.D_AZ_OA, s=mod.VDD, b=mod.VDD)
+    mod.m_az_nand_reset_p1 = pmos(inv_ppar)(d=mod.az_nand_reset_b, g=mod.az_reset_raw, s=mod.VDD, b=mod.VDD)
+    mod.az_nand_reset_mid = h.Signal(name="az_nand_reset_mid")
+    mod.m_az_nand_reset_n0 = nmos(inv_npar)(d=mod.az_nand_reset_b, g=mod.D_AZ_OA, s=mod.az_nand_reset_mid, b=mod.VSS)
+    mod.m_az_nand_reset_n1 = nmos(inv_npar)(d=mod.az_nand_reset_mid, g=mod.az_reset_raw, s=mod.VSS, b=mod.VSS)
+    mod.m_az_reset_p = pmos(inv_ppar)(d=mod.az_reset, g=mod.az_nand_reset_b, s=mod.VDD, b=mod.VDD)
+    mod.m_az_reset_n = nmos(inv_npar)(d=mod.az_reset, g=mod.az_nand_reset_b, s=mod.VSS, b=mod.VSS)
+    mod.m_az_reset_b_p = pmos(inv_ppar)(d=mod.az_reset_b, g=mod.az_reset, s=mod.VDD, b=mod.VDD)
+    mod.m_az_reset_b_n = nmos(inv_npar)(d=mod.az_reset_b, g=mod.az_reset, s=mod.VSS, b=mod.VSS)
+
+    # az_null = D_AZ & az_reset_rawb
+    mod.m_az_nand_null_p0 = pmos(inv_ppar)(d=mod.az_nand_null_b, g=mod.D_AZ_OA, s=mod.VDD, b=mod.VDD)
+    mod.m_az_nand_null_p1 = pmos(inv_ppar)(d=mod.az_nand_null_b, g=mod.az_reset_rawb, s=mod.VDD, b=mod.VDD)
+    mod.az_nand_null_mid = h.Signal(name="az_nand_null_mid")
+    mod.m_az_nand_null_n0 = nmos(inv_npar)(d=mod.az_nand_null_b, g=mod.D_AZ_OA, s=mod.az_nand_null_mid, b=mod.VSS)
+    mod.m_az_nand_null_n1 = nmos(inv_npar)(d=mod.az_nand_null_mid, g=mod.az_reset_rawb, s=mod.VSS, b=mod.VSS)
+    mod.m_az_null_p = pmos(inv_ppar)(d=mod.az_null, g=mod.az_nand_null_b, s=mod.VDD, b=mod.VDD)
+    mod.m_az_null_n = nmos(inv_npar)(d=mod.az_null, g=mod.az_nand_null_b, s=mod.VSS, b=mod.VSS)
+    mod.m_az_null_b_p = pmos(inv_ppar)(d=mod.az_null_b, g=mod.az_null, s=mod.VDD, b=mod.VDD)
+    mod.m_az_null_b_n = nmos(inv_npar)(d=mod.az_null_b, g=mod.az_null, s=mod.VSS, b=mod.VSS)
+
     # Internal references and held trim nodes.
     mod.vcm_az = h.Signal(name="vcm_az")
     mod.vdrv_qref = h.Signal(name="vdrv_qref")
     mod.vtrp = h.Signal(name="vtrp")
     mod.vtrn = h.Signal(name="vtrn")
+    mod.vsense_az = h.Signal(name="vsense_az")
+    mod.vtarget_az = h.Signal(name="vtarget_az")
+    mod.vservo_p = h.Signal(name="vservo_p")
+    mod.vservo_n = h.Signal(name="vservo_n")
     mod.vinp_core = h.Signal(name="vinp_core")
     mod.vinn_core = h.Signal(name="vinn_core")
     mod.vout_core = h.Signal(name="vout_core")
@@ -172,14 +212,28 @@ def opamp_az_top(params: OpampAzTopParams) -> h.Module:
     mod.r_vinp_bleed = pdk_precision_resistor(500e6, p=mod.vinp_core, n=mod.vcm_az, bulk=mod.VSS)
     mod.r_vinn_bleed = pdk_precision_resistor(500e6, p=mod.vinn_core, n=mod.vcm_az, bulk=mod.VSS)
 
-    # Held trim loop: in AZ mode, VTRP tracks VDRV while VTRN tracks VDRV_QREF.
-    # In latch and inference these nodes float only on the AZ storage capacitors.
-    mod.xsw_trim_track_p = tg_small(A=mod.vdrv, B=mod.vtrp, PHI=mod.D_AZ_OA, PHIB=mod.azb, VDD=mod.VDD, VSS=mod.VSS)
-    mod.xsw_trim_track_n = tg_small(A=mod.vdrv_qref, B=mod.vtrn, PHI=mod.D_AZ_OA, PHIB=mod.azb, VDD=mod.VDD, VSS=mod.VSS)
-    mod.caz_n = pdk_mim_capacitor(params.c_az, p=mod.vtrn, n=mod.VSS)
-    mod.caz_p = pdk_mim_capacitor(params.c_az, p=mod.vtrp, n=mod.VSS)
-    mod.r_vtrn_bleed = pdk_precision_resistor(1e9, p=mod.vtrn, n=mod.vdrv_qref, bulk=mod.VSS)
-    mod.r_vtrp_bleed = pdk_precision_resistor(1e9, p=mod.vtrp, n=mod.vdrv_qref, bulk=mod.VSS)
+    # AZ servo:
+    # - store differential trim around fixed common-mode VTR_CM = VCM_AZ
+    # - in AZ mode, compare VDRV against VDRV_QREF
+    # - inject opposite currents into the held trim nodes
+    # The servo outputs are physically disconnected outside AZ_NULL so the
+    # latched correction is held only on CazP/ CazN during latch/ inference.
+    mod.xsw_trim_reset_p = tg_small(A=mod.vcm_az, B=mod.vtrp, PHI=mod.az_reset, PHIB=mod.az_reset_b, VDD=mod.VDD, VSS=mod.VSS)
+    mod.xsw_trim_reset_n = tg_small(A=mod.vcm_az, B=mod.vtrn, PHI=mod.az_reset, PHIB=mod.az_reset_b, VDD=mod.VDD, VSS=mod.VSS)
+    mod.xsw_servo_sense = tg_small(A=mod.vdrv, B=mod.vsense_az, PHI=mod.az_null, PHIB=mod.az_null_b, VDD=mod.VDD, VSS=mod.VSS)
+    mod.xsw_servo_target = tg_small(A=mod.vdrv_qref, B=mod.vtarget_az, PHI=mod.az_null, PHIB=mod.az_null_b, VDD=mod.VDD, VSS=mod.VSS)
+    mod.xsw_servo_drive_p = tg_small(A=mod.vservo_p, B=mod.vtrp, PHI=mod.az_null, PHIB=mod.az_null_b, VDD=mod.VDD, VSS=mod.VSS)
+    mod.xsw_servo_drive_n = tg_small(A=mod.vservo_n, B=mod.vtrn, PHI=mod.az_null, PHIB=mod.az_null_b, VDD=mod.VDD, VSS=mod.VSS)
+    mod.r_vsense_bleed = pdk_precision_resistor(1e9, p=mod.vsense_az, n=mod.vcm_az, bulk=mod.VSS)
+    mod.r_vtarget_bleed = pdk_precision_resistor(1e9, p=mod.vtarget_az, n=mod.vcm_az, bulk=mod.VSS)
+    mod.r_vservo_p_bleed = pdk_precision_resistor(100e9, p=mod.vservo_p, n=mod.vcm_az, bulk=mod.VSS)
+    mod.r_vservo_n_bleed = pdk_precision_resistor(100e9, p=mod.vservo_n, n=mod.vcm_az, bulk=mod.VSS)
+    mod.gm_servo_p = h.Vccs(h.ControlledSourceParams(gain=params.g_az_servo))(p=mod.vservo_p, n=mod.vcm_az, cp=mod.vsense_az, cn=mod.vtarget_az)
+    mod.gm_servo_n = h.Vccs(h.ControlledSourceParams(gain=params.g_az_servo))(p=mod.vcm_az, n=mod.vservo_n, cp=mod.vsense_az, cn=mod.vtarget_az)
+    mod.caz_n = pdk_mim_capacitor(params.c_az, p=mod.vtrn, n=mod.vcm_az)
+    mod.caz_p = pdk_mim_capacitor(params.c_az, p=mod.vtrp, n=mod.vcm_az)
+    mod.r_vtrn_bleed = pdk_precision_resistor(100e9, p=mod.vtrn, n=mod.vcm_az, bulk=mod.VSS)
+    mod.r_vtrp_bleed = pdk_precision_resistor(100e9, p=mod.vtrp, n=mod.vcm_az, bulk=mod.VSS)
 
     # Main stage1 bias.
     tail_ref_par = _mos_params(core_params.w_tail_ref, core_params.l_tail_ref)
@@ -268,6 +322,8 @@ class OpampAzHighZTbParams:
     r_probe = h.Param(dtype=h.Scalar, desc="External probe resistor from VOUT to VSS in ohm", default=1e6)
     mode_inf = h.Param(dtype=h.Scalar, desc="Inference control voltage", default=0.0)
     mode_az = h.Param(dtype=h.Scalar, desc="Calibration control voltage", default=1.8)
+    tstop = h.Param(dtype=h.Scalar, desc="Transient stop time in s", default=2e-6)
+    tstep = h.Param(dtype=h.Scalar, desc="Transient step in s", default=20e-9)
 
 
 def build_highz_test(
@@ -294,7 +350,14 @@ def build_highz_test(
         rprobe = h.Res(r=tb_params.r_probe)(p=vout, n=VSS)
         xdut = dut(VINP=vinp, VINN=vinn, VOUT=vout, D_EN_OA=den, D_AZ_OA=daz, D_INF_OA=dinf, VDD=vdd, VSS=VSS)
 
-    return Sim(tb=Tb, attrs=[Op(), Save(SaveMode.ALL), install.include(corner)])
+    return Sim(
+        tb=Tb,
+        attrs=[
+            Tran(tstop=float(tb_params.tstop), tstep=float(tb_params.tstep)),
+            Save("time, v(xtop.vout)"),
+            install.include(corner),
+        ],
+    )
 
 
 @h.paramclass

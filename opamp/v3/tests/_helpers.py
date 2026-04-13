@@ -1,14 +1,21 @@
 from __future__ import annotations
 
+import json
+import importlib
 import math
 import sys
 import unittest
+from dataclasses import fields
 from pathlib import Path
 
 import sky130_hdl21 as sky130
 
+from opamp.v3.opamp_core import OpampCoreParams
+from opamp.v3.prod.rc import current_core_params
+
 
 ROOT = Path(__file__).resolve().parents[3]
+HDL21_GENERATOR_MODULE = importlib.import_module("hdl21.generator")
 
 
 def ensure_repo_root_on_path() -> None:
@@ -40,5 +47,34 @@ class BaseV3SimTest(BaseV3Test):
         super().setUpClass()
         init_sky130_install()
 
+    def setUp(self) -> None:
+        super().setUp()
+        HDL21_GENERATOR_MODULE.generator.cache.reset()
+
     def assertFinite(self, value: float, msg: str | None = None) -> None:
         self.assertTrue(math.isfinite(value), msg or f"Expected finite value, got {value!r}")
+
+
+def reset_metrics_file(path: Path) -> None:
+    path.unlink(missing_ok=True)
+
+
+def write_metrics_json(path: Path, payload: dict) -> None:
+    tmp_path = path.with_suffix(path.suffix + ".tmp")
+    tmp_path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+    tmp_path.replace(path)
+
+
+def build_debug_core_params(**updates) -> OpampCoreParams:
+    base = current_core_params()
+    payload = {field.name: getattr(base, field.name) for field in fields(base)}
+    payload["debug_current_probes"] = True
+    payload.update(updates)
+    return OpampCoreParams(**payload)
+
+
+def build_core_params(**updates) -> OpampCoreParams:
+    base = current_core_params()
+    payload = {field.name: getattr(base, field.name) for field in fields(base)}
+    payload.update(updates)
+    return OpampCoreParams(**payload)
