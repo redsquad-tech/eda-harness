@@ -1,0 +1,13 @@
+{
+  "ac_fixture_ok": true,
+  "aol_db": 88.4401197513818,
+  "aol_estimate_valid": true,
+  "direct_dc_gain_db": 88.4401197513818,
+  "direct_vout_dc": 0.9,
+  "gain_margin_db": 2.165871652347478,
+  "gbw_hz": 190039.09175972536,
+  "iq_uA": 3.2909391110904056,
+  "low_freq_loop_gain_db": 88.4401197513818,
+  "low_freq_loop_gain_vv": 26424.45188164897,
+  "phase_margin_deg": 10.488658936281212
+}

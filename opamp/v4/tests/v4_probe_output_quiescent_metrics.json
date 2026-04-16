@@ -1,0 +1,26 @@
+{
+  "disabled": {
+    "avdd_V": 1.8,
+    "id_out_n_A": 4.680634575734076e-12,
+    "id_out_p_A": 2.4504080103039137e-17,
+    "iq_total_A": 5.121599914378883e-07,
+    "vgn_V": 1.7802643058405838,
+    "vgp_V": 1.7802813256563546,
+    "vout_V": 1.308689179667153e-09
+  },
+  "inference": {
+    "avdd_V": 1.8,
+    "id_out_n_A": 4.68062900221891e-12,
+    "id_out_p_A": 2.4504869885649557e-17,
+    "iq_total_A": 5.135708095668767e-07,
+    "vgn_V": 1.7802632449492488,
+    "vgp_V": 1.7802802657850274,
+    "vout_V": 1.3086884739943031e-09
+  },
+  "summary": {
+    "disabled_current_ratio": 0.9972529238369714,
+    "gates_within_rails": true,
+    "inference_balance_ratio": 5.235379662441249e-06,
+    "vout_within_rails": true
+  }
+}

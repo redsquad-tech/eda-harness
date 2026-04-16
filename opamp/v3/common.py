@@ -1,9 +1,28 @@
 """Shared simulation utilities for `opamp.v3`."""
 
 import math
+import warnings
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
+
+from pydantic.warnings import PydanticDeprecatedSince20
+
+# Keep unit-test output focused on real simulation failures.
+# Apply filters before importing libraries that emit them during import/ setup.
+warnings.filterwarnings("ignore", category=PydanticDeprecatedSince20)
+warnings.simplefilter("ignore", PydanticDeprecatedSince20)
+warnings.filterwarnings(
+    "ignore",
+    message=r"`pydantic_encoder` is deprecated.*",
+    category=Warning,
+    module=r"hdl21\.params",
+)
+warnings.filterwarnings(
+    "ignore",
+    category=ResourceWarning,
+    module=r"vlsirtools\.spice\.ngspice",
+)
 
 import hdl21 as h
 import numpy as np

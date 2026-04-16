@@ -1,0 +1,2 @@
+device_label,context,w_in_um,l_in_um,w_load_um,l_load_um,w_stage2_n_um,l_stage2_n_um,w_stage2_p_um,l_stage2_p_um,c_comp_F,r_comp_z_ohm,AOL_dB,GBW_Hz,PM_deg,GM_dB,Iq_uA,notes
+best_historical_pure_param_candidate,"Best historical pure-parameter sweep point before current DUT simplification",24.0,3.0,4.0,8.0,24.0,6.0,12.0,8.0,4.7e-12,0.0,60.02,87650.0,30.69,5.32,8.35,"Best overall historical gain/stability/current compromise seen in sweeps; not the current product DUT"

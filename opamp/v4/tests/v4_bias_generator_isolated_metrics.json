@@ -1,0 +1,31 @@
+{
+  "avdd_V": 1.8,
+  "i0_n_V": 1.6930309866462618,
+  "i0_p_V": 0.024914437425302347,
+  "ibias_n_V": 1.7320735298256633,
+  "ibias_p_V": 0.02456188078461051,
+  "id_i0_n_A": 0.0,
+  "id_i0_n_feed_A": 0.0,
+  "id_i0_n_out_A": 0.0,
+  "id_i0_p_A": 0.0,
+  "id_i0_p_out_A": 0.0,
+  "id_i0_p_sink_A": 0.0,
+  "id_ibias_n_A": 0.0,
+  "id_ibias_n_feed_A": 0.0,
+  "id_ibias_n_out_A": 0.0,
+  "id_ibias_p_A": 0.0,
+  "id_ibias_p_out_A": 0.0,
+  "id_ibias_p_sink_A": 0.0,
+  "id_nref_A": 0.0,
+  "id_nref_feed_A": 0.0,
+  "id_ref_A": 0.0,
+  "summary": {
+    "i0_n_match_ratio": 0.0,
+    "i0_p_match_ratio": 0.0,
+    "ibias_n_match_ratio": 0.0,
+    "ibias_p_match_ratio": 0.0
+  },
+  "vbias1_V": 0.8238323013195482,
+  "vbias2_V": 0.8907307139056169,
+  "vbias3_V": 0.6335261041633281
+}

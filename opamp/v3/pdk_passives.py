@@ -56,6 +56,25 @@ def pdk_resistor(target_ohms: float, *, p, n, bulk=None):
     return choice.module(choice.params)(p=p, n=n)
 
 
+def pdk_precision_resistor(target_ohms: float, *, p, n, bulk):
+    """Analog-grade precision P-poly resistor.
+
+    Use this for bias-setting references where generic poly would distort the
+    intended current law. Maps to the same PM_PREC device family already used
+    for large bias resistors elsewhere in the core.
+    """
+
+    target_ohms = float(target_ohms)
+    if target_ohms <= 0:
+        raise ValueError(f"target_ohms must be positive, got {target_ohms}")
+
+    width_um = 0.35
+    sheet_ohm_sq = 22468.57
+    length_um = max(0.5, target_ohms * width_um / sheet_ohm_sq)
+    params = sky130_hdl21.Sky130PrecResParams(l=length_um, mult=1, m=1)
+    return sky130_hdl21.ress["PM_PREC_0p35"](params)(p=p, n=n, b=bulk)
+
+
 def pdk_mim_capacitor(target_farad: float, *, p, n, cap_dev: str = "MIM_M3", density_f_per_um2: float = 2.0e-15):
     if target_farad <= 0:
         raise ValueError(f"target_farad must be positive, got {target_farad}")
