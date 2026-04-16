@@ -1,4 +1,0 @@
-
-Checking parameters for BSIM 4.5 model xtop.xdut.xmout:sky130_fd_pr__nfet_01v8__model.44
-Fatal: Pclm = -0.0528898 is not positive.
-Warning: Nfactor = -1.86523 is negative.
