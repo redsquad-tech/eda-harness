@@ -1,2 +1,0 @@
-"""Opamp development packages."""
-

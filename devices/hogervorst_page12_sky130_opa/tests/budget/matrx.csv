@@ -1,0 +1,89 @@
+budget_level,owner_oa,owner_block,owner_local,metric,unit,target_type,target_low,target_high,design_target_text,source_basis,note
+System,HogervorstPage12Sky130OPA,nan,nan,supply_voltage_nominal_retg,V,nominal,1.8,,1.80 V nominal retarget supply,retarget assumption,Sky130 retarget assumption for this architecture
+System,HogervorstPage12Sky130OPA,nan,nan,in0u25_oa_ref_current_nominal,nA,nominal,250,,250 nA nominal external master reference,Opamp_req.pdf p10-12,"External sinking reference, mirrored internally"
+System,HogervorstPage12Sky130OPA,nan,nan,in0u25_oa_ref_current_accepted_range,nA,range,200,300,Accepted range 200..300 nA,Opamp_req.pdf p10-12,Interface acceptance range
+System,HogervorstPage12Sky130OPA,nan,nan,iq_inference_internal_planned,uA,nominal,8,,8.0 uA planned internal supply current,design allocation from spec,Leaves 2.0 uA reserve under 10 uA spec
+System,HogervorstPage12Sky130OPA,nan,nan,iq_inference_internal_reserve,uA,nominal,2,,2.0 uA reserve,design allocation from spec,"Unallocated reserve for corners, parasitics, tuning"
+System,HogervorstPage12Sky130OPA,nan,nan,iq_inference_internal_budget_total,uA,max,10,,<=10.0 uA total internal inference current,Opamp_req.pdf p11,Matches spec ceiling
+System,HogervorstPage12Sky130OPA,nan,nan,iq_calibration_planned,uA,max,8.5,,<=8.5 uA planned calibration current,design allocation from spec,Leaves margin under 10 uA spec
+System,HogervorstPage12Sky130OPA,nan,nan,iq_calibration_budget_total,uA,max,10,,<=10.0 uA calibration budget,Opamp_req.pdf p12,Matches spec ceiling
+System,HogervorstPage12Sky130OPA,nan,nan,disabled_leakage_total_target,nA,max,10,,<=10 nA disabled leakage target,design allocation from spec,Below 15 nA spec
+System,HogervorstPage12Sky130OPA,nan,nan,open_loop_gain_target,dB,min,84,,>=84 dB target,Opamp_req.pdf p11; topology p12,Margin above 80 dB spec
+System,HogervorstPage12Sky130OPA,nan,nan,gain_bandwidth_target,MHz,min,1.3,,>=1.3 MHz target,Opamp_req.pdf p11,Margin above 1 MHz spec
+System,HogervorstPage12Sky130OPA,nan,nan,phase_margin_target,deg,min,60,,>=60 deg target,Opamp_req.pdf p11,Design target above 30 deg minimum
+System,HogervorstPage12Sky130OPA,nan,nan,gain_margin_target,dB,min,10,,>=10 dB target,Opamp_req.pdf p11,Design target above 5 dB minimum
+System,HogervorstPage12Sky130OPA,nan,nan,psrr_target,dB,min,30,,>=30 dB target,Opamp_req.pdf p11,Design target above 20 dB minimum
+System,HogervorstPage12Sky130OPA,nan,nan,load_capacitance_supported,pF,max,1,,<=1 pF load budget,Opamp_req.pdf p4, p11,Spec load cap
+System,HogervorstPage12Sky130OPA,nan,nan,output_current_target,uA,range,-35,35,-35..+35 uA source/sink target,Opamp_req.pdf p11; design allocation,Margin above +/-25 uA minimum
+System,HogervorstPage12Sky130OPA,nan,nan,output_headroom_to_rails_target,V,max,0.08,,<=80 mV headroom to each rail,design allocation,Retarget heuristic for compliant output range
+System,HogervorstPage12Sky130OPA,nan,nan,offset_after_cal_target_abs,mV,max_abs,0.2,,|Vos| <=0.20 mV after calibration target,Opamp_req.pdf p11; design allocation,Margin below +/-0.25 mV spec
+System,HogervorstPage12Sky130OPA,nan,nan,offset_sigma_target,uV,max,50,,<=50 uV 1-sigma target,Opamp_req.pdf p11; design allocation,Margin below 60 uV spec
+Block,HogervorstPage12Sky130OPA,bias_ref_ingress,nan,current_from_avdd,uA,nominal,0.5,,0.50 uA internal current budget,design allocation,Reference accept + mirror front-end
+Block,HogervorstPage12Sky130OPA,bias_ref_ingress,nan,disabled_residual_leakage,nA,max,2,,<=2 nA disabled residual leakage,design allocation,Part of total 10 nA disabled budget
+Block,HogervorstPage12Sky130OPA,bias_ref_ingress,nan,mirror_ratio_error_tt,%,max_abs,5,,|mirror ratio error| <=5% at TT target,design allocation,Pre-layout sanity target for master mirror
+Block,HogervorstPage12Sky130OPA,vbias_replica_gen,nan,current_from_avdd,uA,nominal,0.8,,0.80 uA internal current budget,design allocation,Replica branches for vbias1/2/3
+Block,HogervorstPage12Sky130OPA,vbias_replica_gen,nan,cascode_saturation_margin,V,min,0.15,,>=150 mV saturation margin on replica devices,design allocation,Applies to vbias1/2/3 generation
+Block,HogervorstPage12Sky130OPA,rr_input_stage,nan,current_total,uA,nominal,3.2,,3.20 uA total tail-current budget,design allocation,I0p + I0n
+Block,HogervorstPage12Sky130OPA,rr_input_stage,nan,effective_input_gm,uS,min,15,,>=15 uS effective input gm target,design allocation,"At unity-gain operating point, initial sizing target"
+Block,HogervorstPage12Sky130OPA,rr_input_stage,nan,offset_sigma_share,uV,max,40,,<=40 uV sigma share,design allocation,Raw input-stage contribution before cal
+Block,HogervorstPage12Sky130OPA,folded_cascode_core,nan,first_stage_gain_contribution,dB,min,58,,>=58 dB first-stage gain target,design allocation,Differential-to-driver-node gain contribution
+Block,HogervorstPage12Sky130OPA,folded_cascode_core,nan,all_stack_saturation_margin,V,min,0.15,,>=150 mV on every cascode stack device,design allocation,For CM and output swing budget
+Block,HogervorstPage12Sky130OPA,monticelli_bias,nan,current_total,uA,nominal,0.9,,0.90 uA total bias budget,design allocation,Ibias_p + Ibias_n
+Block,HogervorstPage12Sky130OPA,monticelli_bias,nan,gm_balance_ratio_m24_m35,ratio,range,0.8,1.2,gm balance ratio target 0.8..1.2,topology p12; design allocation,Keep AB crossover reasonably symmetric
+Block,HogervorstPage12Sky130OPA,output_stage,nan,quiescent_current_total,uA,nominal,2.2,,2.20 uA quiescent current budget,design allocation,M1 + M2 quiescent
+Block,HogervorstPage12Sky130OPA,output_stage,nan,second_stage_gain_contribution,dB,min,26,,>=26 dB output-stage gain target,design allocation,Combined with first stage to reach 84 dB
+Block,HogervorstPage12Sky130OPA,output_stage,nan,source_sink_current,uA,range,-35,35,-35..+35 uA target,Opamp_req.pdf p11; design allocation,"Signal-current capability, not DC"
+Block,HogervorstPage12Sky130OPA,compensation_network,nan,compensation_cap_total,pF,range,0.5,0.7,0.50..0.70 pF total split compensation seed,design allocation,Initial total Cc across both RcCc branches
+Block,HogervorstPage12Sky130OPA,compensation_network,nan,phase_margin_contribution_target,deg,min,60,,>=60 deg target via RcCc tuning,design allocation,Block owner for PM closure
+Block,HogervorstPage12Sky130OPA,wrapper_control_test,nan,inference_mode_overhead_current,uA,nominal,0.4,,0.40 uA inference overhead budget,design allocation,Mode control + test keepalive
+Block,HogervorstPage12Sky130OPA,wrapper_control_test,nan,disabled_leakage_total,nA,max,6,,<=6 nA wrapper leakage target,design allocation,Leaves 4 nA for core/bias residuals
+Block,HogervorstPage12Sky130OPA,wrapper_control_test,nan,aux_switch_ron,kOhm,max,1.5,,<=1.5 kOhm target,Opamp_req.pdf p12; design allocation,Margin below 2 kOhm spec
+Block,HogervorstPage12Sky130OPA,wrapper_control_test,nan,aux_switch_off_leakage_each,nA,max,2,,<=2 nA each target,design allocation,For agnd-vbase and avdd-vfeed
+Block,HogervorstPage12Sky130OPA,wrapper_control_test,nan,vout_test_switch_ron,kOhm,max,1.5,,<=1.5 kOhm target,Opamp_req.pdf p12; design allocation,Margin below 2 kOhm spec
+Block,HogervorstPage12Sky130OPA,wrapper_control_test,nan,vout_test_switch_off_leakage,nA,max,2,,<=2 nA target,design allocation,Part of disabled leakage budget
+Local,HogervorstPage12Sky130OPA,bias_ref_ingress,in0u25_oa_acceptor,pin_current,uA,nominal,0.25,,0.25 uA nominal external reference current,Opamp_req.pdf p10-12,External sinking current at the ref pin
+Local,HogervorstPage12Sky130OPA,bias_ref_ingress,master_mirror_receiver,current_from_avdd,uA,nominal,0.25,,0.25 uA internal mirror-receiver branch,design allocation,Internal branch that senses/mirrors the external ref
+Local,HogervorstPage12Sky130OPA,bias_ref_ingress,startup_and_bias_collapse_leg,current_from_avdd,uA,nominal,0.25,,0.25 uA startup/gating leg,design allocation,Can be mostly off outside startup/enable sequencing
+Local,HogervorstPage12Sky130OPA,bias_ref_ingress,master_mirror_receiver,disabled_leakage,nA,max,1,,<=1 nA disabled leakage,design allocation,Local leakage share
+Local,HogervorstPage12Sky130OPA,bias_ref_ingress,startup_and_bias_collapse_leg,disabled_leakage,nA,max,1,,<=1 nA disabled leakage,design allocation,Local leakage share
+Local,HogervorstPage12Sky130OPA,vbias_replica_gen,vbias1_replica_branch,current_from_avdd,uA,nominal,0.25,,0.25 uA replica branch current,design allocation,Bias for upper PMOS cascode devices
+Local,HogervorstPage12Sky130OPA,vbias_replica_gen,vbias2_replica_branch,current_from_avdd,uA,nominal,0.25,,0.25 uA replica branch current,design allocation,Bias for lower PMOS folded devices
+Local,HogervorstPage12Sky130OPA,vbias_replica_gen,vbias3_replica_branch,current_from_avdd,uA,nominal,0.3,,0.30 uA replica branch current,design allocation,Bias for NMOS folded devices
+Local,HogervorstPage12Sky130OPA,vbias_replica_gen,vbias1_replica_branch,saturation_margin,V,min,0.15,,>=150 mV saturation margin,design allocation,Local headroom target
+Local,HogervorstPage12Sky130OPA,vbias_replica_gen,vbias2_replica_branch,saturation_margin,V,min,0.15,,>=150 mV saturation margin,design allocation,Local headroom target
+Local,HogervorstPage12Sky130OPA,vbias_replica_gen,vbias3_replica_branch,saturation_margin,V,min,0.15,,>=150 mV saturation margin,design allocation,Local headroom target
+Local,HogervorstPage12Sky130OPA,rr_input_stage,I0p_tail_source,tail_current,uA,nominal,1.6,,1.60 uA PMOS-input tail current,design allocation,Owns low-CM side of RR input
+Local,HogervorstPage12Sky130OPA,rr_input_stage,I0n_tail_sink,tail_current,uA,nominal,1.6,,1.60 uA NMOS-input tail current,design allocation,Owns high-CM side of RR input
+Local,HogervorstPage12Sky130OPA,rr_input_stage,pmos_input_pair,offset_sigma_share,uV,max,25,,<=25 uV sigma share,design allocation,Matching/layout budget
+Local,HogervorstPage12Sky130OPA,rr_input_stage,nmos_input_pair,offset_sigma_share,uV,max,25,,<=25 uV sigma share,design allocation,Matching/layout budget
+Local,HogervorstPage12Sky130OPA,rr_input_stage,pmos_input_pair,gm_share,uS,min,7.5,,>=7.5 uS gm share target,design allocation,Half of 15 uS effective gm target
+Local,HogervorstPage12Sky130OPA,rr_input_stage,nmos_input_pair,gm_share,uS,min,7.5,,>=7.5 uS gm share target,design allocation,Half of 15 uS effective gm target
+Local,HogervorstPage12Sky130OPA,folded_cascode_core,left_pmos_stack_fc_p1_p2,saturation_margin,V,min,0.15,,>=150 mV saturation margin,design allocation,Upper/ middle PMOS branch
+Local,HogervorstPage12Sky130OPA,folded_cascode_core,left_nmos_stack_fc_n1_n2,saturation_margin,V,min,0.15,,>=150 mV saturation margin,design allocation,Lower NMOS branch
+Local,HogervorstPage12Sky130OPA,folded_cascode_core,right_pmos_stack_fc_p1_p2,saturation_margin,V,min,0.15,,>=150 mV saturation margin,design allocation,Driver-side PMOS branch
+Local,HogervorstPage12Sky130OPA,folded_cascode_core,right_nmos_stack_fc_n1_n2,saturation_margin,V,min,0.15,,>=150 mV saturation margin,design allocation,Driver-side NMOS branch
+Local,HogervorstPage12Sky130OPA,folded_cascode_core,left_reference_branch,gain_contribution,dB,min,25,,>=25 dB contribution target,design allocation,Reference/summing side
+Local,HogervorstPage12Sky130OPA,folded_cascode_core,right_driver_branch,gain_contribution,dB,min,30,,>=30 dB contribution target,design allocation,Driver-node side
+Local,HogervorstPage12Sky130OPA,monticelli_bias,m22_m23_n_diode_stack_branch,branch_current,uA,nominal,0.45,,0.45 uA branch current,topology p12; design allocation,Generates M24 gate-bias
+Local,HogervorstPage12Sky130OPA,monticelli_bias,m33_m34_p_diode_stack_branch,branch_current,uA,nominal,0.45,,0.45 uA branch current,topology p12; design allocation,Generates M35 gate-bias
+Local,HogervorstPage12Sky130OPA,monticelli_bias,m24_m35_floating_cell,gm_balance_ratio,ratio,range,0.8,1.2,gm balance ratio target 0.8..1.2,topology p12; design allocation,Keep AB crossover symmetric enough
+Local,HogervorstPage12Sky130OPA,monticelli_bias,m24_m35_floating_cell,local_headroom_margin,V,min,0.15,,>=150 mV local headroom target,design allocation,Avoid collapsing AB control action
+Local,HogervorstPage12Sky130OPA,output_stage,m2_pmos_output_device,quiescent_current_share,uA,nominal,1.1,,1.10 uA PMOS-side Iq share,design allocation,Half of 2.20 uA output Iq budget
+Local,HogervorstPage12Sky130OPA,output_stage,m1_nmos_output_device,quiescent_current_share,uA,nominal,1.1,,1.10 uA NMOS-side Iq share,design allocation,Half of 2.20 uA output Iq budget
+Local,HogervorstPage12Sky130OPA,output_stage,m2_pmos_output_device,source_current_capability,uA,min,35,,>=35 uA source capability,Opamp_req.pdf p11; design allocation,Large-signal sourcing target
+Local,HogervorstPage12Sky130OPA,output_stage,m1_nmos_output_device,sink_current_capability,uA,min,35,,>=35 uA sink capability,Opamp_req.pdf p11; design allocation,Large-signal sinking target
+Local,HogervorstPage12Sky130OPA,output_stage,m2_pmos_output_device,headroom_to_rail,V,max,0.08,,<=80 mV upper headroom target,design allocation,When sourcing current in compliant range
+Local,HogervorstPage12Sky130OPA,output_stage,m1_nmos_output_device,headroom_to_rail,V,max,0.08,,<=80 mV lower headroom target,design allocation,When sinking current in compliant range
+Local,HogervorstPage12Sky130OPA,compensation_network,top_RcCc_branch,compensation_cap,pF,range,0.25,0.35,0.25..0.35 pF top branch Cc seed,design allocation,Half of total Cc budget
+Local,HogervorstPage12Sky130OPA,compensation_network,bottom_RcCc_branch,compensation_cap,pF,range,0.25,0.35,0.25..0.35 pF bottom branch Cc seed,design allocation,Half of total Cc budget
+Local,HogervorstPage12Sky130OPA,compensation_network,top_RcCc_branch,nulling_resistor_seed,kOhm,range,15,40,15..40 kOhm top branch Rc initial seed,design allocation,Starting range for AC tuning
+Local,HogervorstPage12Sky130OPA,compensation_network,bottom_RcCc_branch,nulling_resistor_seed,kOhm,range,15,40,15..40 kOhm bottom branch Rc initial seed,design allocation,Starting range for AC tuning
+Local,HogervorstPage12Sky130OPA,wrapper_control_test,mode_decode_and_latches,inference_overhead_current,uA,nominal,0.2,,0.20 uA overhead,design allocation,Control/latch side of wrapper budget
+Local,HogervorstPage12Sky130OPA,wrapper_control_test,test_chain_keepalive,inference_overhead_current,uA,nominal,0.2,,0.20 uA overhead,design allocation,Test/control side of wrapper budget
+Local,HogervorstPage12Sky130OPA,wrapper_control_test,output_isolation_switch,off_leakage,nA,max,2,,<=2 nA leakage,design allocation,Helps keep vout Hi-Z in non-inference modes
+Local,HogervorstPage12Sky130OPA,wrapper_control_test,agnd_to_vbase_switch,ron,kOhm,max,1.5,,<=1.5 kOhm on-resistance,Opamp_req.pdf p12; design allocation,Inference-mode auxiliary switch
+Local,HogervorstPage12Sky130OPA,wrapper_control_test,agnd_to_vbase_switch,off_leakage,nA,max,2,,<=2 nA leakage,design allocation,Disabled/cal/latch leakage share
+Local,HogervorstPage12Sky130OPA,wrapper_control_test,avdd_to_vfeed_switch,ron,kOhm,max,1.5,,<=1.5 kOhm on-resistance,Opamp_req.pdf p12; design allocation,Inference-mode auxiliary switch
+Local,HogervorstPage12Sky130OPA,wrapper_control_test,avdd_to_vfeed_switch,off_leakage,nA,max,2,,<=2 nA leakage,design allocation,Disabled/cal/latch leakage share
+Local,HogervorstPage12Sky130OPA,wrapper_control_test,vout_to_vtest_switch,ron,kOhm,max,1.5,,<=1.5 kOhm on-resistance,Opamp_req.pdf p12; design allocation,Test access switch
+Local,HogervorstPage12Sky130OPA,wrapper_control_test,vout_to_vtest_switch,off_leakage,nA,max,2,,<=2 nA leakage,design allocation,Disabled/cal/latch leakage share
