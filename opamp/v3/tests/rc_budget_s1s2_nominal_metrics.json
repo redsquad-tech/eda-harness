@@ -1,0 +1,15 @@
+{
+  "budgets": {
+    "abs_vx_minus_vref_max_V": 0.01,
+    "stage2_ratio_min": 0.05,
+    "vref_max_V": 1.6,
+    "vref_min_V": 0.2
+  },
+  "i_stage2_n_A": 5.987873663571008e-08,
+  "i_stage2_p_A": 6.716630132075352e-07,
+  "stage2_n_to_p_ratio": 0.08914996874661658,
+  "vdrv_V": 0.6117835991229567,
+  "vref_V": 0.48813700828671774,
+  "vx_V": 0.4881370082867214,
+  "vx_minus_vref_V": 3.6637359812630166e-15
+}

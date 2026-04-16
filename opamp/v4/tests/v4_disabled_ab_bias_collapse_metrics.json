@@ -1,0 +1,19 @@
+{
+  "disabled": {
+    "avdd_V": 1.7999999999982,
+    "iq_uA": 0.7042772623838678,
+    "vgn_V": 0.48181498390237193,
+    "vgp_V": 0.824021619426421
+  },
+  "enabled": {
+    "avdd_V": 1.7999999999982,
+    "iq_uA": 0.7238278233040463,
+    "vgn_V": 0.4907063715684436,
+    "vgp_V": 0.8269166836821391
+  },
+  "summary": {
+    "disabled_to_enabled_ratio": 0.9729900394945633,
+    "vgn_closer_to_agnd": true,
+    "vgp_closer_to_avdd": false
+  }
+}

@@ -1,28 +1,18 @@
 # v3 Experiments
 
-Each experiment lives in its own directory:
+`v3/experiments` now keeps only the current output-stage line of work.
 
-- `opamp/v3/experiments/<exp-name>/`
+Current active experiment:
 
-Rules:
+- `opamp/v3/experiments/core_h10_analog_class_ab/`
 
-- experiments are independent
-- each experiment may define its own generator modules
-- if a hypothesis needs a modified generator, create a new generator file instead of editing the baseline generator in place
-- generator files are identified by the component they implement
-- each experiment directory keeps everything it needs locally:
-  - hypothesis notes
-  - test files
-  - experiment-specific generators
-  - helper scripts if needed
-  - `metrics.json`
+Scope:
 
-Allowed imports:
+- standalone gate-driver probes
+- standalone output-stage probes
+- full-core probe and AC checks for the current class-AB idea
 
-- reusable low-level blocks from `components/`
-- promoted production generators from `opamp/v3/prod/components/`
+Work rule:
 
-Promotion rule:
-
-- if an experiment beats the current baseline on its intended metrics, copy the winning generator logic into `opamp/v3/prod/components/` and update `opamp/v3/prod/rc/`
-
+- new output-stage changes should be made directly in `opamp/v3/opamp_core.py`
+- use `core_h10_analog_class_ab/` to keep the focused probe and metrics history for the current line

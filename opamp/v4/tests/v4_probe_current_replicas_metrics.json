@@ -1,0 +1,16 @@
+{
+  "disabled": {
+    "is_bias_n_replica_A": 1.8918200339612667e-12,
+    "is_bias_p_replica_A": 2.1093080594737918e-12,
+    "is_core_replica_A": 2.109746513983033e-12,
+    "is_out_nq_replica_A": 1.9246826354901714e-12,
+    "is_out_pq_replica_A": 2.3545663400628944e-12
+  },
+  "inference": {
+    "is_bias_n_replica_A": 1.6098365440697648e-07,
+    "is_bias_p_replica_A": 1.889741875442493e-07,
+    "is_core_replica_A": 4.492836767245261e-09,
+    "is_out_nq_replica_A": 1.942446203884174e-12,
+    "is_out_pq_replica_A": 4.0942106189904864e-08
+  }
+}

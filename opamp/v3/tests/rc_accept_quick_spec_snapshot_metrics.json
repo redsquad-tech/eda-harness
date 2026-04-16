@@ -1,0 +1,92 @@
+{
+  "leakage": {
+    "disabled_leakage_nA": 3083.492588542157,
+    "vout_disabled_dc": 0.9003003451326919
+  },
+  "offset": {
+    "input_referred_offset_abs_uV": 899999.2017832338,
+    "input_referred_offset_uV": 899999.2017832338,
+    "iq_uA": 2.8507706601102387,
+    "vin_dc": 0.9,
+    "vout_dc": 1.7999992017832338
+  },
+  "offset_mc": {
+    "input_referred_offset_abs_max_uV": 899999.2453782212,
+    "input_referred_offset_abs_mean_uV": 899999.2023571869,
+    "input_referred_offset_abs_p50_uV": 899999.2087726991,
+    "input_referred_offset_abs_p90_uV": 899999.2416538215,
+    "input_referred_offset_abs_p95_uV": 899999.2435160213,
+    "input_referred_offset_abs_p99_uV": 899999.2450057812,
+    "input_referred_offset_mean_uV": 899999.2023571869,
+    "input_referred_offset_pass_rate_vs_150uV": 0.0,
+    "input_referred_offset_pass_rate_vs_250uV": 0.0,
+    "input_referred_offset_sigma_uV": 0.03176563741250573,
+    "iq_mean_uA": 2.8455214502216357,
+    "model_section": "tt_mm",
+    "sample_errors": [],
+    "samples_completed": 8,
+    "samples_failed": 0,
+    "samples_requested": 8
+  },
+  "open_loop": {
+    "FF": {
+      "ac_fixture_ok": true,
+      "aol_db": 44.07238308799121,
+      "aol_estimate_valid": true,
+      "direct_dc_gain_db": 44.07238308799121,
+      "direct_vout_dc": 0.9,
+      "gain_margin_db": 4.954579188213168,
+      "gbw_hz": 63728.76918163251,
+      "iq_uA": 3.3307058343046396,
+      "low_freq_loop_gain_db": 44.07238308799121,
+      "low_freq_loop_gain_vv": 159.81559440031455,
+      "phase_margin_deg": 39.56220762010656
+    },
+    "SS": {
+      "ac_fixture_ok": true,
+      "aol_db": 32.751378565445684,
+      "aol_estimate_valid": true,
+      "direct_dc_gain_db": 32.751378565445684,
+      "direct_vout_dc": 0.9,
+      "gain_margin_db": 4.916579780614501,
+      "gbw_hz": 27349.10340906406,
+      "iq_uA": 2.8496657507473224,
+      "low_freq_loop_gain_db": 32.751378565445684,
+      "low_freq_loop_gain_vv": 43.407915227445855,
+      "phase_margin_deg": 39.71099238491732
+    },
+    "TT": {
+      "ac_fixture_ok": true,
+      "aol_db": 38.00612869835477,
+      "aol_estimate_valid": true,
+      "direct_dc_gain_db": 38.00612869835477,
+      "direct_vout_dc": 0.9,
+      "gain_margin_db": 5.0278069363333255,
+      "gbw_hz": 42639.43786202018,
+      "iq_uA": 3.083690299194291,
+      "low_freq_loop_gain_db": 38.00612869835477,
+      "low_freq_loop_gain_vv": 79.48889045271726,
+      "phase_margin_deg": 40.14087886388239
+    }
+  },
+  "status": {
+    "ff_aol": "fail",
+    "leakage": "fail",
+    "offset_mc_p99_vs_250uV": "fail",
+    "offset_mc_sigma": "pass",
+    "offset_nominal": "fail",
+    "ss_aol": "fail",
+    "swing_high": "pass",
+    "swing_low": "fail",
+    "tt_aol": "fail",
+    "tt_gbw_max": "pass",
+    "tt_gbw_min": "fail",
+    "tt_gm": "pass",
+    "tt_iq": "pass",
+    "tt_pm": "pass"
+  },
+  "swing": {
+    "vout_high_actual": 1.799995383410229,
+    "vout_low_actual": 1.7999992007242889
+  }
+}

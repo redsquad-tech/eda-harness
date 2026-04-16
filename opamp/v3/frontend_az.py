@@ -354,6 +354,9 @@ def run_structural_checks(params: FrontendAzParams | None = None):
     h.netlist(mod, stream, fmt="spice")
     netlist_text = stream.getvalue()
     subckt_name = extract_subckt_name(netlist_text)
+    has_pdk_nmos = re.search(r"sky130_fd_pr__nfet_01v8", netlist_text, re.IGNORECASE) is not None
+    has_pdk_pmos = re.search(r"sky130_fd_pr__pfet_01v8", netlist_text, re.IGNORECASE) is not None
+    has_generic_mos_models = re.search(r"(?<!_)\\b(nmos|pmos)\\b", netlist_text, re.IGNORECASE) is not None
     return {
         "generator_call": dut is not None,
         "elaboration": mod is not None,
@@ -361,6 +364,9 @@ def run_structural_checks(params: FrontendAzParams | None = None):
         "contains_tg_switch": re.search(r"TgSwitch", netlist_text, re.IGNORECASE) is not None,
         "contains_pdk_resistor": re.search(r"sky130_fd_pr__res_", netlist_text, re.IGNORECASE) is not None,
         "contains_pdk_mim_cap": re.search(r"sky130_fd_pr__cap_mim_", netlist_text, re.IGNORECASE) is not None,
+        "contains_pdk_nmos": has_pdk_nmos,
+        "contains_pdk_pmos": has_pdk_pmos,
+        "contains_no_generic_mos_models": not has_generic_mos_models,
     }
 
 

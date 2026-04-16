@@ -1,0 +1,38 @@
+{
+  "calibration": {
+    "az_short_ctrl_V": 1.8,
+    "d_az_b_V": 7.726528653800665e-09,
+    "d_en_b_V": 7.72652865659291e-09,
+    "d_inf_b_V": 1.7999999828536206,
+    "mode_latched_az_V": 1.8,
+    "mode_latched_en_V": 1.8,
+    "mode_latched_inf_V": 0.0,
+    "out_hiz_ctrl_dis_V": 7.72652865659291e-09,
+    "out_hiz_ctrl_inf_V": 1.7999999828536206,
+    "ref_hiz_ctrl_V": 7.72652865659291e-09
+  },
+  "disabled": {
+    "az_short_ctrl_V": 0.0,
+    "d_az_b_V": 1.7999999829095004,
+    "d_en_b_V": 1.7999999846984813,
+    "d_inf_b_V": 1.7999999828476445,
+    "mode_latched_az_V": 0.0,
+    "mode_latched_en_V": 0.0,
+    "mode_latched_inf_V": 0.0,
+    "out_hiz_ctrl_dis_V": 1.7999999846984813,
+    "out_hiz_ctrl_inf_V": 1.7999999828476445,
+    "ref_hiz_ctrl_V": 1.7999999846984813
+  },
+  "inference": {
+    "az_short_ctrl_V": 0.0,
+    "d_az_b_V": 1.7999999829062958,
+    "d_en_b_V": 7.72652865659291e-09,
+    "d_inf_b_V": 7.726528653710591e-09,
+    "mode_latched_az_V": 0.0,
+    "mode_latched_en_V": 1.8,
+    "mode_latched_inf_V": 1.8,
+    "out_hiz_ctrl_dis_V": 7.72652865659291e-09,
+    "out_hiz_ctrl_inf_V": 7.726528653710591e-09,
+    "ref_hiz_ctrl_V": 7.72652865659291e-09
+  }
+}

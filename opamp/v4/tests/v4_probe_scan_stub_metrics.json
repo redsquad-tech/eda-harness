@@ -1,0 +1,23 @@
+{
+  "hi": {
+    "d_tcki_V": 1.8,
+    "d_tcko_V": 1.8,
+    "d_tdi_V": 1.8,
+    "d_tdo_V": 1.8,
+    "d_treset_oa_V": 1.8
+  },
+  "lo": {
+    "d_tcki_V": 0.0,
+    "d_tcko_V": 0.0,
+    "d_tdi_V": 0.0,
+    "d_tdo_V": 0.0,
+    "d_treset_oa_V": 0.0
+  },
+  "mixed": {
+    "d_tcki_V": 1.8,
+    "d_tcko_V": 1.8,
+    "d_tdi_V": 0.0,
+    "d_tdo_V": 0.0,
+    "d_treset_oa_V": 0.0
+  }
+}

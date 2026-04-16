@@ -62,9 +62,9 @@ def _build_follower_hold_test(
         vden = h.Vdc(dc=tb_params.vdd)(p=den, n=VSS)
         vdaz = h.Vpulse(v1=tb_params.vdd, v2=0.0, delay=t_az, rise=20e-9, fall=20e-9, width=tstop, period=2 * tstop)(p=daz, n=VSS)
         vdinf = h.Vpulse(v1=0.0, v2=tb_params.vdd, delay=t_az + t_lat, rise=20e-9, fall=20e-9, width=t_inf, period=2 * tstop)(p=dinf, n=VSS)
-        # Negative feedback for the current core polarity: VINN sees the target, VINP sees VOUT.
-        vvin = h.Vdc(dc=vin)(p=vinn, n=VSS)
-        rfb = h.Res(r=1.0)(p=vout, n=vinp)
+        # Direct-output core follower sign: VINP sees the target, VINN sees VOUT.
+        vvin = h.Vdc(dc=vin)(p=vinp, n=VSS)
+        rfb = h.Res(r=1.0)(p=vout, n=vinn)
         cload = h.Cap(c=1e-12)(p=vout, n=VSS)
         rload = h.Res(r=1e6)(p=vout, n=VSS)
         xdut = dut(VINP=vinp, VINN=vinn, VOUT=vout, D_EN_OA=den, D_AZ_OA=daz, D_INF_OA=dinf, VDD=vdd, VSS=VSS)

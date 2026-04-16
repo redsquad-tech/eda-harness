@@ -1,4 +1,5 @@
 import math
+import traceback
 from datetime import datetime, timezone
 from dataclasses import fields
 
@@ -20,6 +21,13 @@ from .common import (
 )
 from .opamp_core import OpampCoreParams, opamp_core
 from .specs import OpampAzV3MaximumSpec, OpampAzV3TargetSpec, max_required_output_high, min_required_output_high
+
+
+def _reset_generator_cache() -> None:
+    try:
+        h.generator.cache.reset()
+    except Exception:
+        pass
 
 
 @h.paramclass
@@ -78,7 +86,6 @@ def _build_direct_gain_op_tb(dut_params: OpampCoreParams, *, vdd: float, c_load:
         vvinp = h.Vdc(dc=v_cm + 0.5 * v_diff)(p=vinp_sig, n=VSS)
         vvinn = h.Vdc(dc=v_cm - 0.5 * v_diff)(p=vinn_sig, n=VSS)
         cload = h.Cap(c=c_load)(p=vout, n=VSS)
-        rload = h.Res(r=r_probe)(p=vout, n=VSS)
         xdut = dut(VINP=vinp_sig, VINN=vinn_sig, VOUT=vout, EN=en, VDD=vdd_sig, VSS=VSS)
 
     return Sim(tb=Tb, attrs=[Op(), Save("i(v.xtop.vvvdd), v(xtop.vout)"), h.sim.Literal(f".temp {temp_c}"), install.include(corner)])
@@ -97,7 +104,6 @@ def _build_direct_gain_ac_tb(dut_params: OpampCoreParams, *, vdd: float, c_load:
         vvinp = h.Vdc(dc=v_cm, ac=0.5 * v_diff)(p=vinp_sig, n=VSS)
         vvinn = h.Vdc(dc=v_cm, ac=-0.5 * v_diff)(p=vinn_sig, n=VSS)
         cload = h.Cap(c=c_load)(p=vout, n=VSS)
-        rload = h.Res(r=r_probe)(p=vout, n=VSS)
         xdut = dut(VINP=vinp_sig, VINN=vinn_sig, VOUT=vout, EN=en, VDD=vdd_sig, VSS=VSS)
 
     return Sim(tb=Tb, attrs=[Ac(sweep=LogSweep(1.0, 10.0, 2)), Save("v(xtop.vout)"), h.sim.Literal(f".temp {temp_c}"), install.include(corner)])
@@ -126,7 +132,7 @@ def _build_open_loop_biased_op_tb(
         vvinn = h.Vdc(dc=v_cm)(p=vinn_sig, n=VSS)
         # DC-bias the output near nominal follower equilibrium while leaving the
         # feedback path effectively open for AC.
-        lfb = h.Ind(l=1e9)(p=vout, n=vinp_sig)
+        lfb = h.Ind(l=1e9)(p=vout, n=vinn_sig)
         cload = h.Cap(c=c_load)(p=vout, n=VSS)
         rload = h.Res(r=r_probe)(p=vout, n=VSS)
         xdut = dut(VINP=vinp_sig, VINN=vinn_sig, VOUT=vout, EN=en, VDD=vdd_sig, VSS=VSS)
@@ -156,9 +162,9 @@ def _build_open_loop_biased_ac_tb(
         vinp_sig, vinn_sig, vout, en, vdd_sig = h.Signals(5)
         vvdd = h.Vdc(dc=vdd)(p=vdd_sig, n=VSS)
         ven = h.Vdc(dc=vdd)(p=en, n=VSS)
-        vvinp = h.Vdc(dc=v_cm)(p=vinp_sig, n=VSS)
-        vvinn = h.Vdc(dc=v_cm, ac=1.0)(p=vinn_sig, n=VSS)
-        lfb = h.Ind(l=1e9)(p=vout, n=vinp_sig)
+        vvinp = h.Vdc(dc=v_cm, ac=1.0)(p=vinp_sig, n=VSS)
+        vvinn = h.Vdc(dc=v_cm)(p=vinn_sig, n=VSS)
+        lfb = h.Ind(l=1e9)(p=vout, n=vinn_sig)
         cload = h.Cap(c=c_load)(p=vout, n=VSS)
         rload = h.Res(r=r_probe)(p=vout, n=VSS)
         xdut = dut(VINP=vinp_sig, VINN=vinn_sig, VOUT=vout, EN=en, VDD=vdd_sig, VSS=VSS)
@@ -197,8 +203,8 @@ def _build_follower_op_tb(
         vinp_sig, vinn_sig, vout, en, vdd_sig = h.Signals(5)
         vvdd = h.Vdc(dc=vdd)(p=vdd_sig, n=VSS)
         ven = h.Vdc(dc=en_voltage)(p=en, n=VSS)
-        vvinn = h.Vdc(dc=vin)(p=vinn_sig, n=VSS)
-        rfb = h.Res(r=1.0)(p=vout, n=vinp_sig)
+        vvinp = h.Vdc(dc=vin)(p=vinp_sig, n=VSS)
+        rfb = h.Res(r=1.0)(p=vout, n=vinn_sig)
         cload = h.Cap(c=c_load)(p=vout, n=VSS)
         rload = h.Res(r=r_probe)(p=vout, n=VSS)
         xdut = dut(VINP=vinp_sig, VINN=vinn_sig, VOUT=vout, EN=en, VDD=vdd_sig, VSS=VSS)
@@ -220,8 +226,8 @@ def _build_follower_ac_tb(dut_params: OpampCoreParams, *, vdd: float, vin: float
         vinp_sig, vinn_sig, vout, en, vdd_sig = h.Signals(5)
         vvdd = h.Vdc(dc=vdd)(p=vdd_sig, n=VSS)
         ven = h.Vdc(dc=en_voltage)(p=en, n=VSS)
-        vvinn = h.Vdc(dc=vin, ac=1.0)(p=vinn_sig, n=VSS)
-        rfb = h.Res(r=1.0)(p=vout, n=vinp_sig)
+        vvinp = h.Vdc(dc=vin, ac=1.0)(p=vinp_sig, n=VSS)
+        rfb = h.Res(r=1.0)(p=vout, n=vinn_sig)
         cload = h.Cap(c=c_load)(p=vout, n=VSS)
         rload = h.Res(r=r_probe)(p=vout, n=VSS)
         xdut = dut(VINP=vinp_sig, VINN=vinn_sig, VOUT=vout, EN=en, VDD=vdd_sig, VSS=VSS)
@@ -230,6 +236,7 @@ def _build_follower_ac_tb(dut_params: OpampCoreParams, *, vdd: float, vin: float
 
 
 def run_direct_dc_gain_test(dut_params: OpampCoreParams | None = None, tb_params: OpampCoreOpenLoopTbParams | None = None, *, corner=h.pdk.Corner.TYP):
+    _reset_generator_cache()
     dut_params = dut_params or OpampCoreParams()
     tb_params = tb_params or OpampCoreOpenLoopTbParams()
     ac_result = run_ngspice_sim(
@@ -259,6 +266,7 @@ def run_direct_dc_gain_test(dut_params: OpampCoreParams | None = None, tb_params
 
 
 def run_loop_stability_test(dut_params: OpampCoreParams | None = None, tb_params: OpampCoreFollowerTbParams | None = None, *, corner=h.pdk.Corner.TYP):
+    _reset_generator_cache()
     dut_params = dut_params or OpampCoreParams()
     tb_params = tb_params or OpampCoreFollowerTbParams()
     ac_failed = False
@@ -269,33 +277,55 @@ def run_loop_stability_test(dut_params: OpampCoreParams | None = None, tb_params
     gain_margin_db = float("nan")
     phase_at_unity_deg_raw = float("nan")
     low_freq_phase_deg_raw = float("nan")
+    ac_error = ""
     try:
         ac_result = run_ngspice_sim(
-            _build_follower_ac_tb(dut_params, vdd=float(tb_params.vdd), vin=float(tb_params.vout_mid_target), c_load=float(tb_params.c_load), r_probe=float(tb_params.r_probe), en_voltage=float(tb_params.vdd), f_start=float(tb_params.f_start), f_stop=float(tb_params.f_stop), npts=int(tb_params.npts), temp_c=float(tb_params.temp_c), corner=corner),
-            unique_ngspice_options("opamp_core_v3_closed_loop_stability_ac", fmt=ResultFormat.SIM_DATA),
+            _build_open_loop_biased_ac_tb(
+                dut_params,
+                vdd=float(tb_params.vdd),
+                c_load=float(tb_params.c_load),
+                r_probe=float(tb_params.r_probe),
+                v_cm=float(tb_params.vout_mid_target),
+                f_start=float(tb_params.f_start),
+                f_stop=float(tb_params.f_stop),
+                npts=int(tb_params.npts),
+                temp_c=float(tb_params.temp_c),
+                corner=corner,
+            ),
+            unique_ngspice_options("opamp_core_v3_open_loop_biased_ac", fmt=ResultFormat.SIM_DATA),
         )
-    except Exception:
+    except Exception as exc:
         ac_failed = True
         ac_result = None
+        ac_error = f"{type(exc).__name__}: {exc}"
     op_result = run_ngspice_sim(
-        _build_follower_op_tb(dut_params, vdd=float(tb_params.vdd), vin=float(tb_params.vout_mid_target), c_load=float(tb_params.c_load), r_probe=float(tb_params.r_probe), en_voltage=float(tb_params.vdd), temp_c=float(tb_params.temp_c), corner=corner),
-        unique_ngspice_options("opamp_core_v3_closed_loop_stability_bias", fmt=ResultFormat.SIM_DATA),
+        _build_open_loop_biased_op_tb(
+            dut_params,
+            vdd=float(tb_params.vdd),
+            c_load=float(tb_params.c_load),
+            r_probe=float(tb_params.r_probe),
+            v_cm=float(tb_params.vout_mid_target),
+            temp_c=float(tb_params.temp_c),
+            corner=corner,
+        ),
+        unique_ngspice_options("opamp_core_v3_open_loop_biased_bias", fmt=ResultFormat.SIM_DATA),
     )
     if not ac_failed:
         try:
             freq, vout_amp = extract_ac_trace(ac_result, "v(xtop.vout)")
-            _, vin_amp = extract_ac_trace(ac_result, "v(xtop.vinp_sig)")
             freq = np.asarray(freq, dtype=float)
             vout_amp = np.asarray(vout_amp)
-            vin_amp = np.asarray(vin_amp)
-            closed_loop_gain = vout_amp / np.where(np.abs(vin_amp) > 1e-30, vin_amp, 1e-30 + 0j)
-            loop_gain = closed_loop_gain / np.where(np.abs(1.0 - closed_loop_gain) > 1e-30, 1.0 - closed_loop_gain, 1e-30 + 0j)
+            # The biased-open-loop fixture AC-drives VINP with 1 V, keeps VINN DC-biased
+            # through a huge inductor, and leaves the loop effectively open for AC.
+            # The core is inverting, so use `-A(s)` for conventional PM/GM extraction.
+            loop_gain = -vout_amp
             mag = np.abs(loop_gain)
             mag_db = 20.0 * np.log10(np.maximum(mag, 1e-30))
             if len(mag):
                 low_freq_loop_gain_vv = float(mag[0])
                 low_freq_loop_gain_db = float(mag_db[0])
-            phase_deg, low_freq_phase_deg_raw = negative_feedback_phase_trace(loop_gain)
+            phase_deg = np.unwrap(np.angle(loop_gain)) * 180.0 / math.pi
+            low_freq_phase_deg_raw = float(phase_deg[0]) if len(phase_deg) else float("nan")
             gbw_hz, _ = interp_crossing(freq, mag, 1.0)
             if math.isfinite(gbw_hz):
                 phase_at_unity = interp_value(freq, phase_deg, gbw_hz)
@@ -309,8 +339,9 @@ def run_loop_stability_test(dut_params: OpampCoreParams | None = None, tb_params
                     gain_margin_db = -mag_db_at_phase_cross
             elif len(phase_deg) and float(np.min(phase_deg)) > -180.0:
                 gain_margin_db = float("inf")
-        except Exception:
+        except Exception as exc:
             ac_failed = True
+            ac_error = f"{type(exc).__name__}: {exc}"
     iq_abs = abs(op_scalar(op_result, "i(v.xtop.vvvdd)"))
     return make_test_result(
         component="opamp_core_v3",
@@ -327,64 +358,36 @@ def run_loop_stability_test(dut_params: OpampCoreParams | None = None, tb_params
             "iq_uA": 1e6 * iq_abs,
             "loop_vout_dc": op_scalar(op_result, "v(xtop.vout)"),
             "ac_fixture_ok": not ac_failed,
+            "ac_error": ac_error,
         },
     )
 
 
 def run_open_loop_test(dut_params: OpampCoreParams | None = None, tb_params: OpampCoreOpenLoopTbParams | None = None, *, corner=h.pdk.Corner.TYP):
+    _reset_generator_cache()
     dut_params = dut_params or OpampCoreParams()
     tb_params = tb_params or OpampCoreOpenLoopTbParams()
-    ac_result = run_ngspice_sim(
-        _build_open_loop_biased_ac_tb(
-            dut_params,
-            vdd=float(tb_params.vdd),
-            c_load=float(tb_params.c_load),
-            r_probe=float(tb_params.r_probe),
-            v_cm=float(tb_params.v_cm),
-            f_start=float(tb_params.f_start),
-            f_stop=float(tb_params.f_stop),
-            npts=int(tb_params.npts),
-            temp_c=float(tb_params.temp_c),
-            corner=corner,
-        ),
-        unique_ngspice_options("opamp_core_v3_open_loop_biased_ac", fmt=ResultFormat.SIM_DATA),
-    )
-    op_result = run_ngspice_sim(
-        _build_open_loop_biased_op_tb(
-            dut_params,
-            vdd=float(tb_params.vdd),
-            c_load=float(tb_params.c_load),
-            r_probe=float(tb_params.r_probe),
-            v_cm=float(tb_params.v_cm),
-            temp_c=float(tb_params.temp_c),
-            corner=corner,
-        ),
-        unique_ngspice_options("opamp_core_v3_open_loop_biased_op", fmt=ResultFormat.SIM_DATA),
-    )
 
-    freq, vout_amp = extract_ac_trace(ac_result, "v(xtop.vout)")
-    _, vin_amp = extract_ac_trace(ac_result, "v(xtop.vinn_sig)")
-    freq = np.asarray(freq, dtype=float)
-    gain = np.asarray(vout_amp) / np.where(np.abs(np.asarray(vin_amp)) > 1e-30, np.asarray(vin_amp), 1e-30 + 0j)
-    mag = np.abs(gain)
-    mag_db = 20.0 * np.log10(np.maximum(mag, 1e-30))
-    phase_deg, _ = negative_feedback_phase_trace(gain)
-    aol_db = float(mag_db[0]) if len(mag_db) else float("nan")
-    gbw_hz, _ = interp_crossing(freq, mag, 1.0)
-    phase_margin_deg = float("nan")
-    if math.isfinite(gbw_hz):
-        phase_at_unity = interp_value(freq, phase_deg, gbw_hz)
-        if math.isfinite(phase_at_unity):
-            phase_margin_deg = 180.0 + phase_at_unity
-    gain_margin_db = float("nan")
-    phase_cross_hz, _ = interp_crossing(freq, phase_deg, -180.0)
-    if math.isfinite(phase_cross_hz):
-        mag_db_at_phase_cross = interp_value(freq, mag_db, phase_cross_hz)
-        if math.isfinite(mag_db_at_phase_cross):
-            gain_margin_db = -mag_db_at_phase_cross
-    elif len(phase_deg) and float(np.min(phase_deg)) > -180.0:
-        gain_margin_db = float("inf")
+    direct = run_direct_dc_gain_test(dut_params, tb_params, corner=corner)["metrics"]
+    loop = run_loop_stability_test(
+        dut_params,
+        OpampCoreFollowerTbParams(
+            vdd=tb_params.vdd,
+            c_load=tb_params.c_load,
+            r_probe=tb_params.r_probe,
+            vout_mid_target=tb_params.v_cm,
+            f_start=tb_params.f_start,
+            f_stop=tb_params.f_stop,
+            npts=tb_params.npts,
+            temp_c=tb_params.temp_c,
+        ),
+        corner=corner,
+    )["metrics"]
 
+    aol_db = float(direct["direct_gain_db"])
+    gbw_hz = float(loop["gbw_hz"])
+    phase_margin_deg = float(loop["phase_margin_deg"])
+    gain_margin_db = float(loop["gain_margin_db"])
     aol_estimate_valid = (
         math.isfinite(aol_db)
         and math.isfinite(gbw_hz)
@@ -392,7 +395,7 @@ def run_open_loop_test(dut_params: OpampCoreParams | None = None, tb_params: Opa
         and aol_db > 0.0
         and aol_db < 160.0
     )
-    iq_uA = 1e6 * abs(op_scalar(op_result, "i(v.xtop.vvvdd)"))
+    iq_uA = float(loop["iq_uA"])
     return make_test_result(
         component="opamp_core_v3",
         category="char",
@@ -401,13 +404,13 @@ def run_open_loop_test(dut_params: OpampCoreParams | None = None, tb_params: Opa
             "aol_db": aol_db if aol_estimate_valid else float("nan"),
             "direct_dc_gain_db": aol_db,
             "iq_uA": iq_uA,
-            "direct_vout_dc": op_scalar(op_result, "v(xtop.vout)"),
+            "direct_vout_dc": float(loop["loop_vout_dc"]),
             "gbw_hz": gbw_hz,
             "phase_margin_deg": phase_margin_deg,
             "gain_margin_db": gain_margin_db,
             "low_freq_loop_gain_db": aol_db,
-            "low_freq_loop_gain_vv": float(mag[0]) if len(mag) else float("nan"),
-            "ac_fixture_ok": True,
+            "low_freq_loop_gain_vv": float(10 ** (aol_db / 20.0)) if math.isfinite(aol_db) else float("nan"),
+            "ac_fixture_ok": bool(loop["ac_fixture_ok"]),
             "aol_estimate_valid": bool(aol_estimate_valid),
         },
     )
@@ -519,8 +522,10 @@ def _build_input_offset_tb(
         vinp_sig, vinn_sig, vout, en, vdd_sig = h.Signals(5)
         vvdd = h.Vdc(dc=vdd)(p=vdd_sig, n=VSS)
         ven = h.Vdc(dc=vdd)(p=en, n=VSS)
-        vvinn = h.Vdc(dc=vin)(p=vinn_sig, n=VSS)
-        rfb = h.Res(r=1.0)(p=vout, n=vinp_sig)
+        # Keep the MC offset fixture sign-identical to the nominal follower bench:
+        # drive VINP with the target DC level and return VOUT to VINN.
+        vvinp = h.Vdc(dc=vin)(p=vinp_sig, n=VSS)
+        rfb = h.Res(r=1.0)(p=vout, n=vinn_sig)
         cload = h.Cap(c=c_load)(p=vout, n=VSS)
         rload = h.Res(r=r_probe)(p=vout, n=VSS)
         xdut = dut(VINP=vinp_sig, VINN=vinn_sig, VOUT=vout, EN=en, VDD=vdd_sig, VSS=VSS)
@@ -529,7 +534,7 @@ def _build_input_offset_tb(
         tb=Tb,
         attrs=[
             Op(),
-            Save("v(xtop.vinp_sig), v(xtop.vout), i(v.xtop.vvvdd)"),
+            Save("v(xtop.vinp_sig), v(xtop.vinn_sig), v(xtop.vout), i(v.xtop.vvvdd)"),
             h.sim.Literal(f".temp {temp_c}"),
             h.sim.Lib(install.pdk_path / install.lib_path, model_section),
         ],
@@ -591,6 +596,7 @@ def run_input_offset_monte_carlo(
     offset_vals_uV: list[float] = []
     iq_vals_uA: list[float] = []
     failures = 0
+    sample_errors: list[str] = []
 
     for _ in range(samples):
         try:
@@ -610,8 +616,10 @@ def run_input_offset_monte_carlo(
             iq_abs = abs(op_scalar(result, "i(v.xtop.vvvdd)"))
             offset_vals_uV.append(1e6 * (vout - vin))
             iq_vals_uA.append(1e6 * iq_abs)
-        except Exception:
+        except Exception as exc:
             failures += 1
+            if len(sample_errors) < 5:
+                sample_errors.append(f"{type(exc).__name__}: {exc}")
 
     if not offset_vals_uV:
         raise RuntimeError("All Monte Carlo offset samples failed")
@@ -638,6 +646,7 @@ def run_input_offset_monte_carlo(
         "input_referred_offset_pass_rate_vs_250uV": float(pass_target) / float(len(abs_vals)),
         "input_referred_offset_pass_rate_vs_150uV": float(pass_maximum) / float(len(abs_vals)),
         "iq_mean_uA": float(np.mean(iq_vals_uA)),
+        "sample_errors": sample_errors,
     }
     return make_test_result(
         component="opamp_core_v3",
@@ -843,7 +852,7 @@ def run_full_characterization(
                     vdd=vdd,
                     c_load=1e-12,
                     r_probe=1e12,
-                    v_cm=min(0.4, 0.5 * vdd),
+                    v_cm=0.5 * vdd,
                     dc_v_diff=100e-6,
                     f_start=1.0,
                     f_stop=1e9,
@@ -867,7 +876,7 @@ def run_full_characterization(
                     vdd=vdd,
                     c_load=1e-12,
                     r_probe=1e12,
-                    v_cm=min(0.4, 0.5 * vdd),
+                    v_cm=0.5 * vdd,
                     temp_c=temp_c,
                 )
                 cases[label] = {

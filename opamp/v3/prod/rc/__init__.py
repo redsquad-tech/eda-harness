@@ -6,7 +6,7 @@ from opamp.v3.frontend_az import FrontendAzParams
 from opamp.v3.opamp_core import OpampCoreParams
 
 
-CURRENT_CORE_RC_CASE = "K1_stage2p10"
+CURRENT_CORE_RC_CASE = "rc_stage2_rebalanced_review_fix"
 CURRENT_AZ_RC_CASE = "m4r1_cap300_wswn1p1_wswp1p6_nf2"
 
 
@@ -21,15 +21,20 @@ CURRENT_RC_PROMOTION = RcPromotionRecord(
     core_case=CURRENT_CORE_RC_CASE,
     az_case=CURRENT_AZ_RC_CASE,
     rationale=(
-        "Current production RC combines the best completed stable core branch "
-        "with the best completed mismatch-hardening AZ branch."
+        "Current production RC freezes the latest debugged output-stage baseline "
+        "together with the current AZ frontend branch. This RC is intentionally "
+        "kept stable while the mandatory probe suite is used as the acceptance gate "
+        "for further core changes."
     ),
 )
 
 
 def current_core_params() -> OpampCoreParams:
     return OpampCoreParams(
-        l_stage2_p=10.0,
+        w_stage2_n=8.0,
+        l_stage2_n=12.0,
+        w_stage2_p=15.0,
+        l_stage2_p=12.0,
     )
 
 

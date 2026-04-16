@@ -1,0 +1,42 @@
+{
+  "contains": [
+    {
+      "kind": "dut",
+      "path": "spice/dut/opamp_az_top_v3.sp"
+    },
+    {
+      "kind": "dut",
+      "path": "spice/dut/opamp_core_v3.sp"
+    },
+    {
+      "kind": "testbench",
+      "path": "spice/testbenches/core/core_open_loop_tt_v1p80_t27.sp"
+    },
+    {
+      "kind": "testbench",
+      "path": "spice/testbenches/top/top_az_residual_offset_tt_v1p80_t27.sp"
+    },
+    {
+      "kind": "testbench",
+      "path": "spice/testbenches/top/top_az_hold_200us_tt_v1p80_t27.sp"
+    },
+    {
+      "kind": "testbench",
+      "path": "spice/testbenches/top/top_az_mc_tt_mm.sp"
+    },
+    {
+      "kind": "metrics",
+      "path": "reports/rc_probe_open_loop_metrics.json"
+    },
+    {
+      "kind": "metrics",
+      "path": "reports/rc_probe_az_residual_offset_metrics.json"
+    },
+    {
+      "kind": "metrics",
+      "path": "reports/rc_probe_az_hold_200us_metrics.json"
+    }
+  ],
+  "dut": "opamp_az_top_v3",
+  "generated_at": "2026-04-14T06:51:00.025939+00:00"
+}

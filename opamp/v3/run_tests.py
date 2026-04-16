@@ -5,33 +5,38 @@ import unittest
 
 
 TARGETS: dict[str, list[str]] = {
-    "smoke": [
-        "opamp.v3.tests.test_v3__smoke__package",
-        "opamp.v3.tests.test_v3__smoke__architecture",
-        "opamp.v3.tests.test_v3__smoke__current_experiment",
-        "opamp.v3.tests.test_v3__smoke__autonomous_az_batches",
-        "opamp.v3.tests.test_v3__smoke__autonomous_az_mismatch_batches",
-        "opamp.v3.tests.test_v3__smoke__autonomous_az_mismatch_repair_batches",
-        "opamp.v3.tests.test_v3__smoke__autonomous_az_residual_shaping_batches",
-        "opamp.v3.tests.test_v3__smoke__autonomous_followup_batches",
-        "opamp.v3.tests.test_v3__smoke__az_research_plan",
-        "opamp.v3.tests.test_v3__smoke__az_research_runner",
-        "opamp.v3.tests.test_v3__smoke__tapeout_validation",
+    "output_stage_experiments": [
+        "opamp.v3.tests.test_rc_probe_gate_drivers",
+        "opamp.v3.tests.test_rc_probe_output_subckt",
+        "opamp.v3.tests.test_rc_probe_forced_output_pair",
+        "opamp.v3.tests.test_rc_probe_output_headroom_limits",
+        "opamp.v3.tests.test_rc_probe_small_signal_nominal",
     ],
-    "quick_tt": [
-        "opamp.v3.tests.test_v3__smoke__package",
-        "opamp.v3.tests.test_v3__smoke__architecture",
-        "opamp.v3.tests.test_opamp_core_v3__screen__fast_nominal",
-        "opamp.v3.tests.test_opamp_core_v3__char__tt_nominal",
+    "rc_mandatory": [
+        "opamp.v3.tests.test_rc_probe_first_stage",
+        "opamp.v3.tests.test_rc_probe_core_bias_breakdown",
+        "opamp.v3.tests.test_rc_probe_stage2_standalone",
+        "opamp.v3.tests.test_rc_probe_loop_partition_ac",
+        "opamp.v3.tests.test_rc_probe_gate_drivers",
+        "opamp.v3.tests.test_rc_probe_forced_output_pair",
+        "opamp.v3.tests.test_rc_probe_output_subckt",
+        "opamp.v3.tests.test_rc_probe_output_headroom_limits",
+        "opamp.v3.tests.test_rc_probe_small_signal_nominal",
+        "opamp.v3.tests.test_rc_probe_output_current_profile",
+        "opamp.v3.tests.test_rc_probe_open_loop_metrics",
+        "opamp.v3.tests.test_rc_probe_core_nominal_balance",
+        "opamp.v3.tests.test_rc_probe_core",
     ],
-    "tapeout_available": [
-        "opamp.v3.tests.test_opamp_core_v3__screen__fast_nominal",
-        "opamp.v3.tests.test_opamp_core_v3__char__tt_nominal",
-        "opamp.v1.tests.structural.opamp_az_top.test_opamp_az_top__budget__precision_ppa",
-        "opamp.v1.tests.structural.opamp_az_top.test_opamp_az_top__char__reduced_pvt",
+    "rc_probe_sanity": [
+        "opamp.v3.tests.test_rc_probe_output_ic_sweep",
+        "opamp.v3.tests.test_rc_probe_output_op_vs_tran",
     ],
-    "prod_acceptance": [
-        "opamp.v3.prod.tests.test_prod__acceptance__maximum_spec",
+    "rc_block_budgets": [
+        "opamp.v3.tests.test_rc_budget_stage1",
+        "opamp.v3.tests.test_rc_budget_stage2",
+        "opamp.v3.tests.test_rc_budget_output_driver",
+        "opamp.v3.tests.test_rc_budget_output_driver_dc",
+        "opamp.v3.tests.test_rc_budget_output_path",
     ],
     "prod_reduced_acceptance": [
         "opamp.v3.prod.tests.test_prod__acceptance__maximum_spec",
@@ -55,7 +60,7 @@ TARGETS: dict[str, list[str]] = {
 
 def main(argv: list[str] | None = None) -> int:
     argv = argv or sys.argv[1:]
-    target = argv[0] if argv else "smoke"
+    target = argv[0] if argv else "output_stage_experiments"
     if target not in TARGETS:
         print(f"Unknown target: {target}")
         print(f"Available targets: {', '.join(sorted(TARGETS))}")

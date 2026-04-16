@@ -57,9 +57,12 @@ class OpampAzTopProbeTest(BaseV3SimTest):
         params = _base_params()
         structural = run_structural_checks(params)
         self.assertTrue(structural["contains_input_mux"])
-        self.assertTrue(structural["contains_trim_pair"])
+        self.assertFalse(structural["contains_trim_pair"])
+        self.assertTrue(structural["contains_trim_input_bias"])
         self.assertTrue(structural["contains_hold_caps"])
         self.assertTrue(structural["contains_output_isolation"])
+        self.assertTrue(structural["contains_direct_output_link"])
+        self.assertFalse(structural["contains_legacy_output_path"])
 
         highz_az = run_ngspice_sim(
             build_highz_test(params, OpampAzHighZTbParams(mode_az=1.8, mode_inf=0.0), corner=h.pdk.Corner.TYP),

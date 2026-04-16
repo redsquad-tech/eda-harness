@@ -66,15 +66,17 @@ class TestRcProbeCoreDcAudit(BaseV3SimTest):
         res = run_ngspice_sim(sim, SimOptions(fmt="sim_data"), rundir=f"./tmp/rc_coreaudit_{uuid4().hex[:8]}")
         d = res.an[0].data
         v = {k: float(val) for k, val in d.items()}
+        output_path_present = "v(xtop.xxdut.xxout_driver.vgn_q)" in d
         payload = {
             "summary": {
                 "vin_V": 0.9,
                 "vx_V": float(d["v(xtop.xxdut.vx)"]),
                 "vref_V": float(d["v(xtop.xxdut.vref)"]),
                 "vdrv_V": float(d["v(xtop.xxdut.vdrv)"]),
-                "vgn_V": float(d["v(xtop.xxdut.vgn)"]),
-                "vgp_V": float(d["v(xtop.xxdut.vgp)"]),
+                "vgn_V": float(d.get("v(xtop.xxdut.vgn)", 0.0)),
+                "vgp_V": float(d.get("v(xtop.xxdut.vgp)", 1.8)),
                 "vout_V": float(d["v(xtop.vout)"]),
+                "output_path_present": output_path_present,
             },
             "m_stage2_n": _nmos(
                 v,
@@ -90,44 +92,49 @@ class TestRcProbeCoreDcAudit(BaseV3SimTest):
                 s="v(xtop.vdd)",
                 current="i(v.xtop.xxdut.vvprobe_s2p)",
             ),
-            "m_out_n": _nmos(
-                v,
-                d="v(xtop.xxdut.vout_on)",
-                g="v(xtop.xxdut.vgn)",
-                s="v(xtop.vss)",
-                current="i(v.xtop.xxdut.vvprobe_outn)",
+            "m_out_n": (
+                _nmos(
+                    v,
+                    d="v(xtop.xxdut.vout_on)",
+                    g="v(xtop.xxdut.vgn)",
+                    s="v(xtop.vss)",
+                    current="i(v.xtop.xxdut.vvprobe_outn)",
+                )
+                if "i(v.xtop.xxdut.vvprobe_outn)" in d
+                else None
             ),
-            "m_out_p": _pmos(
-                v,
-                d="v(xtop.xxdut.vout_op)",
-                g="v(xtop.xxdut.vgp)",
-                s="v(xtop.vdd)",
-                current="i(v.xtop.xxdut.vvprobe_outp)",
+            "m_out_p": (
+                _pmos(
+                    v,
+                    d="v(xtop.xxdut.vout_op)",
+                    g="v(xtop.xxdut.vgp)",
+                    s="v(xtop.vdd)",
+                    current="i(v.xtop.xxdut.vvprobe_outp)",
+                )
+                if "i(v.xtop.xxdut.vvprobe_outp)" in d
+                else None
             ),
-            "m_drv_bias_n": _nmos(
-                v,
-                d="v(xtop.xxdut.xxout_driver.vgn_q)",
-                g="v(xtop.xxdut.xxout_driver.vgn_q)",
-                s="v(xtop.vss)",
+            "m_drv_bias_n": (
+                _nmos(
+                    v,
+                    d="v(xtop.xxdut.xxout_driver.vgn_q)",
+                    g="v(xtop.xxdut.xxout_driver.vgn_q)",
+                    s="v(xtop.vss)",
+                )
+                if output_path_present
+                else None
             ),
-            "m_drv_bias_p": _pmos(
-                v,
-                d="v(xtop.xxdut.xxout_driver.vgp_q)",
-                g="v(xtop.xxdut.xxout_driver.vgp_q)",
-                s="v(xtop.xxdut.vdd_vg_pre)",
+            "m_drv_bias_p": (
+                _pmos(
+                    v,
+                    d="v(xtop.xxdut.xxout_driver.vgp_q)",
+                    g="v(xtop.xxdut.xxout_driver.vgp_q)",
+                    s="v(xtop.xxdut.vdd_vg_pre)",
+                )
+                if output_path_present
+                else None
             ),
-            "m_drv_inv_n": _nmos(
-                v,
-                d="v(xtop.xxdut.xxout_driver.vdrvb)",
-                g="v(xtop.xxdut.vdrv)",
-                s="v(xtop.vss)",
-            ),
-            "m_drv_inv_p": _pmos(
-                v,
-                d="v(xtop.xxdut.xxout_driver.vdrvb)",
-                g="v(xtop.xxdut.vdrv)",
-                s="v(xtop.xxdut.vdd_vg_pre)",
-            ),
+            "i_vdrv_into_driver_A": float(d.get("i(v.xtop.xxdut.vvprobe_vdrv_drv)", 0.0)),
         }
         write_metrics_json(METRICS_PATH, payload)
         self.assertTrue(True)

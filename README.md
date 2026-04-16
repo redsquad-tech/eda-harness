@@ -5,7 +5,6 @@ Repository for iterative analog development in `hdl21`, primarily the `auto-zero
 ## Main Links
 
 - Specification: [opamp_az_spec.md](/home/vadim/work/eda-harness/opamp_az_spec.md)
-- Experiment ledger: [track.md](/home/vadim/work/eda-harness/track.md)
 - HDL21 rules: [hdl21.md](/home/vadim/work/eda-harness/hdl21.md)
 - Testing guide: [tesing_guide.md](/home/vadim/work/eda-harness/tesing_guide.md)
 
@@ -13,6 +12,7 @@ Repository for iterative analog development in `hdl21`, primarily the `auto-zero
 
 - `opamp/<arch>/` — one architecture per directory
 - `opamp/v3` — main active branch
+- `opamp/v3/opamp_core.py` — current promoted v3 core RC
 - `opamp/v3/experiments/<exp-name>/` — independent experiment directories
 - `opamp/v3/prod/components/` — promoted HDL21 generators used in the best known versions
 - `opamp/v3/prod/rc/` — RC assembly and promoted parameter set
@@ -42,8 +42,7 @@ Working loop:
 8. If the result is better than the baseline on the intended metrics:
    - copy the winning generator logic into `opamp/<arch>/prod/components/`
    - update `opamp/<arch>/prod/rc/` so the current RC is built from the promoted blocks and parameters
-9. Record the experiment and short result in [track.md](/home/vadim/work/eda-harness/track.md).
-10. Repeat.
+9. Repeat.
 
 Experiments are independent. They may import:
 
@@ -74,7 +73,7 @@ Experiments are independent. They may import:
 Main active branch:
 
 ```bash
-python3 -m opamp.v3.run_tests quick_tt
+python3 -m opamp.v3.run_tests output_stage_experiments
 python3 -m opamp.v3.run_tests prod_reduced_acceptance
 python3 -m opamp.v3.run_tests prod_release
 ```

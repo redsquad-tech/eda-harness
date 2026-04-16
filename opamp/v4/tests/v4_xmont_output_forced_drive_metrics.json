@@ -1,0 +1,36 @@
+{
+  "rows": [
+    {
+      "drv_n_V": 1.0,
+      "drv_p_V": 0.8,
+      "iq_uA": 11.016975635290416,
+      "vgn_V": 1.0,
+      "vgp_V": 0.8,
+      "vout_V": 0.003366610090192841
+    },
+    {
+      "drv_n_V": 0.9,
+      "drv_p_V": 0.9,
+      "iq_uA": 2.841379474947947,
+      "vgn_V": 0.9,
+      "vgp_V": 0.9,
+      "vout_V": 0.0013999516179009563
+    },
+    {
+      "drv_n_V": 0.8,
+      "drv_p_V": 1.0,
+      "iq_uA": 1.3129804220940455,
+      "vgn_V": 0.8,
+      "vgp_V": 1.0,
+      "vout_V": 0.001278930093044075
+    }
+  ],
+  "summary": {
+    "drv_to_vgn_slope": -1.0,
+    "drv_to_vgp_slope": 1.0,
+    "drv_to_vout_slope": -0.010438399985743831,
+    "gates_move_apart": true,
+    "gates_within_rails": true,
+    "vg_span_V": 0.3999999999999999
+  }
+}

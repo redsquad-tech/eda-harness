@@ -62,7 +62,17 @@ def build_report(section: str) -> dict[str, object]:
 def write_report(section: str, outdir: Path) -> tuple[Path, Path]:
     outdir.mkdir(parents=True, exist_ok=True)
     report = build_report(section)
-    rows = [AcceptanceRow(**row) for row in report["rows"]]
+    rows = [
+        AcceptanceRow(
+            metric=row["metric"],
+            condition=row["condition"],
+            requirement=row["requirement"],
+            measured=row["measured"],
+            passed=row["passed"],
+            details=row.get("details", ""),
+        )
+        for row in report["rows"]
+    ]
     md_path = outdir / f"{section}.md"
     json_path = outdir / f"{section}.json"
     md_path.write_text(
