@@ -20,13 +20,8 @@ from .common import (
     op_scalar,
     run_ngspice_sim,
 )
-from ..opamp import (
-    NeuronOaParams,
-    OutputStageParams,
-    classab_output_stage,
-    compile_for_sky130,
-    neuron_core_oa_sky130,
-)
+from .legacy_cells import classab_output_stage
+from ..opamp import NeuronOaParams, OutputStageParams, compile_for_sky130, neuron_core_oa_sky130
 
 
 @dataclass(frozen=True)
