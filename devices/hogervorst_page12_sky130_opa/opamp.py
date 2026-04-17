@@ -11,7 +11,14 @@ from .source.generators import (
     pmos_switch,
     transmission_gate,
 )
-from .source.opa_bias import OpaBiasGenParams
+from .source.opa_bias import (
+    BiasRefCore,
+    BiasRefCoreParams,
+    CurrentBiasKind,
+    CurrentBiasLeg,
+    CurrentBiasLegParams,
+    OpaBiasGenParams,
+)
 
 
 # -----------------------------------------------------------------------------
@@ -179,6 +186,8 @@ def neuron_core_oa_sky130(params: NeuronOaParams) -> h.Module:
         # -----------------------------------------------------------------
         vbias1, vbias2, vbias3 = h.Signals(3)
         pmos_input_tail, nmos_input_tail = h.Signals(2)
+        nref = h.Signal()
+        vg_ibias_m24 = h.Signal()
 
         # -----------------------------------------------------------------
         # Folded-cascode first-stage nodes
@@ -252,13 +261,32 @@ def neuron_core_oa_sky130(params: NeuronOaParams) -> h.Module:
     dut.i0_p_source = h.Idc(dc=params.i0_p_uA * 1e-6)(p=avdd, n=dut.pmos_input_tail)
     dut.i0_n_sink = h.Idc(dc=params.i0_n_uA * 1e-6)(p=dut.nmos_input_tail, n=vss)
 
-    # Local textbook Monticelli debug biasing.
-    # NMOS-side stays as current injection into vb_m24.
-    dut.ibias_into_vb_m24 = h.Idc(dc=params.ibias_nmos_stack_uA * 1e-6)(p=avdd, n=dut.vb_m24)
+    # Local reference core used by the non-ideal current-bias leg.
+    dut.bias_ref = BiasRefCore(
+        BiasRefCoreParams(
+            ref_w=params.bias.ref_w,
+            ref_l=params.bias.ref_l,
+            nref_feed_w=params.bias.nref_feed_w,
+            nref_feed_l=params.bias.nref_feed_l,
+            nref_w=params.bias.nref_w,
+            nref_l=params.bias.nref_l,
+        )
+    )(avdd=avdd, agnd=vss, iref=dut.iref_internal, nref=dut.nref)
 
-    # PMOS-side is intentionally a local ideal voltage source on vb_m35.
-    # This matches the working debug abstraction described by the user and avoids
-    # turning the PMOS side into an uncontrolled pure current-sink node.
+    # Local textbook Monticelli debug biasing.
+    # NMOS-side uses a non-ideal PMOS source leg into vb_m24.
+    dut.ibias_into_vb_m24 = CurrentBiasLeg(
+        CurrentBiasLegParams(
+            kind=CurrentBiasKind.SOURCE,
+            out_w=params.bias.ibias_p_w,
+            out_l=params.bias.ibias_p_l,
+            vth=MosVth.HIGH,
+            ref_w=params.bias.nref_w,
+            ref_l=params.bias.nref_l,
+        )
+    )(avdd=avdd, agnd=vss, nref=dut.nref, out=dut.vb_m24, vg=dut.vg_ibias_m24)
+
+    # PMOS-side stays as a local ideal voltage source on vb_m35.
     dut.vbias_vb_m35 = h.Vdc(dc=params.vb_m35_V)(p=dut.vb_m35, n=vss)
 
     # ---------------------------------------------------------------------

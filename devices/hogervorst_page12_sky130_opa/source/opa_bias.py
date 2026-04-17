@@ -1,9 +1,15 @@
 import hdl21 as h
 from hdl21.primitives import MosVth
+from enum import Enum
 
 
 # Sky130 MOS wrappers expect geometry values in microns.
 U = 1.0
+
+
+class CurrentBiasKind(str, Enum):
+    SOURCE = "source"
+    SINK = "sink"
 
 
 @h.paramclass
@@ -31,6 +37,197 @@ class OpaBiasGenParams:
     bias2_p_l = h.Param(dtype=h.Scalar, desc="PMOS bias-device length for frontend vbias2", default=0.6 * U)
     bias3_n_w = h.Param(dtype=h.Scalar, desc="NMOS bias-device width for frontend vbias3", default=3.0 * U)
     bias3_n_l = h.Param(dtype=h.Scalar, desc="NMOS bias-device length for frontend vbias3", default=0.6 * U)
+
+
+@h.paramclass
+class BiasRefCoreParams:
+    ref_w = h.Param(dtype=h.Scalar, desc="Reference PMOS width", default=1.2 * U)
+    ref_l = h.Param(dtype=h.Scalar, desc="Reference PMOS length", default=2.0 * U)
+    nref_feed_w = h.Param(dtype=h.Scalar, desc="PMOS feed width for the NMOS reference diode", default=1.0 * U)
+    nref_feed_l = h.Param(dtype=h.Scalar, desc="PMOS feed length for the NMOS reference diode", default=2.0 * U)
+    nref_w = h.Param(dtype=h.Scalar, desc="NMOS reference-diode width", default=0.9 * U)
+    nref_l = h.Param(dtype=h.Scalar, desc="NMOS reference-diode length", default=1.5 * U)
+
+
+@h.paramclass
+class PmosMirrorSourceLegParams:
+    out_w = h.Param(dtype=h.Scalar, desc="PMOS output width", default=3.0 * U)
+    out_l = h.Param(dtype=h.Scalar, desc="PMOS output length", default=0.8 * U)
+    vth = h.Param(dtype=MosVth, desc="PMOS threshold flavor", default=MosVth.HIGH)
+    sink_w = h.Param(dtype=h.Scalar, desc="NMOS sink width", default=0.9 * U)
+    sink_l = h.Param(dtype=h.Scalar, desc="NMOS sink length", default=1.5 * U)
+
+
+@h.paramclass
+class NmosMirrorSinkLegParams:
+    out_w = h.Param(dtype=h.Scalar, desc="NMOS output width", default=2.0 * U)
+    out_l = h.Param(dtype=h.Scalar, desc="NMOS output length", default=0.8 * U)
+    vth = h.Param(dtype=MosVth, desc="NMOS threshold flavor", default=MosVth.STD)
+    feed_w = h.Param(dtype=h.Scalar, desc="PMOS feed width", default=2.0 * U)
+    feed_l = h.Param(dtype=h.Scalar, desc="PMOS feed length", default=0.8 * U)
+
+
+@h.paramclass
+class CurrentBiasLegParams:
+    kind = h.Param(dtype=CurrentBiasKind, desc="Whether this leg is a PMOS source or NMOS sink", default=CurrentBiasKind.SOURCE)
+    out_w = h.Param(dtype=h.Scalar, desc="Output-device width", default=3.0 * U)
+    out_l = h.Param(dtype=h.Scalar, desc="Output-device length", default=0.8 * U)
+    vth = h.Param(dtype=MosVth, desc="Output-device threshold flavor", default=MosVth.HIGH)
+    ref_w = h.Param(dtype=h.Scalar, desc="Reference-side helper-device width", default=0.9 * U)
+    ref_l = h.Param(dtype=h.Scalar, desc="Reference-side helper-device length", default=1.5 * U)
+
+
+@h.paramclass
+class PmosBiasVoltageLegParams:
+    p_w = h.Param(dtype=h.Scalar, desc="PMOS diode width", default=4.0 * U)
+    p_l = h.Param(dtype=h.Scalar, desc="PMOS diode length", default=0.6 * U)
+    p_vth = h.Param(dtype=MosVth, desc="PMOS threshold flavor", default=MosVth.HIGH)
+    sink_w = h.Param(dtype=h.Scalar, desc="NMOS sink width", default=0.9 * U)
+    sink_l = h.Param(dtype=h.Scalar, desc="NMOS sink length", default=1.5 * U)
+
+
+@h.paramclass
+class NmosBiasVoltageLegParams:
+    n_w = h.Param(dtype=h.Scalar, desc="NMOS diode width", default=3.0 * U)
+    n_l = h.Param(dtype=h.Scalar, desc="NMOS diode length", default=0.6 * U)
+    feed_w = h.Param(dtype=h.Scalar, desc="PMOS feed width", default=3.0 * U)
+    feed_l = h.Param(dtype=h.Scalar, desc="PMOS feed length", default=0.6 * U)
+
+
+@h.generator
+def BiasRefCore(params: BiasRefCoreParams) -> h.Module:
+    @h.module
+    class _BiasRefCore:
+        avdd = h.Inout()
+        agnd = h.Inout()
+        iref = h.Inout()
+        nref = h.Output()
+
+        mp_ref = h.Pmos(w=params.ref_w, l=params.ref_l, vth=MosVth.STD, family=h.MosFamily.CORE)(
+            d=iref, g=iref, s=avdd, b=avdd
+        )
+        mp_nref_feed = h.Pmos(
+            w=params.nref_feed_w, l=params.nref_feed_l, vth=MosVth.STD, family=h.MosFamily.CORE
+        )(d=nref, g=iref, s=avdd, b=avdd)
+        mn_ref = h.Nmos(
+            w=params.nref_w, l=params.nref_l, vth=MosVth.STD, family=h.MosFamily.CORE
+        )(d=nref, g=nref, s=agnd, b=agnd)
+
+    return _BiasRefCore
+
+
+@h.generator
+def PmosMirrorSourceLeg(params: PmosMirrorSourceLegParams) -> h.Module:
+    @h.module
+    class _PmosMirrorSourceLeg:
+        avdd = h.Inout()
+        agnd = h.Inout()
+        nref = h.Input()
+        out = h.Inout()
+        vg = h.Output()
+
+        mp_ref = h.Pmos(w=params.out_w, l=params.out_l, vth=params.vth, family=h.MosFamily.CORE)(
+            d=vg, g=vg, s=avdd, b=avdd
+        )
+        mn_sink = h.Nmos(w=params.sink_w, l=params.sink_l, vth=MosVth.STD, family=h.MosFamily.CORE)(
+            d=vg, g=nref, s=agnd, b=agnd
+        )
+        mp_out = h.Pmos(w=params.out_w, l=params.out_l, vth=params.vth, family=h.MosFamily.CORE)(
+            d=out, g=vg, s=avdd, b=avdd
+        )
+
+    return _PmosMirrorSourceLeg
+
+
+@h.generator
+def NmosMirrorSinkLeg(params: NmosMirrorSinkLegParams) -> h.Module:
+    @h.module
+    class _NmosMirrorSinkLeg:
+        avdd = h.Inout()
+        agnd = h.Inout()
+        iref = h.Input()
+        out = h.Inout()
+        vg = h.Output()
+
+        mp_feed = h.Pmos(w=params.feed_w, l=params.feed_l, vth=MosVth.STD, family=h.MosFamily.CORE)(
+            d=vg, g=iref, s=avdd, b=avdd
+        )
+        mn_ref = h.Nmos(w=params.out_w, l=params.out_l, vth=params.vth, family=h.MosFamily.CORE)(
+            d=vg, g=vg, s=agnd, b=agnd
+        )
+        mn_out = h.Nmos(w=params.out_w, l=params.out_l, vth=params.vth, family=h.MosFamily.CORE)(
+            d=out, g=vg, s=agnd, b=agnd
+        )
+
+    return _NmosMirrorSinkLeg
+
+
+@h.generator
+def CurrentBiasLeg(params: CurrentBiasLegParams) -> h.Module:
+    """Reusable current-bias leg with a single logical interface and explicit polarity.
+
+    `kind="source"` creates a PMOS top-side current source referenced by `nref`.
+    `kind="sink"` creates an NMOS bottom-side current sink referenced by `iref`.
+    """
+
+    if params.kind == CurrentBiasKind.SOURCE:
+        return PmosMirrorSourceLeg(
+            PmosMirrorSourceLegParams(
+                out_w=params.out_w,
+                out_l=params.out_l,
+                vth=params.vth,
+                sink_w=params.ref_w,
+                sink_l=params.ref_l,
+            )
+        )
+
+    return NmosMirrorSinkLeg(
+        NmosMirrorSinkLegParams(
+            out_w=params.out_w,
+            out_l=params.out_l,
+            vth=params.vth,
+            feed_w=params.ref_w,
+            feed_l=params.ref_l,
+        )
+    )
+
+
+@h.generator
+def PmosBiasVoltageLeg(params: PmosBiasVoltageLegParams) -> h.Module:
+    @h.module
+    class _PmosBiasVoltageLeg:
+        avdd = h.Inout()
+        agnd = h.Inout()
+        nref = h.Input()
+        out = h.Output()
+
+        mp_diode = h.Pmos(w=params.p_w, l=params.p_l, vth=params.p_vth, family=h.MosFamily.CORE)(
+            d=out, g=out, s=avdd, b=avdd
+        )
+        mn_sink = h.Nmos(w=params.sink_w, l=params.sink_l, vth=MosVth.STD, family=h.MosFamily.CORE)(
+            d=out, g=nref, s=agnd, b=agnd
+        )
+
+    return _PmosBiasVoltageLeg
+
+
+@h.generator
+def NmosBiasVoltageLeg(params: NmosBiasVoltageLegParams) -> h.Module:
+    @h.module
+    class _NmosBiasVoltageLeg:
+        avdd = h.Inout()
+        agnd = h.Inout()
+        iref = h.Input()
+        out = h.Output()
+
+        mp_feed = h.Pmos(w=params.feed_w, l=params.feed_l, vth=MosVth.STD, family=h.MosFamily.CORE)(
+            d=out, g=iref, s=avdd, b=avdd
+        )
+        mn_diode = h.Nmos(w=params.n_w, l=params.n_l, vth=MosVth.STD, family=h.MosFamily.CORE)(
+            d=out, g=out, s=agnd, b=agnd
+        )
+
+    return _NmosBiasVoltageLeg
 
 
 @h.generator
