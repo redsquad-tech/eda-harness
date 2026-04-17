@@ -14,55 +14,70 @@ from .source.generators import (
 from .source.opa_bias import OpaBiasGenParams
 
 
+# -----------------------------------------------------------------------------
+# Device helpers
+# -----------------------------------------------------------------------------
+
+
 def _nmos(w, l, *, vth=MosVth.STD):
+    """Sky130 core NMOS helper."""
     return h.Nmos(w=w, l=l, vth=vth, family=h.MosFamily.CORE)
 
 
+
 def _pmos(w, l, *, vth=MosVth.STD):
+    """Sky130 core PMOS helper."""
     return h.Pmos(w=w, l=l, vth=vth, family=h.MosFamily.CORE)
+
+
+# -----------------------------------------------------------------------------
+# Geometry parameter blocks
+# -----------------------------------------------------------------------------
 
 
 @h.paramclass
 class FrontEndParams:
-    """Page-12 folded-cascode first-stage geometry."""
+    """Page-11 / page-12 folded-cascode front-end geometry."""
 
-    w_in_p = h.Param(dtype=h.Scalar, desc="PMOS input-pair width", default=8.0 * U)
-    w_in_n = h.Param(dtype=h.Scalar, desc="NMOS input-pair width", default=4.0 * U)
-    l_in = h.Param(dtype=h.Scalar, desc="Input-pair length", default=0.50 * U)
-    w_pcas1 = h.Param(dtype=h.Scalar, desc="Top PMOS folded-cascode width", default=4.0 * U)
-    w_pcas2 = h.Param(dtype=h.Scalar, desc="Second PMOS folded-cascode width", default=4.0 * U)
-    w_ncas = h.Param(dtype=h.Scalar, desc="NMOS folded-cascode width", default=3.0 * U)
-    w_nmir = h.Param(dtype=h.Scalar, desc="Bottom NMOS mirror width", default=3.0 * U)
+    w_input_p = h.Param(dtype=h.Scalar, desc="PMOS input-pair width", default=8.0 * U)
+    w_input_n = h.Param(dtype=h.Scalar, desc="NMOS input-pair width", default=4.0 * U)
+    l_input = h.Param(dtype=h.Scalar, desc="Input-pair length", default=0.50 * U)
+
+    w_pmos_vbias1 = h.Param(dtype=h.Scalar, desc="Top PMOS cascode-pair width", default=4.0 * U)
+    w_pmos_vbias2 = h.Param(dtype=h.Scalar, desc="Lower PMOS cascode-pair width", default=4.0 * U)
+    w_nmos_vbias3 = h.Param(dtype=h.Scalar, desc="Upper NMOS cascode-pair width", default=3.0 * U)
+    w_nmos_mirror = h.Param(dtype=h.Scalar, desc="Bottom NMOS mirror width", default=3.0 * U)
     l_fold = h.Param(dtype=h.Scalar, desc="Folded-cascode device length", default=0.60 * U)
 
 
 @h.paramclass
 class MonticelliParams:
-    """Page-12 explicit diode stacks plus Monticelli floating battery."""
+    """Page-12 explicit M22/M23, M24, M33/M34, M35 geometry."""
 
-    w_m24 = h.Param(dtype=h.Scalar, desc="NMOS floating-battery width", default=1.5 * U)
-    w_m35 = h.Param(dtype=h.Scalar, desc="PMOS floating-battery width", default=3.0 * U)
-    l_mont = h.Param(dtype=h.Scalar, desc="Monticelli-cell length", default=0.60 * U)
-    w_stack_n = h.Param(dtype=h.Scalar, desc="NMOS diode-stack width", default=1.0 * U)
-    w_stack_p = h.Param(dtype=h.Scalar, desc="PMOS diode-stack width", default=1.5 * U)
+    w_m22_m23 = h.Param(dtype=h.Scalar, desc="NMOS diode-stack width for M22/M23", default=1.0 * U)
+    w_m24 = h.Param(dtype=h.Scalar, desc="NMOS floating-cell width for M24", default=1.5 * U)
+    w_m33_m34 = h.Param(dtype=h.Scalar, desc="PMOS diode-stack width for M33/M34", default=1.5 * U)
+    w_m35 = h.Param(dtype=h.Scalar, desc="PMOS floating-cell width for M35", default=3.0 * U)
     l_stack = h.Param(dtype=h.Scalar, desc="Diode-stack length", default=0.60 * U)
+    l_mont = h.Param(dtype=h.Scalar, desc="Monticelli-cell length", default=0.60 * U)
 
 
 @h.paramclass
 class OutputStageParams:
-    """Page-12 push-pull output plus dual Rc-Cc compensation."""
+    """Page-12 output pair and dual Rc-Cc compensation."""
 
-    w_out_p = h.Param(dtype=h.Scalar, desc="PMOS output width", default=16.0 * U)
-    w_out_n = h.Param(dtype=h.Scalar, desc="NMOS output width", default=8.0 * U)
-    l_out = h.Param(dtype=h.Scalar, desc="Output length", default=0.60 * U)
+    w_m2 = h.Param(dtype=h.Scalar, desc="PMOS output-device width for M2", default=16.0 * U)
+    w_m1 = h.Param(dtype=h.Scalar, desc="NMOS output-device width for M1", default=8.0 * U)
+    l_out = h.Param(dtype=h.Scalar, desc="Output-device length", default=0.60 * U)
     rc = h.Param(dtype=h.Scalar, desc="Series compensation resistor", default=12_000)
     cc = h.Param(dtype=h.Scalar, desc="Compensation capacitor", default=9.0 * F)
 
 
 @h.paramclass
 class NeuronOaParams:
+    # Shell helpers kept from the uploaded wrapper.
     inv = h.Param(dtype=InvParams, desc="Small inverters", default=InvParams())
-    tg = h.Param(dtype=SwitchParams, desc="Transmission gate switches", default=SwitchParams())
+    tg = h.Param(dtype=SwitchParams, desc="Transmission-gate switches", default=SwitchParams())
     rail_sw = h.Param(
         dtype=SwitchParams,
         desc="Single-ended rail switches",
@@ -70,33 +85,74 @@ class NeuronOaParams:
     )
     bias = h.Param(
         dtype=OpaBiasGenParams,
-        desc="Legacy bias-generator parameters kept only for compatibility",
+        desc="Retained only for compatibility with the larger project shell",
         default=OpaBiasGenParams(),
     )
-    frontend = h.Param(dtype=FrontEndParams, desc="Page-12 folded first stage", default=FrontEndParams())
-    monticelli = h.Param(dtype=MonticelliParams, desc="Page-12 Monticelli cell", default=MonticelliParams())
+
+    frontend = h.Param(dtype=FrontEndParams, desc="Page-12 folded-cascode front-end", default=FrontEndParams())
+    monticelli = h.Param(dtype=MonticelliParams, desc="Page-12 Monticelli local bias network", default=MonticelliParams())
     output = h.Param(dtype=OutputStageParams, desc="Page-12 output stage", default=OutputStageParams())
 
-    vbias1_V = h.Param(dtype=h.Scalar, desc="Ideal frontend bias-1 voltage", default=0.82383252916907)
-    vbias2_V = h.Param(dtype=h.Scalar, desc="Ideal frontend bias-2 voltage", default=0.890730977583764)
-    vbias3_V = h.Param(dtype=h.Scalar, desc="Ideal frontend bias-3 voltage", default=0.6335259806583905)
-    tail_p_uA = h.Param(dtype=h.Scalar, desc="Ideal PMOS tail current in uA", default=1.6)
-    tail_n_uA = h.Param(dtype=h.Scalar, desc="Ideal NMOS tail current in uA", default=1.6)
-    vb_m24_uA = h.Param(dtype=h.Scalar, desc="Ideal PMOS-source current into vb_m24 in uA", default=0.45)
-    vb_m35_V = h.Param(dtype=h.Scalar, desc="Ideal PMOS-side gate-bias voltage", default=0.00048137541564193713)
+    # Idealized debug-only bias hooks.
+    # These are not the final silicon bias generator. They are local ideal
+    # sources used only to make the textbook core easier to probe during bring-up.
+    vbias1_V = h.Param(dtype=h.Scalar, desc="Ideal Vbias1 voltage", default=0.82383252916907)
+    vbias2_V = h.Param(dtype=h.Scalar, desc="Ideal Vbias2 voltage", default=0.890730977583764)
+    vbias3_V = h.Param(dtype=h.Scalar, desc="Ideal Vbias3 voltage", default=0.6335259806583905)
+
+    i0_p_uA = h.Param(dtype=h.Scalar, desc="Ideal PMOS-input tail current I0 in uA", default=1.6)
+    i0_n_uA = h.Param(dtype=h.Scalar, desc="Ideal NMOS-input tail current I0 in uA", default=1.6)
+
+    # NMOS-side Monticelli stack debug source:
+    # AVDD -> Idc -> vb_m24.
+    ibias_nmos_stack_uA = h.Param(
+        dtype=h.Scalar,
+        desc="Ideal current injected from AVDD into vb_m24, in uA",
+        default=0.45,
+    )
+
+    # PMOS-side Monticelli stack debug source:
+    # vb_m35 -> Vdc -> AGND.
+    # This preserves the mixed ideal-bias convention from the working harness.
+    vb_m35_V = h.Param(
+        dtype=h.Scalar,
+        desc="Ideal voltage forced on vb_m35 relative to AGND, in V",
+        default=1.05,
+    )
+
     iref_term_ohm = h.Param(dtype=h.Scalar, desc="Termination for the external iref pin", default=1e6)
+
+
+# -----------------------------------------------------------------------------
+# Main module
+# -----------------------------------------------------------------------------
 
 
 @h.generator
 def neuron_core_oa_sky130(params: NeuronOaParams) -> h.Module:
+    """Sky130 retarget of the page-12 two-stage CMOS op-amp core.
+
+    Scope note:
+    - The textbook core is the folded-cascode front-end + local Monticelli class-AB
+      network + output pair + Rc-Cc branches.
+    - The wrapper logic for test/control pins is preserved from the uploaded file for
+      project compatibility, but is clearly separated and commented as non-textbook shell.
+    - The local ideal bias sources are debug-only abstractions. They are not meant to be
+      signoff-correct bias generation.
+    """
+
     @h.module
     class NeuronCoreOaSky130:
-        # External interface.
+        # -----------------------------------------------------------------
+        # External interface
+        # -----------------------------------------------------------------
         avdd1p2 = h.Inout()
         agnd = h.Inout()
-        vinp = h.Input()
-        vinn = h.Input()
+
+        vinp = h.Input()  # Vi1 in the methodology figures.
+        vinn = h.Input()  # Vi2 in the methodology figures.
         vout = h.Output()
+
         in0u25_oa = h.Inout()
         vbase = h.Inout()
         vfeed = h.Inout()
@@ -112,44 +168,51 @@ def neuron_core_oa_sky130(params: NeuronOaParams) -> h.Module:
         d_tdi = h.Input()
         d_tdo = h.Output()
 
-        # Control and internal analog nodes.
+        # -----------------------------------------------------------------
+        # Shell / control nodes (not part of the textbook op-amp core)
+        # -----------------------------------------------------------------
         d_en_b, d_az_b, d_inf_b, d_tdi_b = h.Signals(4)
-        iref_int = h.Signal()
+        iref_internal = h.Signal()
+
+        # -----------------------------------------------------------------
+        # Textbook core bias nodes
+        # -----------------------------------------------------------------
         vbias1, vbias2, vbias3 = h.Signals(3)
-        tail_p, tail_n, vb_m24, vb_m35 = h.Signals(4)
+        pmos_input_tail, nmos_input_tail = h.Signals(2)
+
+        # -----------------------------------------------------------------
+        # Folded-cascode first-stage nodes
+        # -----------------------------------------------------------------
+        fold_upper_left, fold_upper_right = h.Signals(2)
+        fold_lower_left, fold_lower_right = h.Signals(2)
+
+        # Left branch is a single summed node. Right branch produces VGP and VGN.
+        sum_left = h.Signal()
         vgp, vgn = h.Signals(2)
-        pnode_l, pnode_r = h.Signals(2)
-        nnode_l, nnode_r = h.Signals(2)
-        vref_mid = h.Signal()
-        n_mid, p_mid = h.Signals(2)
-        ccp_mid, ccn_mid = h.Signals(2)
+
+        # -----------------------------------------------------------------
+        # Local Monticelli bias nodes
+        # -----------------------------------------------------------------
+        # vb_m24 = gate(M24) = drain/gate(M23)
+        # vb_m35 = gate(M35) = drain/gate(M34)
+        vb_m24, vb_m35 = h.Signals(2)
+
+        # -----------------------------------------------------------------
+        # Compensation branch internal nodes
+        # -----------------------------------------------------------------
+        top_comp_mid, bot_comp_mid = h.Signals(2)
 
     dut = NeuronCoreOaSky130
     fp = params.frontend
     mp = params.monticelli
     op = params.output
+
     avdd = dut.avdd1p2
     vss = dut.agnd
-    vgp = dut.vgp
-    vgn = dut.vgn
-    vb_m24 = dut.vb_m24
-    vb_m35 = dut.vb_m35
-    vb1 = dut.vbias1
-    vb2 = dut.vbias2
-    vb3 = dut.vbias3
-    tail_p = dut.tail_p
-    tail_n = dut.tail_n
-    p_l = dut.pnode_l
-    p_r = dut.pnode_r
-    n_l = dut.nnode_l
-    n_r = dut.nnode_r
-    vref = dut.vref_mid
-    n_mid = dut.n_mid
-    p_mid = dut.p_mid
-    ccp = dut.ccp_mid
-    ccn = dut.ccn_mid
 
-    # Control inversion and pin-level hooks.
+    # ---------------------------------------------------------------------
+    # Non-textbook shell logic preserved from the uploaded wrapper
+    # ---------------------------------------------------------------------
     dut.inv_en = cmos_inv(params.inv)(i=dut.d_en_oa, o=dut.d_en_b, avdd=avdd, agnd=vss)
     dut.inv_az = cmos_inv(params.inv)(i=dut.d_az_oa, o=dut.d_az_b, avdd=avdd, agnd=vss)
     dut.inv_inf = cmos_inv(params.inv)(i=dut.d_inf_oa, o=dut.d_inf_b, avdd=avdd, agnd=vss)
@@ -157,13 +220,13 @@ def neuron_core_oa_sky130(params: NeuronOaParams) -> h.Module:
 
     dut.iref_sw = transmission_gate(params.tg)(
         a=dut.in0u25_oa,
-        b=dut.iref_int,
+        b=dut.iref_internal,
         en=dut.d_en_oa,
         en_b=dut.d_en_b,
         avdd=avdd,
         agnd=vss,
     )
-    dut.iref_term = h.Res(r=params.iref_term_ohm)(p=dut.iref_int, n=vss)
+    dut.iref_term = h.Res(r=params.iref_term_ohm)(p=dut.iref_internal, n=vss)
 
     dut.vbase_sw = nmos_switch(params.rail_sw)(a=dut.vbase, b=vss, en=dut.d_inf_oa, agnd=vss)
     dut.vfeed_sw = pmos_switch(params.rail_sw)(a=avdd, b=dut.vfeed, en_b=dut.d_inf_b, avdd=avdd)
@@ -178,69 +241,201 @@ def neuron_core_oa_sky130(params: NeuronOaParams) -> h.Module:
     dut.tck_short = h.Res(r=1e-3)(p=dut.d_tcki, n=dut.d_tcko)
     dut.tdi_short = h.Res(r=1e-3)(p=dut.d_tdi, n=dut.d_tdo)
 
-    # Idealized internal biasing.
-    dut.vbias1_src = h.Vdc(dc=params.vbias1_V)(p=vb1, n=vss)
-    dut.vbias2_src = h.Vdc(dc=params.vbias2_V)(p=vb2, n=vss)
-    dut.vbias3_src = h.Vdc(dc=params.vbias3_V)(p=vb3, n=vss)
-    dut.itail_p = h.Idc(dc=params.tail_p_uA * 1e-6)(p=avdd, n=tail_p)
-    dut.itail_n = h.Idc(dc=params.tail_n_uA * 1e-6)(p=tail_n, n=vss)
-    dut.ibias_m24 = h.Idc(dc=params.vb_m24_uA * 1e-6)(p=avdd, n=vb_m24)
-    dut.vb_m35_src = h.Vdc(dc=params.vb_m35_V)(p=vb_m35, n=vss)
+    # ---------------------------------------------------------------------
+    # Idealized debug-only biasing for the textbook core
+    # ---------------------------------------------------------------------
+    dut.vbias1_src = h.Vdc(dc=params.vbias1_V)(p=dut.vbias1, n=vss)
+    dut.vbias2_src = h.Vdc(dc=params.vbias2_V)(p=dut.vbias2, n=vss)
+    dut.vbias3_src = h.Vdc(dc=params.vbias3_V)(p=dut.vbias3, n=vss)
 
-    # Folded-cascode frontend.
-    # tail_p -> PMOS pair -> NMOS folded nodes
-    dut.pinp_l = _pmos(fp.w_in_p, fp.l_in, vth=MosVth.LOW)(d=n_l, g=dut.vinn, s=tail_p, b=avdd)
-    dut.pinp_r = _pmos(fp.w_in_p, fp.l_in, vth=MosVth.LOW)(d=n_r, g=dut.vinp, s=tail_p, b=avdd)
-    # tail_n -> NMOS pair -> PMOS folded nodes
-    dut.ninp_l = _nmos(fp.w_in_n, fp.l_in, vth=MosVth.LOW)(d=p_l, g=dut.vinp, s=tail_n, b=vss)
-    dut.ninp_r = _nmos(fp.w_in_n, fp.l_in, vth=MosVth.LOW)(d=p_r, g=dut.vinn, s=tail_n, b=vss)
-    # avdd -> mpb1 -> pnodes
-    dut.mpb1_l = _pmos(fp.w_pcas1, fp.l_fold, vth=MosVth.HIGH)(d=p_l, g=vb1, s=avdd, b=avdd)
-    dut.mpb1_r = _pmos(fp.w_pcas1, fp.l_fold, vth=MosVth.HIGH)(d=p_r, g=vb1, s=avdd, b=avdd)
-    # pnodes -> mpb2 -> {vref, vgp}
-    dut.mpb2_l = _pmos(fp.w_pcas2, fp.l_fold)(d=vref, g=vb2, s=p_l, b=avdd)
-    dut.mpb2_r = _pmos(fp.w_pcas2, fp.l_fold)(d=vgp, g=vb2, s=p_r, b=avdd)
-    # nnodes -> mnb3 -> {vref, vgn}
-    dut.mnb3_l = _nmos(fp.w_ncas, fp.l_fold)(d=vref, g=vb3, s=n_l, b=vss)
-    dut.mnb3_r = _nmos(fp.w_ncas, fp.l_fold)(d=vgn, g=vb3, s=n_r, b=vss)
-    # nnodes -> NMOS mirror -> vss
-    dut.mnref = _nmos(fp.w_nmir, fp.l_fold)(d=n_l, g=n_l, s=vss, b=vss)
-    dut.mnout = _nmos(fp.w_nmir, fp.l_fold)(d=n_r, g=n_l, s=vss, b=vss)
+    # Page-11 / page-12 two I0 sources for the complementary rail-to-rail input stage.
+    dut.i0_p_source = h.Idc(dc=params.i0_p_uA * 1e-6)(p=avdd, n=dut.pmos_input_tail)
+    dut.i0_n_sink = h.Idc(dc=params.i0_n_uA * 1e-6)(p=dut.nmos_input_tail, n=vss)
+
+    # Local textbook Monticelli debug biasing.
+    # NMOS-side stays as current injection into vb_m24.
+    dut.ibias_into_vb_m24 = h.Idc(dc=params.ibias_nmos_stack_uA * 1e-6)(p=avdd, n=dut.vb_m24)
+
+    # PMOS-side is intentionally a local ideal voltage source on vb_m35.
+    # This matches the working debug abstraction described by the user and avoids
+    # turning the PMOS side into an uncontrolled pure current-sink node.
+    dut.vbias_vb_m35 = h.Vdc(dc=params.vb_m35_V)(p=dut.vb_m35, n=vss)
+
+    # ---------------------------------------------------------------------
+    # Textbook core: folded-cascode rail-to-rail input stage
+    # ---------------------------------------------------------------------
+    # PMOS pair highlighted on page 11 / page 12:
+    # left gate = Vi2 = vinn, right gate = Vi1 = vinp.
+    dut.pmos_input_left = _pmos(fp.w_input_p, fp.l_input, vth=MosVth.LOW)(
+        d=dut.fold_lower_left,
+        g=dut.vinn,
+        s=dut.pmos_input_tail,
+        b=avdd,
+    )
+    dut.pmos_input_right = _pmos(fp.w_input_p, fp.l_input, vth=MosVth.LOW)(
+        d=dut.fold_lower_right,
+        g=dut.vinp,
+        s=dut.pmos_input_tail,
+        b=avdd,
+    )
+
+    # NMOS pair highlighted on page 11 / page 12:
+    # left gate = Vi1 = vinp, right gate = Vi2 = vinn.
+    dut.nmos_input_left = _nmos(fp.w_input_n, fp.l_input, vth=MosVth.LOW)(
+        d=dut.fold_upper_left,
+        g=dut.vinp,
+        s=dut.nmos_input_tail,
+        b=vss,
+    )
+    dut.nmos_input_right = _nmos(fp.w_input_n, fp.l_input, vth=MosVth.LOW)(
+        d=dut.fold_upper_right,
+        g=dut.vinn,
+        s=dut.nmos_input_tail,
+        b=vss,
+    )
+
+    # Top PMOS folded-cascode pair biased by Vbias1.
+    dut.pmos_vbias1_left = _pmos(fp.w_pmos_vbias1, fp.l_fold, vth=MosVth.HIGH)(
+        d=dut.fold_upper_left,
+        g=dut.vbias1,
+        s=avdd,
+        b=avdd,
+    )
+    dut.pmos_vbias1_right = _pmos(fp.w_pmos_vbias1, fp.l_fold, vth=MosVth.HIGH)(
+        d=dut.fold_upper_right,
+        g=dut.vbias1,
+        s=avdd,
+        b=avdd,
+    )
+
+    # Lower PMOS folded-cascode pair biased by Vbias2.
+    dut.pmos_vbias2_left = _pmos(fp.w_pmos_vbias2, fp.l_fold)(
+        d=dut.sum_left,
+        g=dut.vbias2,
+        s=dut.fold_upper_left,
+        b=avdd,
+    )
+    dut.pmos_vbias2_right = _pmos(fp.w_pmos_vbias2, fp.l_fold)(
+        d=dut.vgp,
+        g=dut.vbias2,
+        s=dut.fold_upper_right,
+        b=avdd,
+    )
+
+    # Upper NMOS folded-cascode pair biased by Vbias3.
+    dut.nmos_vbias3_left = _nmos(fp.w_nmos_vbias3, fp.l_fold)(
+        d=dut.sum_left,
+        g=dut.vbias3,
+        s=dut.fold_lower_left,
+        b=vss,
+    )
+    dut.nmos_vbias3_right = _nmos(fp.w_nmos_vbias3, fp.l_fold)(
+        d=dut.vgn,
+        g=dut.vbias3,
+        s=dut.fold_lower_right,
+        b=vss,
+    )
+
+    # Bottom NMOS mirror pair.
+    dut.nmos_mirror_left = _nmos(fp.w_nmos_mirror, fp.l_fold)(
+        d=dut.fold_lower_left,
+        g=dut.fold_lower_left,
+        s=vss,
+        b=vss,
+    )
+    dut.nmos_mirror_right = _nmos(fp.w_nmos_mirror, fp.l_fold)(
+        d=dut.fold_lower_right,
+        g=dut.fold_lower_left,
+        s=vss,
+        b=vss,
+    )
+
+    # Non-textbook calibration/debug short across VGP and VGN.
     dut.az_short = transmission_gate(params.tg)(
-        a=vgp,
-        b=vgn,
+        a=dut.vgp,
+        b=dut.vgn,
         en=dut.d_az_oa,
         en_b=dut.d_az_b,
         avdd=avdd,
         agnd=vss,
     )
 
-    # Monticelli class-AB bias network.
-    # vb_m24 = gate(M24) = gate/drain(M23)
-    # vgn    = gate(M1)  = source(M23) = gate/drain(M22)
-    dut.mn23 = _nmos(mp.w_stack_n, mp.l_stack)(d=vb_m24, g=vb_m24, s=vgn, b=vss)
-    dut.mn22 = _nmos(mp.w_stack_n, mp.l_stack)(d=vgn, g=vgn, s=vss, b=vss)
-    # vgp    = gate(M2)  = gate/drain(M33)
-    # vb_m35 = gate(M35) = gate/drain(M34)
-    dut.mp33 = _pmos(mp.w_stack_p, mp.l_stack, vth=MosVth.HIGH)(d=vgp, g=vgp, s=avdd, b=avdd)
-    dut.mp34 = _pmos(mp.w_stack_p, mp.l_stack, vth=MosVth.HIGH)(d=vb_m35, g=vb_m35, s=vgp, b=avdd)
-    # floating battery between vgp and vgn
-    dut.m24 = _nmos(mp.w_m24, mp.l_mont)(d=vgp, g=vb_m24, s=vgn, b=vss)
-    dut.m35 = _pmos(mp.w_m35, mp.l_mont)(d=vgn, g=vb_m35, s=vgp, b=avdd)
-    # Probe replicas of the stack mid-nodes.
-    dut.n_mid_tap = h.Res(r=1e-3)(p=n_mid, n=vgn)
-    dut.p_mid_tap = h.Res(r=1e-3)(p=p_mid, n=vgp)
+    # ---------------------------------------------------------------------
+    # Textbook core: page-12 local Monticelli network
+    # ---------------------------------------------------------------------
+    # NMOS-side diode stack:
+    #   M23 upper diode-connected NMOS: drain/gate = vb_m24, source = VGN
+    #   M22 lower diode-connected NMOS: drain/gate = VGN, source = AGND
+    dut.m23 = _nmos(mp.w_m22_m23, mp.l_stack)(
+        d=dut.vb_m24,
+        g=dut.vb_m24,
+        s=dut.vgn,
+        b=vss,
+    )
+    dut.m22 = _nmos(mp.w_m22_m23, mp.l_stack)(
+        d=dut.vgn,
+        g=dut.vgn,
+        s=vss,
+        b=vss,
+    )
 
-    # Output stage and compensation.
-    dut.m2 = _pmos(op.w_out_p, op.l_out)(d=dut.vout, g=vgp, s=avdd, b=avdd)
-    dut.m1 = _nmos(op.w_out_n, op.l_out)(d=dut.vout, g=vgn, s=vss, b=vss)
-    # {vgp, vgn} -> Rc-Cc -> vout
-    dut.rcp = h.Res(r=op.rc)(p=vgp, n=ccp)
-    dut.ccp = h.Cap(c=op.cc)(p=ccp, n=dut.vout)
-    dut.rcn = h.Res(r=op.rc)(p=vgn, n=ccn)
-    dut.ccn = h.Cap(c=op.cc)(p=ccn, n=dut.vout)
+    # PMOS-side diode stack:
+    #   M33 upper diode-connected PMOS: drain/gate = VGP, source = AVDD
+    #   M34 lower diode-connected PMOS: drain/gate = vb_m35, source = VGP
+    dut.m33 = _pmos(mp.w_m33_m34, mp.l_stack, vth=MosVth.HIGH)(
+        d=dut.vgp,
+        g=dut.vgp,
+        s=avdd,
+        b=avdd,
+    )
+    dut.m34 = _pmos(mp.w_m33_m34, mp.l_stack, vth=MosVth.HIGH)(
+        d=dut.vb_m35,
+        g=dut.vb_m35,
+        s=dut.vgp,
+        b=avdd,
+    )
+
+    # Monticelli floating pair directly between VGP and VGN.
+    dut.m24 = _nmos(mp.w_m24, mp.l_mont)(
+        d=dut.vgp,
+        g=dut.vb_m24,
+        s=dut.vgn,
+        b=vss,
+    )
+    dut.m35 = _pmos(mp.w_m35, mp.l_mont)(
+        d=dut.vgn,
+        g=dut.vb_m35,
+        s=dut.vgp,
+        b=avdd,
+    )
+
+    # ---------------------------------------------------------------------
+    # Textbook core: output pair and dual Rc-Cc branches
+    # ---------------------------------------------------------------------
+    dut.m2 = _pmos(op.w_m2, op.l_out)(
+        d=dut.vout,
+        g=dut.vgp,
+        s=avdd,
+        b=avdd,
+    )
+    dut.m1 = _nmos(op.w_m1, op.l_out)(
+        d=dut.vout,
+        g=dut.vgn,
+        s=vss,
+        b=vss,
+    )
+
+    dut.rc_top = h.Res(r=op.rc)(p=dut.vgp, n=dut.top_comp_mid)
+    dut.cc_top = h.Cap(c=op.cc)(p=dut.top_comp_mid, n=dut.vout)
+    dut.rc_bot = h.Res(r=op.rc)(p=dut.vgn, n=dut.bot_comp_mid)
+    dut.cc_bot = h.Cap(c=op.cc)(p=dut.bot_comp_mid, n=dut.vout)
 
     return NeuronCoreOaSky130
+
+
+# -----------------------------------------------------------------------------
+# PDK compilation helper
+# -----------------------------------------------------------------------------
 
 
 def compile_for_sky130(src):
