@@ -128,82 +128,112 @@ def neuron_core_oa_sky130(params: NeuronOaParams) -> h.Module:
     fp = params.frontend
     mp = params.monticelli
     op = params.output
+    avdd = dut.avdd1p2
+    vss = dut.agnd
+    vgp = dut.vgp
+    vgn = dut.vgn
+    vb_m24 = dut.vb_m24
+    vb_m35 = dut.vb_m35
+    vb1 = dut.vbias1
+    vb2 = dut.vbias2
+    vb3 = dut.vbias3
+    tail_p = dut.tail_p
+    tail_n = dut.tail_n
+    p_l = dut.pnode_l
+    p_r = dut.pnode_r
+    n_l = dut.nnode_l
+    n_r = dut.nnode_r
+    vref = dut.vref_mid
+    n_mid = dut.n_mid
+    p_mid = dut.p_mid
+    ccp = dut.ccp_mid
+    ccn = dut.ccn_mid
 
     # Control inversion and pin-level hooks.
-    dut.inv_en = cmos_inv(params.inv)(i=dut.d_en_oa, o=dut.d_en_b, avdd=dut.avdd1p2, agnd=dut.agnd)
-    dut.inv_az = cmos_inv(params.inv)(i=dut.d_az_oa, o=dut.d_az_b, avdd=dut.avdd1p2, agnd=dut.agnd)
-    dut.inv_inf = cmos_inv(params.inv)(i=dut.d_inf_oa, o=dut.d_inf_b, avdd=dut.avdd1p2, agnd=dut.agnd)
-    dut.inv_tdi = cmos_inv(params.inv)(i=dut.d_tdi, o=dut.d_tdi_b, avdd=dut.avdd1p2, agnd=dut.agnd)
+    dut.inv_en = cmos_inv(params.inv)(i=dut.d_en_oa, o=dut.d_en_b, avdd=avdd, agnd=vss)
+    dut.inv_az = cmos_inv(params.inv)(i=dut.d_az_oa, o=dut.d_az_b, avdd=avdd, agnd=vss)
+    dut.inv_inf = cmos_inv(params.inv)(i=dut.d_inf_oa, o=dut.d_inf_b, avdd=avdd, agnd=vss)
+    dut.inv_tdi = cmos_inv(params.inv)(i=dut.d_tdi, o=dut.d_tdi_b, avdd=avdd, agnd=vss)
 
     dut.iref_sw = transmission_gate(params.tg)(
         a=dut.in0u25_oa,
         b=dut.iref_int,
         en=dut.d_en_oa,
         en_b=dut.d_en_b,
-        avdd=dut.avdd1p2,
-        agnd=dut.agnd,
+        avdd=avdd,
+        agnd=vss,
     )
-    dut.iref_term = h.Res(r=params.iref_term_ohm)(p=dut.iref_int, n=dut.agnd)
+    dut.iref_term = h.Res(r=params.iref_term_ohm)(p=dut.iref_int, n=vss)
 
-    dut.vbase_sw = nmos_switch(params.rail_sw)(a=dut.vbase, b=dut.agnd, en=dut.d_inf_oa, agnd=dut.agnd)
-    dut.vfeed_sw = pmos_switch(params.rail_sw)(a=dut.avdd1p2, b=dut.vfeed, en_b=dut.d_inf_b, avdd=dut.avdd1p2)
+    dut.vbase_sw = nmos_switch(params.rail_sw)(a=dut.vbase, b=vss, en=dut.d_inf_oa, agnd=vss)
+    dut.vfeed_sw = pmos_switch(params.rail_sw)(a=avdd, b=dut.vfeed, en_b=dut.d_inf_b, avdd=avdd)
     dut.vout_to_vtest = transmission_gate(params.tg)(
         a=dut.vout,
         b=dut.vtest,
         en=dut.d_tdi,
         en_b=dut.d_tdi_b,
-        avdd=dut.avdd1p2,
-        agnd=dut.agnd,
+        avdd=avdd,
+        agnd=vss,
     )
     dut.tck_short = h.Res(r=1e-3)(p=dut.d_tcki, n=dut.d_tcko)
     dut.tdi_short = h.Res(r=1e-3)(p=dut.d_tdi, n=dut.d_tdo)
 
     # Idealized internal biasing.
-    dut.vbias1_src = h.Vdc(dc=params.vbias1_V)(p=dut.vbias1, n=dut.agnd)
-    dut.vbias2_src = h.Vdc(dc=params.vbias2_V)(p=dut.vbias2, n=dut.agnd)
-    dut.vbias3_src = h.Vdc(dc=params.vbias3_V)(p=dut.vbias3, n=dut.agnd)
-    dut.itail_p = h.Idc(dc=params.tail_p_uA * 1e-6)(p=dut.avdd1p2, n=dut.tail_p)
-    dut.itail_n = h.Idc(dc=params.tail_n_uA * 1e-6)(p=dut.tail_n, n=dut.agnd)
-    dut.ibias_m24 = h.Idc(dc=params.vb_m24_uA * 1e-6)(p=dut.avdd1p2, n=dut.vb_m24)
-    dut.ibias_m35 = h.Idc(dc=params.vb_m35_uA * 1e-6)(p=dut.vb_m35, n=dut.agnd)
+    dut.vbias1_src = h.Vdc(dc=params.vbias1_V)(p=vb1, n=vss)
+    dut.vbias2_src = h.Vdc(dc=params.vbias2_V)(p=vb2, n=vss)
+    dut.vbias3_src = h.Vdc(dc=params.vbias3_V)(p=vb3, n=vss)
+    dut.itail_p = h.Idc(dc=params.tail_p_uA * 1e-6)(p=avdd, n=tail_p)
+    dut.itail_n = h.Idc(dc=params.tail_n_uA * 1e-6)(p=tail_n, n=vss)
+    dut.ibias_m24 = h.Idc(dc=params.vb_m24_uA * 1e-6)(p=avdd, n=vb_m24)
+    dut.ibias_m35 = h.Idc(dc=params.vb_m35_uA * 1e-6)(p=vb_m35, n=vss)
 
     # Folded-cascode frontend.
-    dut.pinp_l = _pmos(fp.w_in_p, fp.l_in, vth=MosVth.LOW)(d=dut.nnode_l, g=dut.vinn, s=dut.tail_p, b=dut.avdd1p2)
-    dut.pinp_r = _pmos(fp.w_in_p, fp.l_in, vth=MosVth.LOW)(d=dut.nnode_r, g=dut.vinp, s=dut.tail_p, b=dut.avdd1p2)
-    dut.ninp_l = _nmos(fp.w_in_n, fp.l_in, vth=MosVth.LOW)(d=dut.pnode_l, g=dut.vinp, s=dut.tail_n, b=dut.agnd)
-    dut.ninp_r = _nmos(fp.w_in_n, fp.l_in, vth=MosVth.LOW)(d=dut.pnode_r, g=dut.vinn, s=dut.tail_n, b=dut.agnd)
-    dut.mpb1_l = _pmos(fp.w_pcas1, fp.l_fold, vth=MosVth.HIGH)(d=dut.pnode_l, g=dut.vbias1, s=dut.avdd1p2, b=dut.avdd1p2)
-    dut.mpb1_r = _pmos(fp.w_pcas1, fp.l_fold, vth=MosVth.HIGH)(d=dut.pnode_r, g=dut.vbias1, s=dut.avdd1p2, b=dut.avdd1p2)
-    dut.mpb2_l = _pmos(fp.w_pcas2, fp.l_fold)(d=dut.vref_mid, g=dut.vbias2, s=dut.pnode_l, b=dut.avdd1p2)
-    dut.mpb2_r = _pmos(fp.w_pcas2, fp.l_fold)(d=dut.vgp, g=dut.vbias2, s=dut.pnode_r, b=dut.avdd1p2)
-    dut.mnb3_l = _nmos(fp.w_ncas, fp.l_fold)(d=dut.vref_mid, g=dut.vbias3, s=dut.nnode_l, b=dut.agnd)
-    dut.mnb3_r = _nmos(fp.w_ncas, fp.l_fold)(d=dut.vgn, g=dut.vbias3, s=dut.nnode_r, b=dut.agnd)
-    dut.mnref = _nmos(fp.w_nmir, fp.l_fold)(d=dut.nnode_l, g=dut.nnode_l, s=dut.agnd, b=dut.agnd)
-    dut.mnout = _nmos(fp.w_nmir, fp.l_fold)(d=dut.nnode_r, g=dut.nnode_l, s=dut.agnd, b=dut.agnd)
+    # tail_p -> PMOS pair -> NMOS folded nodes
+    dut.pinp_l = _pmos(fp.w_in_p, fp.l_in, vth=MosVth.LOW)(d=n_l, g=dut.vinn, s=tail_p, b=avdd)
+    dut.pinp_r = _pmos(fp.w_in_p, fp.l_in, vth=MosVth.LOW)(d=n_r, g=dut.vinp, s=tail_p, b=avdd)
+    # tail_n -> NMOS pair -> PMOS folded nodes
+    dut.ninp_l = _nmos(fp.w_in_n, fp.l_in, vth=MosVth.LOW)(d=p_l, g=dut.vinp, s=tail_n, b=vss)
+    dut.ninp_r = _nmos(fp.w_in_n, fp.l_in, vth=MosVth.LOW)(d=p_r, g=dut.vinn, s=tail_n, b=vss)
+    # avdd -> mpb1 -> pnodes
+    dut.mpb1_l = _pmos(fp.w_pcas1, fp.l_fold, vth=MosVth.HIGH)(d=p_l, g=vb1, s=avdd, b=avdd)
+    dut.mpb1_r = _pmos(fp.w_pcas1, fp.l_fold, vth=MosVth.HIGH)(d=p_r, g=vb1, s=avdd, b=avdd)
+    # pnodes -> mpb2 -> {vref, vgp}
+    dut.mpb2_l = _pmos(fp.w_pcas2, fp.l_fold)(d=vref, g=vb2, s=p_l, b=avdd)
+    dut.mpb2_r = _pmos(fp.w_pcas2, fp.l_fold)(d=vgp, g=vb2, s=p_r, b=avdd)
+    # nnodes -> mnb3 -> {vref, vgn}
+    dut.mnb3_l = _nmos(fp.w_ncas, fp.l_fold)(d=vref, g=vb3, s=n_l, b=vss)
+    dut.mnb3_r = _nmos(fp.w_ncas, fp.l_fold)(d=vgn, g=vb3, s=n_r, b=vss)
+    # nnodes -> NMOS mirror -> vss
+    dut.mnref = _nmos(fp.w_nmir, fp.l_fold)(d=n_l, g=n_l, s=vss, b=vss)
+    dut.mnout = _nmos(fp.w_nmir, fp.l_fold)(d=n_r, g=n_l, s=vss, b=vss)
     dut.az_short = transmission_gate(params.tg)(
-        a=dut.vgp,
-        b=dut.vgn,
+        a=vgp,
+        b=vgn,
         en=dut.d_az_oa,
         en_b=dut.d_az_b,
-        avdd=dut.avdd1p2,
-        agnd=dut.agnd,
+        avdd=avdd,
+        agnd=vss,
     )
 
     # Monticelli class-AB bias network.
-    dut.mn22 = _nmos(mp.w_stack_n, mp.l_stack)(d=dut.vb_m24, g=dut.vb_m24, s=dut.n_mid, b=dut.agnd)
-    dut.mn23 = _nmos(mp.w_stack_n, mp.l_stack)(d=dut.n_mid, g=dut.n_mid, s=dut.agnd, b=dut.agnd)
-    dut.mp33 = _pmos(mp.w_stack_p, mp.l_stack, vth=MosVth.HIGH)(d=dut.p_mid, g=dut.p_mid, s=dut.avdd1p2, b=dut.avdd1p2)
-    dut.mp34 = _pmos(mp.w_stack_p, mp.l_stack, vth=MosVth.HIGH)(d=dut.vb_m35, g=dut.vb_m35, s=dut.p_mid, b=dut.avdd1p2)
-    dut.m24 = _nmos(mp.w_m24, mp.l_mont)(d=dut.vgp, g=dut.vb_m24, s=dut.vgn, b=dut.agnd)
-    dut.m35 = _pmos(mp.w_m35, mp.l_mont)(d=dut.vgn, g=dut.vb_m35, s=dut.vgp, b=dut.avdd1p2)
+    # vb_m24 -> mn22 -> n_mid -> mn23 -> vss
+    dut.mn22 = _nmos(mp.w_stack_n, mp.l_stack)(d=vb_m24, g=vb_m24, s=n_mid, b=vss)
+    dut.mn23 = _nmos(mp.w_stack_n, mp.l_stack)(d=n_mid, g=n_mid, s=vss, b=vss)
+    # avdd -> mp33 -> p_mid -> mp34 -> vb_m35
+    dut.mp33 = _pmos(mp.w_stack_p, mp.l_stack, vth=MosVth.HIGH)(d=p_mid, g=p_mid, s=avdd, b=avdd)
+    dut.mp34 = _pmos(mp.w_stack_p, mp.l_stack, vth=MosVth.HIGH)(d=vb_m35, g=vb_m35, s=p_mid, b=avdd)
+    # floating battery between vgp and vgn
+    dut.m24 = _nmos(mp.w_m24, mp.l_mont)(d=vgp, g=vb_m24, s=vgn, b=vss)
+    dut.m35 = _pmos(mp.w_m35, mp.l_mont)(d=vgn, g=vb_m35, s=vgp, b=avdd)
 
     # Output stage and compensation.
-    dut.m2 = _pmos(op.w_out_p, op.l_out)(d=dut.vout, g=dut.vgp, s=dut.avdd1p2, b=dut.avdd1p2)
-    dut.m1 = _nmos(op.w_out_n, op.l_out)(d=dut.vout, g=dut.vgn, s=dut.agnd, b=dut.agnd)
-    dut.rcp = h.Res(r=op.rc)(p=dut.vgp, n=dut.ccp_mid)
-    dut.ccp = h.Cap(c=op.cc)(p=dut.ccp_mid, n=dut.vout)
-    dut.rcn = h.Res(r=op.rc)(p=dut.vgn, n=dut.ccn_mid)
-    dut.ccn = h.Cap(c=op.cc)(p=dut.ccn_mid, n=dut.vout)
+    dut.m2 = _pmos(op.w_out_p, op.l_out)(d=dut.vout, g=vgp, s=avdd, b=avdd)
+    dut.m1 = _nmos(op.w_out_n, op.l_out)(d=dut.vout, g=vgn, s=vss, b=vss)
+    # {vgp, vgn} -> Rc-Cc -> vout
+    dut.rcp = h.Res(r=op.rc)(p=vgp, n=ccp)
+    dut.ccp = h.Cap(c=op.cc)(p=ccp, n=dut.vout)
+    dut.rcn = h.Res(r=op.rc)(p=vgn, n=ccn)
+    dut.ccn = h.Cap(c=op.cc)(p=ccn, n=dut.vout)
 
     return NeuronCoreOaSky130
 
