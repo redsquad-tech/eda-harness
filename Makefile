@@ -4,7 +4,7 @@ SHELL := /usr/bin/env bash
 APT ?= sudo apt-get
 SYS_PACKAGES := xschem ngspice python3 python3-venv python3-pip git
 
-.PHONY: help sysdeps
+.PHONY: help sysdeps test
 
 VENV := .venv
 PY := $(VENV)/bin/python
@@ -16,6 +16,19 @@ VOLARE_PDKS_DIR := pdks
 VOLARE_PDK_NAME := sky130
 VOLARE_PDK_HASH := 0fe599b2afb6708d281543108caf8310912f54af
 PDK_DIR := $(VOLARE_PDKS_DIR)/sky130A
+
+DEVICE ?=
+ifeq ($(firstword $(MAKECMDGOALS)),test)
+  ifeq ($(DEVICE),)
+    DEVICE := $(word 2,$(MAKECMDGOALS))
+  endif
+  ifneq ($(DEVICE),)
+    $(eval $(DEVICE):;@:)
+  endif
+endif
+
+DEVICE_PKG := $(patsubst devices/%,%,$(DEVICE))
+ACCEPT_RUNNER := devices/$(DEVICE_PKG)/tests/run_acceptance.py
 
 
 help: ## Show targets
@@ -34,3 +47,18 @@ init: ## Create virtualenv
 	git init
 	git add .
 	git commit -m "Initial commit"
+
+test: ## Run acceptance tests for a device: make test devices/<device> or make test DEVICE=<device>
+	@if [ -z "$(DEVICE_PKG)" ]; then \
+		echo "Usage: make test devices/<device> or make test DEVICE=<device>"; \
+		exit 2; \
+	fi
+	@if [ ! -f "$(ACCEPT_RUNNER)" ]; then \
+		echo "Acceptance runner not found: $(ACCEPT_RUNNER)"; \
+		exit 2; \
+	fi
+	@runner_py="$(PY)"; \
+	if ! "$$runner_py" -c 'import hdl21' >/dev/null 2>&1; then \
+		runner_py="python3"; \
+	fi; \
+	PDK_ROOT=$(VOLARE_PDKS_DIR) "$$runner_py" -m devices.$(subst /,.,$(DEVICE_PKG)).tests.run_acceptance
