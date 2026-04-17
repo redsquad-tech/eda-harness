@@ -1,7 +1,7 @@
 import hdl21 as h
 from hdl21.primitives import MosVth
 
-from .generators import (
+from .source.generators import (
     U,
     F,
     InvParams,
@@ -11,7 +11,7 @@ from .generators import (
     pmos_switch,
     transmission_gate,
 )
-from .opa_bias import OpaBiasGen, OpaBiasGenParams
+from .source.opa_bias import OpaBiasGenParams
 
 
 def _nmos(w, l, *, vth=MosVth.STD):
@@ -24,7 +24,7 @@ def _pmos(w, l, *, vth=MosVth.STD):
 
 @h.paramclass
 class FrontEndParams:
-    """Page-12 folded-cascode first stage."""
+    """Page-12 folded-cascode first-stage geometry."""
 
     w_in_p = h.Param(dtype=h.Scalar, desc="PMOS input-pair width", default=8.0 * U)
     w_in_n = h.Param(dtype=h.Scalar, desc="NMOS input-pair width", default=4.0 * U)
@@ -38,6 +38,8 @@ class FrontEndParams:
 
 @h.generator
 def complementary_cascode_frontend(params: FrontEndParams) -> h.Module:
+    """Legacy standalone frontend generator kept for debug benches."""
+
     @h.module
     class ComplementaryCascodeFrontEnd:
         vinp = h.Input()
@@ -60,7 +62,6 @@ def complementary_cascode_frontend(params: FrontEndParams) -> h.Module:
         nnode_r = h.Signal()
         vref_mid = h.Signal()
 
-        # PMOS rail-to-rail input pair. Reference page-12 uses drains folded into NMOS side.
         pinp_l = _pmos(params.w_in_p, params.l_in, vth=MosVth.LOW)(
             d=nnode_l, g=vinn, s=tail_p, b=avdd
         )
@@ -68,7 +69,6 @@ def complementary_cascode_frontend(params: FrontEndParams) -> h.Module:
             d=nnode_r, g=vinp, s=tail_p, b=avdd
         )
 
-        # NMOS rail-to-rail input pair. Drains fold into PMOS side.
         ninp_l = _nmos(params.w_in_n, params.l_in, vth=MosVth.LOW)(
             d=pnode_l, g=vinp, s=tail_n, b=agnd
         )
@@ -76,7 +76,6 @@ def complementary_cascode_frontend(params: FrontEndParams) -> h.Module:
             d=pnode_r, g=vinn, s=tail_n, b=agnd
         )
 
-        # Upper PMOS folded-cascode bias devices.
         mpb1_l = _pmos(params.w_pcas1, params.l_fold, vth=MosVth.HIGH)(
             d=pnode_l, g=vbias1, s=avdd, b=avdd
         )
@@ -84,7 +83,6 @@ def complementary_cascode_frontend(params: FrontEndParams) -> h.Module:
             d=pnode_r, g=vbias1, s=avdd, b=avdd
         )
 
-        # Upper signal-path PMOS devices.
         mpb2_l = _pmos(params.w_pcas2, params.l_fold)(
             d=vref_mid, g=vbias2, s=pnode_l, b=avdd
         )
@@ -92,7 +90,6 @@ def complementary_cascode_frontend(params: FrontEndParams) -> h.Module:
             d=vgp, g=vbias2, s=pnode_r, b=avdd
         )
 
-        # Lower signal-path NMOS devices.
         mnb3_l = _nmos(params.w_ncas, params.l_fold)(
             d=vref_mid, g=vbias3, s=nnode_l, b=agnd
         )
@@ -100,7 +97,6 @@ def complementary_cascode_frontend(params: FrontEndParams) -> h.Module:
             d=vgn, g=vbias3, s=nnode_r, b=agnd
         )
 
-        # Bottom NMOS mirror/sink pair.
         mnref = _nmos(params.w_nmir, params.l_fold)(
             d=nnode_l, g=nnode_l, s=agnd, b=agnd
         )
@@ -125,43 +121,39 @@ class MonticelliParams:
 
 @h.generator
 def monticelli_cell(params: MonticelliParams) -> h.Module:
+    """Legacy standalone Monticelli cell kept for local debug benches."""
+
     @h.module
     class MonticelliCell:
         vb_m24 = h.Inout()
         vb_m35 = h.Inout()
         vgp = h.Inout()
         vgn = h.Inout()
-        n_mid = h.Inout()
-        p_mid = h.Inout()
         avdd = h.Inout()
         agnd = h.Inout()
 
-        # NMOS-side branch:
-        # current source -> n_mid, where n_mid is common for M24 source and
-        # M23 source+gate, with M22 providing the gate-bias relation to vb_m24.
+        n_mid = h.Signal()
+        p_mid = h.Signal()
+
         mn22 = _nmos(params.w_stack_n, params.l_stack)(
             d=vb_m24, g=vb_m24, s=n_mid, b=agnd
         )
         mn23 = _nmos(params.w_stack_n, params.l_stack)(
-            d=agnd, g=n_mid, s=n_mid, b=agnd
+            d=n_mid, g=n_mid, s=agnd, b=agnd
         )
 
-        # PMOS-side branch:
-        # p_mid is common for M34 source+gate and the gate of M35, with M33
-        # providing the bias relation to vb_m35.
         mp33 = _pmos(params.w_stack_p, params.l_stack, vth=MosVth.HIGH)(
-            d=vb_m35, g=vb_m35, s=avdd, b=avdd
+            d=p_mid, g=p_mid, s=avdd, b=avdd
         )
         mp34 = _pmos(params.w_stack_p, params.l_stack, vth=MosVth.HIGH)(
-            d=vb_m35, g=p_mid, s=p_mid, b=avdd
+            d=vb_m35, g=vb_m35, s=p_mid, b=avdd
         )
 
-        # Explicit Monticelli floating battery.
         m24 = _nmos(params.w_m24, params.l_mont)(
-            d=vgp, g=vb_m24, s=n_mid, b=agnd
+            d=vgp, g=vb_m24, s=vgn, b=agnd
         )
         m35 = _pmos(params.w_m35, params.l_mont)(
-            d=vgn, g=p_mid, s=vgp, b=avdd
+            d=vgn, g=vb_m35, s=vgp, b=avdd
         )
 
     return MonticelliCell
@@ -180,6 +172,8 @@ class OutputStageParams:
 
 @h.generator
 def classab_output_stage(params: OutputStageParams) -> h.Module:
+    """Legacy standalone output stage kept for local debug benches."""
+
     @h.module
     class ClassAbOutputStage:
         vgp = h.Input()
@@ -190,88 +184,15 @@ def classab_output_stage(params: OutputStageParams) -> h.Module:
 
         ccp_mid, ccn_mid = h.Signals(2)
 
-        # Page-12 common-source push-pull output stage.
         m2 = _pmos(params.w_out_p, params.l_out)(d=vout, g=vgp, s=avdd, b=avdd)
         m1 = _nmos(params.w_out_n, params.l_out)(d=vout, g=vgn, s=agnd, b=agnd)
 
-        # Dual Rc-Cc compensation branches from VGP/VGN to Vout.
         rcp = h.Res(r=params.rc)(p=vgp, n=ccp_mid)
         ccp = h.Cap(c=params.cc)(p=ccp_mid, n=vout)
         rcn = h.Res(r=params.rc)(p=vgn, n=ccn_mid)
         ccn = h.Cap(c=params.cc)(p=ccn_mid, n=vout)
 
     return ClassAbOutputStage
-
-
-@h.paramclass
-class ClassabLoopParams:
-    monticelli = h.Param(
-        dtype=MonticelliParams,
-        desc="Page-12 Monticelli cell inside the local class-AB contour",
-        default=MonticelliParams(),
-    )
-    output = h.Param(
-        dtype=OutputStageParams,
-        desc="Page-12 output stage inside the local class-AB contour",
-        default=OutputStageParams(),
-    )
-    i_m24_uA = h.Param(
-        dtype=h.Scalar,
-        desc="Ideal local branch current into the M22-M23 / vb_m24 node in uA",
-        default=0.45,
-    )
-    i_m35_uA = h.Param(
-        dtype=h.Scalar,
-        desc="Ideal local branch current out of the M33-M34 / vb_m35 node in uA",
-        default=0.45,
-    )
-
-
-@h.generator
-def classab_loop(params: ClassabLoopParams) -> h.Module:
-    @h.module
-    class ClassabLoop:
-        vb_m24 = h.Inout()
-        vb_m35 = h.Inout()
-        vgp = h.Inout()
-        vgn = h.Inout()
-        vout = h.Output()
-        avdd = h.Inout()
-        agnd = h.Inout()
-        n_mid = h.Signal()
-        p_mid = h.Signal()
-
-    # Local ideal branch sources placed into the two common branch nodes:
-    # - AVDD -> n_mid branch common node
-    # - p_mid branch common node -> AGND
-    ClassabLoop.i_m35 = h.Idc(dc=params.i_m35_uA * 1e-6)(
-        p=ClassabLoop.avdd,
-        n=ClassabLoop.n_mid,
-    )
-    ClassabLoop.i_m24 = h.Idc(dc=params.i_m24_uA * 1e-6)(
-        p=ClassabLoop.p_mid,
-        n=ClassabLoop.agnd,
-    )
-
-    ClassabLoop.xmont = monticelli_cell(params.monticelli)(
-        vb_m24=ClassabLoop.vb_m24,
-        vb_m35=ClassabLoop.vb_m35,
-        vgp=ClassabLoop.vgp,
-        vgn=ClassabLoop.vgn,
-        n_mid=ClassabLoop.n_mid,
-        p_mid=ClassabLoop.p_mid,
-        avdd=ClassabLoop.avdd,
-        agnd=ClassabLoop.agnd,
-    )
-    ClassabLoop.xoutput_stage = classab_output_stage(params.output)(
-        vgp=ClassabLoop.vgp,
-        vgn=ClassabLoop.vgn,
-        vout=ClassabLoop.vout,
-        avdd=ClassabLoop.avdd,
-        agnd=ClassabLoop.agnd,
-    )
-
-    return ClassabLoop
 
 
 @h.paramclass
@@ -283,10 +204,23 @@ class NeuronOaParams:
         desc="Single-ended rail switches",
         default=SwitchParams(wp=5.0 * U, lp=0.30 * U, wn=4.0 * U, ln=0.30 * U),
     )
-    bias = h.Param(dtype=OpaBiasGenParams, desc="OPA bias generator", default=OpaBiasGenParams())
+    bias = h.Param(
+        dtype=OpaBiasGenParams,
+        desc="Legacy bias-generator parameters kept only for compatibility",
+        default=OpaBiasGenParams(),
+    )
     frontend = h.Param(dtype=FrontEndParams, desc="Page-12 folded first stage", default=FrontEndParams())
     monticelli = h.Param(dtype=MonticelliParams, desc="Page-12 Monticelli cell", default=MonticelliParams())
     output = h.Param(dtype=OutputStageParams, desc="Page-12 output stage", default=OutputStageParams())
+
+    vbias1_V = h.Param(dtype=h.Scalar, desc="Ideal frontend bias-1 voltage", default=0.82383252916907)
+    vbias2_V = h.Param(dtype=h.Scalar, desc="Ideal frontend bias-2 voltage", default=0.890730977583764)
+    vbias3_V = h.Param(dtype=h.Scalar, desc="Ideal frontend bias-3 voltage", default=0.6335259806583905)
+    tail_p_uA = h.Param(dtype=h.Scalar, desc="Ideal PMOS tail current in uA", default=1.6)
+    tail_n_uA = h.Param(dtype=h.Scalar, desc="Ideal NMOS tail current in uA", default=1.6)
+    vb_m24_uA = h.Param(dtype=h.Scalar, desc="Ideal PMOS-source current into vb_m24 in uA", default=0.45)
+    vb_m35_uA = h.Param(dtype=h.Scalar, desc="Ideal NMOS-sink current from vb_m35 in uA", default=0.45)
+    iref_term_ohm = h.Param(dtype=h.Scalar, desc="Termination for the external iref pin", default=1e6)
 
 
 @h.generator
@@ -316,13 +250,15 @@ def neuron_core_oa_sky130(params: NeuronOaParams) -> h.Module:
         d_en_b, d_az_b, d_inf_b, d_tdi_b = h.Signals(4)
 
         iref_int = h.Signal()
-        ibias_p_unused = h.Signal()
-        ibias_n_unused = h.Signal()
         vbias1, vbias2, vbias3 = h.Signals(3)
         tail_p, tail_n, vb_m24, vb_m35 = h.Signals(4)
         vgp, vgn = h.Signals(2)
+        pnode_l, pnode_r = h.Signals(2)
+        nnode_l, nnode_r = h.Signals(2)
+        vref_mid = h.Signal()
+        n_mid, p_mid = h.Signals(2)
+        ccp_mid, ccn_mid = h.Signals(2)
 
-    # Local control complements.
     NeuronCoreOaSky130.inv_en = cmos_inv(params.inv)(
         i=NeuronCoreOaSky130.d_en_oa,
         o=NeuronCoreOaSky130.d_en_b,
@@ -348,7 +284,6 @@ def neuron_core_oa_sky130(params: NeuronOaParams) -> h.Module:
         agnd=NeuronCoreOaSky130.agnd,
     )
 
-    # Keep the external reference pin interface from the current wrapper.
     NeuronCoreOaSky130.iref_sw = transmission_gate(params.tg)(
         a=NeuronCoreOaSky130.in0u25_oa,
         b=NeuronCoreOaSky130.iref_int,
@@ -357,37 +292,77 @@ def neuron_core_oa_sky130(params: NeuronOaParams) -> h.Module:
         avdd=NeuronCoreOaSky130.avdd1p2,
         agnd=NeuronCoreOaSky130.agnd,
     )
-
-    # Reuse the existing idealized bias generator as wrapper support.
-    NeuronCoreOaSky130.bias = OpaBiasGen(params.bias)(
-        avdd=NeuronCoreOaSky130.avdd1p2,
-        agnd=NeuronCoreOaSky130.agnd,
-        iref=NeuronCoreOaSky130.iref_int,
-        i0_p=NeuronCoreOaSky130.tail_p,
-        i0_n=NeuronCoreOaSky130.tail_n,
-        ibias_p=NeuronCoreOaSky130.ibias_p_unused,
-        ibias_n=NeuronCoreOaSky130.ibias_n_unused,
-        vbias1=NeuronCoreOaSky130.vbias1,
-        vbias2=NeuronCoreOaSky130.vbias2,
-        vbias3=NeuronCoreOaSky130.vbias3,
+    NeuronCoreOaSky130.iref_term = h.Res(r=params.iref_term_ohm)(
+        p=NeuronCoreOaSky130.iref_int,
+        n=NeuronCoreOaSky130.agnd,
     )
 
-    # Page-12 folded-cascode first stage.
-    NeuronCoreOaSky130.frontend = complementary_cascode_frontend(params.frontend)(
-        vinp=NeuronCoreOaSky130.vinp,
-        vinn=NeuronCoreOaSky130.vinn,
-        avdd=NeuronCoreOaSky130.avdd1p2,
-        agnd=NeuronCoreOaSky130.agnd,
-        tail_p=NeuronCoreOaSky130.tail_p,
-        tail_n=NeuronCoreOaSky130.tail_n,
-        vbias1=NeuronCoreOaSky130.vbias1,
-        vbias2=NeuronCoreOaSky130.vbias2,
-        vbias3=NeuronCoreOaSky130.vbias3,
-        vgp=NeuronCoreOaSky130.vgp,
-        vgn=NeuronCoreOaSky130.vgn,
+    NeuronCoreOaSky130.vbias1_src = h.Vdc(dc=params.vbias1_V)(
+        p=NeuronCoreOaSky130.vbias1,
+        n=NeuronCoreOaSky130.agnd,
+    )
+    NeuronCoreOaSky130.vbias2_src = h.Vdc(dc=params.vbias2_V)(
+        p=NeuronCoreOaSky130.vbias2,
+        n=NeuronCoreOaSky130.agnd,
+    )
+    NeuronCoreOaSky130.vbias3_src = h.Vdc(dc=params.vbias3_V)(
+        p=NeuronCoreOaSky130.vbias3,
+        n=NeuronCoreOaSky130.agnd,
+    )
+    NeuronCoreOaSky130.itail_p = h.Idc(dc=params.tail_p_uA * 1e-6)(
+        p=NeuronCoreOaSky130.avdd1p2,
+        n=NeuronCoreOaSky130.tail_p,
+    )
+    NeuronCoreOaSky130.itail_n = h.Idc(dc=params.tail_n_uA * 1e-6)(
+        p=NeuronCoreOaSky130.tail_n,
+        n=NeuronCoreOaSky130.agnd,
+    )
+    NeuronCoreOaSky130.ibias_m24 = h.Idc(dc=params.vb_m24_uA * 1e-6)(
+        p=NeuronCoreOaSky130.avdd1p2,
+        n=NeuronCoreOaSky130.vb_m24,
+    )
+    NeuronCoreOaSky130.ibias_m35 = h.Idc(dc=params.vb_m35_uA * 1e-6)(
+        p=NeuronCoreOaSky130.vb_m35,
+        n=NeuronCoreOaSky130.agnd,
     )
 
-    # Optional AZ hook stays outside the core.
+    NeuronCoreOaSky130.pinp_l = _pmos(params.frontend.w_in_p, params.frontend.l_in, vth=MosVth.LOW)(
+        d=NeuronCoreOaSky130.nnode_l, g=NeuronCoreOaSky130.vinn, s=NeuronCoreOaSky130.tail_p, b=NeuronCoreOaSky130.avdd1p2
+    )
+    NeuronCoreOaSky130.pinp_r = _pmos(params.frontend.w_in_p, params.frontend.l_in, vth=MosVth.LOW)(
+        d=NeuronCoreOaSky130.nnode_r, g=NeuronCoreOaSky130.vinp, s=NeuronCoreOaSky130.tail_p, b=NeuronCoreOaSky130.avdd1p2
+    )
+    NeuronCoreOaSky130.ninp_l = _nmos(params.frontend.w_in_n, params.frontend.l_in, vth=MosVth.LOW)(
+        d=NeuronCoreOaSky130.pnode_l, g=NeuronCoreOaSky130.vinp, s=NeuronCoreOaSky130.tail_n, b=NeuronCoreOaSky130.agnd
+    )
+    NeuronCoreOaSky130.ninp_r = _nmos(params.frontend.w_in_n, params.frontend.l_in, vth=MosVth.LOW)(
+        d=NeuronCoreOaSky130.pnode_r, g=NeuronCoreOaSky130.vinn, s=NeuronCoreOaSky130.tail_n, b=NeuronCoreOaSky130.agnd
+    )
+    NeuronCoreOaSky130.mpb1_l = _pmos(params.frontend.w_pcas1, params.frontend.l_fold, vth=MosVth.HIGH)(
+        d=NeuronCoreOaSky130.pnode_l, g=NeuronCoreOaSky130.vbias1, s=NeuronCoreOaSky130.avdd1p2, b=NeuronCoreOaSky130.avdd1p2
+    )
+    NeuronCoreOaSky130.mpb1_r = _pmos(params.frontend.w_pcas1, params.frontend.l_fold, vth=MosVth.HIGH)(
+        d=NeuronCoreOaSky130.pnode_r, g=NeuronCoreOaSky130.vbias1, s=NeuronCoreOaSky130.avdd1p2, b=NeuronCoreOaSky130.avdd1p2
+    )
+    NeuronCoreOaSky130.mpb2_l = _pmos(params.frontend.w_pcas2, params.frontend.l_fold)(
+        d=NeuronCoreOaSky130.vref_mid, g=NeuronCoreOaSky130.vbias2, s=NeuronCoreOaSky130.pnode_l, b=NeuronCoreOaSky130.avdd1p2
+    )
+    NeuronCoreOaSky130.mpb2_r = _pmos(params.frontend.w_pcas2, params.frontend.l_fold)(
+        d=NeuronCoreOaSky130.vgp, g=NeuronCoreOaSky130.vbias2, s=NeuronCoreOaSky130.pnode_r, b=NeuronCoreOaSky130.avdd1p2
+    )
+    NeuronCoreOaSky130.mnb3_l = _nmos(params.frontend.w_ncas, params.frontend.l_fold)(
+        d=NeuronCoreOaSky130.vref_mid, g=NeuronCoreOaSky130.vbias3, s=NeuronCoreOaSky130.nnode_l, b=NeuronCoreOaSky130.agnd
+    )
+    NeuronCoreOaSky130.mnb3_r = _nmos(params.frontend.w_ncas, params.frontend.l_fold)(
+        d=NeuronCoreOaSky130.vgn, g=NeuronCoreOaSky130.vbias3, s=NeuronCoreOaSky130.nnode_r, b=NeuronCoreOaSky130.agnd
+    )
+    NeuronCoreOaSky130.mnref = _nmos(params.frontend.w_nmir, params.frontend.l_fold)(
+        d=NeuronCoreOaSky130.nnode_l, g=NeuronCoreOaSky130.nnode_l, s=NeuronCoreOaSky130.agnd, b=NeuronCoreOaSky130.agnd
+    )
+    NeuronCoreOaSky130.mnout = _nmos(params.frontend.w_nmir, params.frontend.l_fold)(
+        d=NeuronCoreOaSky130.nnode_r, g=NeuronCoreOaSky130.nnode_l, s=NeuronCoreOaSky130.agnd, b=NeuronCoreOaSky130.agnd
+    )
+
     NeuronCoreOaSky130.az_short = transmission_gate(params.tg)(
         a=NeuronCoreOaSky130.vgp,
         b=NeuronCoreOaSky130.vgn,
@@ -397,20 +372,36 @@ def neuron_core_oa_sky130(params: NeuronOaParams) -> h.Module:
         agnd=NeuronCoreOaSky130.agnd,
     )
 
-    # Page-12 local class-AB contour, grouped without changing connectivity.
-    NeuronCoreOaSky130.classab_loop = classab_loop(
-        ClassabLoopParams(monticelli=params.monticelli, output=params.output)
-    )(
-        vb_m24=NeuronCoreOaSky130.vb_m24,
-        vb_m35=NeuronCoreOaSky130.vb_m35,
-        vgp=NeuronCoreOaSky130.vgp,
-        vgn=NeuronCoreOaSky130.vgn,
-        vout=NeuronCoreOaSky130.vout,
-        avdd=NeuronCoreOaSky130.avdd1p2,
-        agnd=NeuronCoreOaSky130.agnd,
+    NeuronCoreOaSky130.mn22 = _nmos(params.monticelli.w_stack_n, params.monticelli.l_stack)(
+        d=NeuronCoreOaSky130.vb_m24, g=NeuronCoreOaSky130.vb_m24, s=NeuronCoreOaSky130.n_mid, b=NeuronCoreOaSky130.agnd
+    )
+    NeuronCoreOaSky130.mn23 = _nmos(params.monticelli.w_stack_n, params.monticelli.l_stack)(
+        d=NeuronCoreOaSky130.n_mid, g=NeuronCoreOaSky130.n_mid, s=NeuronCoreOaSky130.agnd, b=NeuronCoreOaSky130.agnd
+    )
+    NeuronCoreOaSky130.mp33 = _pmos(params.monticelli.w_stack_p, params.monticelli.l_stack, vth=MosVth.HIGH)(
+        d=NeuronCoreOaSky130.p_mid, g=NeuronCoreOaSky130.p_mid, s=NeuronCoreOaSky130.avdd1p2, b=NeuronCoreOaSky130.avdd1p2
+    )
+    NeuronCoreOaSky130.mp34 = _pmos(params.monticelli.w_stack_p, params.monticelli.l_stack, vth=MosVth.HIGH)(
+        d=NeuronCoreOaSky130.vb_m35, g=NeuronCoreOaSky130.vb_m35, s=NeuronCoreOaSky130.p_mid, b=NeuronCoreOaSky130.avdd1p2
+    )
+    NeuronCoreOaSky130.m24 = _nmos(params.monticelli.w_m24, params.monticelli.l_mont)(
+        d=NeuronCoreOaSky130.vgp, g=NeuronCoreOaSky130.vb_m24, s=NeuronCoreOaSky130.vgn, b=NeuronCoreOaSky130.agnd
+    )
+    NeuronCoreOaSky130.m35 = _pmos(params.monticelli.w_m35, params.monticelli.l_mont)(
+        d=NeuronCoreOaSky130.vgn, g=NeuronCoreOaSky130.vb_m35, s=NeuronCoreOaSky130.vgp, b=NeuronCoreOaSky130.avdd1p2
     )
 
-    # Product-level outer hooks kept outside the core.
+    NeuronCoreOaSky130.m2 = _pmos(params.output.w_out_p, params.output.l_out)(
+        d=NeuronCoreOaSky130.vout, g=NeuronCoreOaSky130.vgp, s=NeuronCoreOaSky130.avdd1p2, b=NeuronCoreOaSky130.avdd1p2
+    )
+    NeuronCoreOaSky130.m1 = _nmos(params.output.w_out_n, params.output.l_out)(
+        d=NeuronCoreOaSky130.vout, g=NeuronCoreOaSky130.vgn, s=NeuronCoreOaSky130.agnd, b=NeuronCoreOaSky130.agnd
+    )
+    NeuronCoreOaSky130.rcp = h.Res(r=params.output.rc)(p=NeuronCoreOaSky130.vgp, n=NeuronCoreOaSky130.ccp_mid)
+    NeuronCoreOaSky130.ccp = h.Cap(c=params.output.cc)(p=NeuronCoreOaSky130.ccp_mid, n=NeuronCoreOaSky130.vout)
+    NeuronCoreOaSky130.rcn = h.Res(r=params.output.rc)(p=NeuronCoreOaSky130.vgn, n=NeuronCoreOaSky130.ccn_mid)
+    NeuronCoreOaSky130.ccn = h.Cap(c=params.output.cc)(p=NeuronCoreOaSky130.ccn_mid, n=NeuronCoreOaSky130.vout)
+
     NeuronCoreOaSky130.vbase_sw = nmos_switch(params.rail_sw)(
         a=NeuronCoreOaSky130.vbase,
         b=NeuronCoreOaSky130.agnd,

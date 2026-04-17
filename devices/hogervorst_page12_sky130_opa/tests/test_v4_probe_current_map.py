@@ -6,7 +6,7 @@ import sky130_hdl21 as sky130
 from hdl21.sim import Op, Save, Sim
 from vlsirtools.spice import ResultFormat
 
-from devices.hogervorst_page12_sky130_opa.common import default_ngspice_options, run_ngspice_sim
+from devices.hogervorst_page12_sky130_opa.source.common import default_ngspice_options, run_ngspice_sim
 from devices.hogervorst_page12_sky130_opa.opamp import NeuronOaParams, compile_for_sky130, neuron_core_oa_sky130
 from devices.hogervorst_page12_sky130_opa.tests._helpers import BaseV4SimTest, write_metrics_json
 
@@ -65,33 +65,20 @@ def measure_current_map() -> dict:
     dut = h.elaborate(neuron_core_oa_sky130(NeuronOaParams()))
     compile_for_sky130(dut)
     op_save = [
-        "@m.xtop.xxdut.xbias.xmp_ref.msky130_fd_pr__pfet_01v8[id]",
-        "@m.xtop.xxdut.xbias.xmp_i0_p_ref.msky130_fd_pr__pfet_01v8[id]",
-        "@m.xtop.xxdut.xbias.xmn_i0_p_sink.msky130_fd_pr__nfet_01v8[id]",
-        "@m.xtop.xxdut.xbias.xmp_ibias_p_ref.msky130_fd_pr__pfet_01v8[id]",
-        "@m.xtop.xxdut.xbias.xmn_ibias_p_sink.msky130_fd_pr__nfet_01v8[id]",
-        "@m.xtop.xxdut.xbias.xmp_nref_feed.msky130_fd_pr__pfet_01v8[id]",
-        "@m.xtop.xxdut.xbias.xmn_ref.msky130_fd_pr__nfet_01v8[id]",
-        "@m.xtop.xxdut.xbias.xmp_i0_n_feed.msky130_fd_pr__pfet_01v8[id]",
-        "@m.xtop.xxdut.xbias.xmn_i0_n_ref.msky130_fd_pr__nfet_01v8[id]",
-        "@m.xtop.xxdut.xbias.xmp_ibias_n_feed.msky130_fd_pr__pfet_01v8[id]",
-        "@m.xtop.xxdut.xbias.xmn_ibias_n_ref.msky130_fd_pr__nfet_01v8[id]",
-        "@m.xtop.xxdut.xbias.xmp_i0_p_out.msky130_fd_pr__pfet_01v8[id]",
-        "@m.xtop.xxdut.xbias.xmn_i0_n_out.msky130_fd_pr__nfet_01v8[id]",
-        "@m.xtop.xxdut.xbias.xmp_ibias_p_out.msky130_fd_pr__pfet_01v8[id]",
-        "@m.xtop.xxdut.xbias.xmn_ibias_n_out.msky130_fd_pr__nfet_01v8[id]",
-        "@m.xtop.xxdut.xfrontend.xpinp_l.msky130_fd_pr__pfet_01v8[id]",
-        "@m.xtop.xxdut.xfrontend.xpinp_r.msky130_fd_pr__pfet_01v8[id]",
-        "@m.xtop.xxdut.xfrontend.xninp_l.msky130_fd_pr__nfet_01v8[id]",
-        "@m.xtop.xxdut.xfrontend.xninp_r.msky130_fd_pr__nfet_01v8[id]",
-        "@m.xtop.xxdut.xfrontend.xmpb1_l.msky130_fd_pr__pfet_01v8[id]",
-        "@m.xtop.xxdut.xfrontend.xmpb1_r.msky130_fd_pr__pfet_01v8[id]",
-        "@m.xtop.xxdut.xfrontend.xmnb3_l.msky130_fd_pr__nfet_01v8[id]",
-        "@m.xtop.xxdut.xfrontend.xmnb3_r.msky130_fd_pr__nfet_01v8[id]",
-        "@m.xtop.xxdut.xclassab_loop.xxmont.xm24.msky130_fd_pr__nfet_01v8[id]",
-        "@m.xtop.xxdut.xclassab_loop.xxmont.xm35.msky130_fd_pr__pfet_01v8[id]",
-        "@m.xtop.xxdut.xclassab_loop.xxoutput_stage.xm1.msky130_fd_pr__nfet_01v8[id]",
-        "@m.xtop.xxdut.xclassab_loop.xxoutput_stage.xm2.msky130_fd_pr__pfet_01v8[id]",
+        "@m.xtop.xxdut.xpinp_l.msky130_fd_pr__pfet_01v8[id]",
+        "@m.xtop.xxdut.xpinp_r.msky130_fd_pr__pfet_01v8[id]",
+        "@m.xtop.xxdut.xninp_l.msky130_fd_pr__nfet_01v8[id]",
+        "@m.xtop.xxdut.xninp_r.msky130_fd_pr__nfet_01v8[id]",
+        "@m.xtop.xxdut.xmpb1_l.msky130_fd_pr__pfet_01v8[id]",
+        "@m.xtop.xxdut.xmpb1_r.msky130_fd_pr__pfet_01v8[id]",
+        "@m.xtop.xxdut.xmnb3_l.msky130_fd_pr__nfet_01v8[id]",
+        "@m.xtop.xxdut.xmnb3_r.msky130_fd_pr__nfet_01v8[id]",
+        "@m.xtop.xxdut.xmn23.msky130_fd_pr__nfet_01v8[id]",
+        "@m.xtop.xxdut.xmp34.msky130_fd_pr__pfet_01v8[id]",
+        "@m.xtop.xxdut.xm24.msky130_fd_pr__nfet_01v8[id]",
+        "@m.xtop.xxdut.xm35.msky130_fd_pr__pfet_01v8[id]",
+        "@m.xtop.xxdut.xm1.msky130_fd_pr__nfet_01v8[id]",
+        "@m.xtop.xxdut.xm2.msky130_fd_pr__pfet_01v8[id]",
         "i(v.xtop.vvvdd)",
     ]
     sim = Sim(
@@ -104,33 +91,20 @@ def measure_current_map() -> dict:
     )
     d = result.an[0].data
     payload = {
-        "bias_ref_A": abs(float(d["i(@m.xtop.xxdut.xbias.xmp_ref.msky130_fd_pr__pfet_01v8[id])"])),
-        "bias_i0_p_ref_A": abs(float(d["i(@m.xtop.xxdut.xbias.xmp_i0_p_ref.msky130_fd_pr__pfet_01v8[id])"])),
-        "bias_i0_p_sink_A": abs(float(d["i(@m.xtop.xxdut.xbias.xmn_i0_p_sink.msky130_fd_pr__nfet_01v8[id])"])),
-        "bias_ibias_p_ref_A": abs(float(d["i(@m.xtop.xxdut.xbias.xmp_ibias_p_ref.msky130_fd_pr__pfet_01v8[id])"])),
-        "bias_ibias_p_sink_A": abs(float(d["i(@m.xtop.xxdut.xbias.xmn_ibias_p_sink.msky130_fd_pr__nfet_01v8[id])"])),
-        "bias_n_feed_A": abs(float(d["i(@m.xtop.xxdut.xbias.xmp_nref_feed.msky130_fd_pr__pfet_01v8[id])"])),
-        "bias_n_ref_A": abs(float(d["i(@m.xtop.xxdut.xbias.xmn_ref.msky130_fd_pr__nfet_01v8[id])"])),
-        "bias_i0_n_feed_A": abs(float(d["i(@m.xtop.xxdut.xbias.xmp_i0_n_feed.msky130_fd_pr__pfet_01v8[id])"])),
-        "bias_i0_n_ref_A": abs(float(d["i(@m.xtop.xxdut.xbias.xmn_i0_n_ref.msky130_fd_pr__nfet_01v8[id])"])),
-        "bias_ibias_n_feed_A": abs(float(d["i(@m.xtop.xxdut.xbias.xmp_ibias_n_feed.msky130_fd_pr__pfet_01v8[id])"])),
-        "bias_ibias_n_ref_A": abs(float(d["i(@m.xtop.xxdut.xbias.xmn_ibias_n_ref.msky130_fd_pr__nfet_01v8[id])"])),
-        "tail_p_A": abs(float(d["i(@m.xtop.xxdut.xbias.xmp_i0_p_out.msky130_fd_pr__pfet_01v8[id])"])),
-        "tail_n_A": abs(float(d["i(@m.xtop.xxdut.xbias.xmn_i0_n_out.msky130_fd_pr__nfet_01v8[id])"])),
-        "vb_m24_A": abs(float(d["i(@m.xtop.xxdut.xbias.xmp_ibias_p_out.msky130_fd_pr__pfet_01v8[id])"])),
-        "vb_m35_A": abs(float(d["i(@m.xtop.xxdut.xbias.xmn_ibias_n_out.msky130_fd_pr__nfet_01v8[id])"])),
-        "frontend_pinp_l_A": abs(float(d["i(@m.xtop.xxdut.xfrontend.xpinp_l.msky130_fd_pr__pfet_01v8[id])"])),
-        "frontend_pinp_r_A": abs(float(d["i(@m.xtop.xxdut.xfrontend.xpinp_r.msky130_fd_pr__pfet_01v8[id])"])),
-        "frontend_ninp_l_A": abs(float(d["i(@m.xtop.xxdut.xfrontend.xninp_l.msky130_fd_pr__nfet_01v8[id])"])),
-        "frontend_ninp_r_A": abs(float(d["i(@m.xtop.xxdut.xfrontend.xninp_r.msky130_fd_pr__nfet_01v8[id])"])),
-        "frontend_mpb1_l_A": abs(float(d["i(@m.xtop.xxdut.xfrontend.xmpb1_l.msky130_fd_pr__pfet_01v8[id])"])),
-        "frontend_mpb1_r_A": abs(float(d["i(@m.xtop.xxdut.xfrontend.xmpb1_r.msky130_fd_pr__pfet_01v8[id])"])),
-        "frontend_mnb3_l_A": abs(float(d["i(@m.xtop.xxdut.xfrontend.xmnb3_l.msky130_fd_pr__nfet_01v8[id])"])),
-        "frontend_mnb3_r_A": abs(float(d["i(@m.xtop.xxdut.xfrontend.xmnb3_r.msky130_fd_pr__nfet_01v8[id])"])),
-        "mont_n_bridge_A": abs(float(d["i(@m.xtop.xxdut.xclassab_loop.xxmont.xm24.msky130_fd_pr__nfet_01v8[id])"])),
-        "mont_p_bridge_A": abs(float(d["i(@m.xtop.xxdut.xclassab_loop.xxmont.xm35.msky130_fd_pr__pfet_01v8[id])"])),
-        "out_n_A": abs(float(d["i(@m.xtop.xxdut.xclassab_loop.xxoutput_stage.xm1.msky130_fd_pr__nfet_01v8[id])"])),
-        "out_p_A": abs(float(d["i(@m.xtop.xxdut.xclassab_loop.xxoutput_stage.xm2.msky130_fd_pr__pfet_01v8[id])"])),
+        "frontend_pinp_l_A": abs(float(d["i(@m.xtop.xxdut.xpinp_l.msky130_fd_pr__pfet_01v8[id])"])),
+        "frontend_pinp_r_A": abs(float(d["i(@m.xtop.xxdut.xpinp_r.msky130_fd_pr__pfet_01v8[id])"])),
+        "frontend_ninp_l_A": abs(float(d["i(@m.xtop.xxdut.xninp_l.msky130_fd_pr__nfet_01v8[id])"])),
+        "frontend_ninp_r_A": abs(float(d["i(@m.xtop.xxdut.xninp_r.msky130_fd_pr__nfet_01v8[id])"])),
+        "frontend_mpb1_l_A": abs(float(d["i(@m.xtop.xxdut.xmpb1_l.msky130_fd_pr__pfet_01v8[id])"])),
+        "frontend_mpb1_r_A": abs(float(d["i(@m.xtop.xxdut.xmpb1_r.msky130_fd_pr__pfet_01v8[id])"])),
+        "frontend_mnb3_l_A": abs(float(d["i(@m.xtop.xxdut.xmnb3_l.msky130_fd_pr__nfet_01v8[id])"])),
+        "frontend_mnb3_r_A": abs(float(d["i(@m.xtop.xxdut.xmnb3_r.msky130_fd_pr__nfet_01v8[id])"])),
+        "mont_stack_n_A": abs(float(d["i(@m.xtop.xxdut.xmn23.msky130_fd_pr__nfet_01v8[id])"])),
+        "mont_stack_p_A": abs(float(d["i(@m.xtop.xxdut.xmp34.msky130_fd_pr__pfet_01v8[id])"])),
+        "mont_n_bridge_A": abs(float(d["i(@m.xtop.xxdut.xm24.msky130_fd_pr__nfet_01v8[id])"])),
+        "mont_p_bridge_A": abs(float(d["i(@m.xtop.xxdut.xm35.msky130_fd_pr__pfet_01v8[id])"])),
+        "out_n_A": abs(float(d["i(@m.xtop.xxdut.xm1.msky130_fd_pr__nfet_01v8[id])"])),
+        "out_p_A": abs(float(d["i(@m.xtop.xxdut.xm2.msky130_fd_pr__pfet_01v8[id])"])),
         "iq_total_A": abs(float(d["i(v.xtop.vvvdd)"])),
     }
     payload["summary"] = {
@@ -151,5 +125,5 @@ class TestV4ProbeCurrentMap(BaseV4SimTest):
                 continue
             self.assertFinite(value, key)
         self.assertGreater(payload["iq_total_A"], 0.0)
-        self.assertGreater(payload["bias_ref_A"], 0.0)
-        self.assertGreater(payload["tail_n_A"], 0.0)
+        self.assertGreater(payload["mont_stack_n_A"], 0.0)
+        self.assertGreater(payload["out_n_A"], 0.0)

@@ -1,7 +1,7 @@
 from pathlib import Path
 import math
 
-from devices.hogervorst_page12_sky130_opa.measure import V4OutputDriveTbParams, run_open_loop_test, run_output_drive_test
+from devices.hogervorst_page12_sky130_opa.source.measure import V4OutputDriveTbParams, run_open_loop_test, run_output_drive_test
 from devices.hogervorst_page12_sky130_opa.opamp import NeuronOaParams
 from devices.hogervorst_page12_sky130_opa.tests._helpers import BaseV4SimTest, write_metrics_json
 from devices.hogervorst_page12_sky130_opa.tests.test_v4_probe_current_map import measure_current_map

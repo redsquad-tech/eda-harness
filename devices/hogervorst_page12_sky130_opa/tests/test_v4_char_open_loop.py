@@ -1,4 +1,4 @@
-from devices.hogervorst_page12_sky130_opa.measure import run_open_loop_test
+from devices.hogervorst_page12_sky130_opa.source.measure import run_open_loop_test
 from devices.hogervorst_page12_sky130_opa.tests._helpers import BaseV4SimTest
 
 

@@ -6,7 +6,7 @@ import sky130_hdl21 as sky130
 from hdl21.sim import Op, Save, Sim
 from vlsirtools.spice import ResultFormat
 
-from devices.hogervorst_page12_sky130_opa.common import default_ngspice_options, run_ngspice_sim
+from devices.hogervorst_page12_sky130_opa.source.common import default_ngspice_options, run_ngspice_sim
 from devices.hogervorst_page12_sky130_opa.opamp import (
     NeuronOaParams,
     classab_output_stage,

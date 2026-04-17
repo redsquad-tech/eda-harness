@@ -20,7 +20,7 @@ from .common import (
     op_scalar,
     run_ngspice_sim,
 )
-from .opamp import (
+from ..opamp import (
     NeuronOaParams,
     OutputStageParams,
     classab_output_stage,

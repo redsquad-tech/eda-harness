@@ -6,7 +6,7 @@ import sky130_hdl21 as sky130
 from hdl21.sim import Op, Save, Sim
 from vlsirtools.spice import ResultFormat
 
-from devices.hogervorst_page12_sky130_opa.common import default_ngspice_options, run_ngspice_sim
+from devices.hogervorst_page12_sky130_opa.source.common import default_ngspice_options, run_ngspice_sim
 from devices.hogervorst_page12_sky130_opa.opamp import NeuronOaParams, compile_for_sky130, neuron_core_oa_sky130
 from devices.hogervorst_page12_sky130_opa.tests._helpers import BaseV4SimTest, write_metrics_json
 
@@ -68,8 +68,8 @@ def _run_case(*, en_v: float, inf_v: float, label: str) -> dict[str, float]:
         "v(xtop.xxdut.vgp)",
         "v(xtop.xxdut.vgn)",
         "v(xtop.vout)",
-        "@m.xtop.xxdut.xclassab_loop.xxoutput_stage.xm1.msky130_fd_pr__nfet_01v8[id]",
-        "@m.xtop.xxdut.xclassab_loop.xxoutput_stage.xm2.msky130_fd_pr__pfet_01v8[id]",
+        "@m.xtop.xxdut.xm1.msky130_fd_pr__nfet_01v8[id]",
+        "@m.xtop.xxdut.xm2.msky130_fd_pr__pfet_01v8[id]",
         "i(v.xtop.vvvdd)",
     ]
     sim = Sim(
@@ -87,8 +87,8 @@ def _run_case(*, en_v: float, inf_v: float, label: str) -> dict[str, float]:
         "vgp_V": float(d["v(xtop.xxdut.vgp)"]),
         "vgn_V": float(d["v(xtop.xxdut.vgn)"]),
         "vout_V": float(d["v(xtop.vout)"]),
-        "id_out_n_A": float(d["i(@m.xtop.xxdut.xclassab_loop.xxoutput_stage.xm1.msky130_fd_pr__nfet_01v8[id])"]),
-        "id_out_p_A": float(d["i(@m.xtop.xxdut.xclassab_loop.xxoutput_stage.xm2.msky130_fd_pr__pfet_01v8[id])"]),
+        "id_out_n_A": float(d["i(@m.xtop.xxdut.xm1.msky130_fd_pr__nfet_01v8[id])"]),
+        "id_out_p_A": float(d["i(@m.xtop.xxdut.xm2.msky130_fd_pr__pfet_01v8[id])"]),
         "iq_total_A": abs(float(d["i(v.xtop.vvvdd)"])),
     }
 

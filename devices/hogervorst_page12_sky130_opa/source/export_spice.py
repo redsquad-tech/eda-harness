@@ -4,7 +4,7 @@ from pathlib import Path
 import hdl21 as h
 
 from .common import init_sky130_install
-from .opamp import NeuronOaParams, compile_for_sky130, neuron_core_oa_sky130
+from ..opamp import NeuronOaParams, compile_for_sky130, neuron_core_oa_sky130
 
 
 def export_spice(output_path: Path | None = None) -> Path:

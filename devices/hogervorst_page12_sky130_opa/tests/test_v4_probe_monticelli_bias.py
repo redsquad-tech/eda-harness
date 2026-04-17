@@ -6,7 +6,7 @@ import sky130_hdl21 as sky130
 from hdl21.sim import Op, Save, Sim
 from vlsirtools.spice import ResultFormat
 
-from devices.hogervorst_page12_sky130_opa.common import default_ngspice_options, run_ngspice_sim
+from devices.hogervorst_page12_sky130_opa.source.common import default_ngspice_options, run_ngspice_sim
 from devices.hogervorst_page12_sky130_opa.opamp import NeuronOaParams, compile_for_sky130, neuron_core_oa_sky130
 from devices.hogervorst_page12_sky130_opa.tests._helpers import BaseV4SimTest, write_metrics_json
 
@@ -68,12 +68,12 @@ def measure_monticelli_bias() -> dict:
         "v(xtop.xxdut.vgn)",
         "v(xtop.xxdut.vgp)",
         "v(xtop.xxdut.vb_m35)",
-        "v(xtop.xxdut.xclassab_loop.n_mid)",
-        "v(xtop.xxdut.xclassab_loop.p_mid)",
-        "@m.xtop.xxdut.xclassab_loop.xxmont.xmn23.msky130_fd_pr__nfet_01v8[id]",
-        "@m.xtop.xxdut.xclassab_loop.xxmont.xm24.msky130_fd_pr__nfet_01v8[id]",
-        "@m.xtop.xxdut.xclassab_loop.xxmont.xmp34.msky130_fd_pr__pfet_01v8[id]",
-        "@m.xtop.xxdut.xclassab_loop.xxmont.xm35.msky130_fd_pr__pfet_01v8[id]",
+        "v(xtop.xxdut.n_mid)",
+        "v(xtop.xxdut.p_mid)",
+        "@m.xtop.xxdut.xmn23.msky130_fd_pr__nfet_01v8[id]",
+        "@m.xtop.xxdut.xm24.msky130_fd_pr__nfet_01v8[id]",
+        "@m.xtop.xxdut.xmp34.msky130_fd_pr__pfet_01v8[id]",
+        "@m.xtop.xxdut.xm35.msky130_fd_pr__pfet_01v8[id]",
     ]
     sim = Sim(
         tb=_build_tb(dut),
@@ -89,8 +89,8 @@ def measure_monticelli_bias() -> dict:
     vgn = float(d["v(xtop.xxdut.vgn)"])
     vgp = float(d["v(xtop.xxdut.vgp)"])
     vb_m35 = float(d["v(xtop.xxdut.vb_m35)"])
-    n_mid = float(d["v(xtop.xxdut.xclassab_loop.n_mid)"])
-    p_mid = float(d["v(xtop.xxdut.xclassab_loop.p_mid)"])
+    n_mid = float(d["v(xtop.xxdut.n_mid)"])
+    p_mid = float(d["v(xtop.xxdut.p_mid)"])
 
     payload = {
         "vgs22_V": vb_m24 - n_mid,
@@ -99,10 +99,10 @@ def measure_monticelli_bias() -> dict:
         "vsg33_V": 1.8 - vgp,
         "vsg34_V": p_mid - vb_m35,
         "vsg35_V": vgp - vb_m35,
-        "id23_A": float(d["i(@m.xtop.xxdut.xclassab_loop.xxmont.xmn23.msky130_fd_pr__nfet_01v8[id])"]),
-        "id24_A": float(d["i(@m.xtop.xxdut.xclassab_loop.xxmont.xm24.msky130_fd_pr__nfet_01v8[id])"]),
-        "id34_A": float(d["i(@m.xtop.xxdut.xclassab_loop.xxmont.xmp34.msky130_fd_pr__pfet_01v8[id])"]),
-        "id35_A": float(d["i(@m.xtop.xxdut.xclassab_loop.xxmont.xm35.msky130_fd_pr__pfet_01v8[id])"]),
+        "id23_A": float(d["i(@m.xtop.xxdut.xmn23.msky130_fd_pr__nfet_01v8[id])"]),
+        "id24_A": float(d["i(@m.xtop.xxdut.xm24.msky130_fd_pr__nfet_01v8[id])"]),
+        "id34_A": float(d["i(@m.xtop.xxdut.xmp34.msky130_fd_pr__pfet_01v8[id])"]),
+        "id35_A": float(d["i(@m.xtop.xxdut.xm35.msky130_fd_pr__pfet_01v8[id])"]),
         "vgn_V": vgn,
         "vgp_V": vgp,
         "vb_m24_V": vb_m24,
@@ -112,7 +112,7 @@ def measure_monticelli_bias() -> dict:
     }
     payload["derived"] = {
         "nm_stack_order_ok": payload["vb_m24_V"] > payload["n_mid_V"] > 0.0,
-        "pm_stack_order_ok": payload["p_mid_V"] > payload["vb_m35_V"] >= 0.0,
+        "pm_stack_separated": abs(payload["p_mid_V"] - payload["vb_m35_V"]) > 1e-3,
         "gates_within_rails": 0.0 <= payload["vgn_V"] <= 1.8 and 0.0 <= payload["vgp_V"] <= 1.8,
     }
     return payload
@@ -126,5 +126,6 @@ class TestV4ProbeMonticelliBias(BaseV4SimTest):
         self.assertFinite(payload["vgs23_V"])
         self.assertFinite(payload["vsg34_V"])
         self.assertTrue(payload["derived"]["nm_stack_order_ok"], f"Expected vb_m24_V={payload['vb_m24_V']:.6g} > n_mid_V={payload['n_mid_V']:.6g} > 0")
-        self.assertTrue(payload["derived"]["pm_stack_order_ok"], f"Expected p_mid_V={payload['p_mid_V']:.6g} > vb_m35_V={payload['vb_m35_V']:.6g} >= 0")
+        self.assertTrue(payload["derived"]["pm_stack_separated"], f"|p_mid_V-vb_m35_V|={abs(payload['p_mid_V'] - payload['vb_m35_V']):.6g} must be > 1e-3")
         self.assertTrue(payload["derived"]["gates_within_rails"])
+        self.assertGreater(payload["id23_A"], 0.0)

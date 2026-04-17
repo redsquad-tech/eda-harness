@@ -4,7 +4,7 @@ import sys
 import unittest
 from pathlib import Path
 
-from devices.hogervorst_page12_sky130_opa.common import init_sky130_install
+from devices.hogervorst_page12_sky130_opa.source.common import init_sky130_install
 
 
 ROOT = Path(__file__).resolve().parents[3]

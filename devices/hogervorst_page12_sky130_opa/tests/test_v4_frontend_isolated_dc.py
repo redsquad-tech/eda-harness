@@ -6,9 +6,9 @@ import sky130_hdl21 as sky130
 from hdl21.sim import Op, Save, Sim
 from vlsirtools.spice import ResultFormat
 
-from devices.hogervorst_page12_sky130_opa.common import default_ngspice_options, run_ngspice_sim
+from devices.hogervorst_page12_sky130_opa.source.common import default_ngspice_options, run_ngspice_sim
 from devices.hogervorst_page12_sky130_opa.opamp import NeuronOaParams, complementary_cascode_frontend, compile_for_sky130
-from devices.hogervorst_page12_sky130_opa.opa_bias import OpaBiasGen
+from devices.hogervorst_page12_sky130_opa.source.opa_bias import OpaBiasGen
 from devices.hogervorst_page12_sky130_opa.tests._helpers import BaseV4SimTest, find_signal, write_metrics_json
 
 

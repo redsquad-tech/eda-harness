@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from devices.hogervorst_page12_sky130_opa.measure import run_open_loop_test, run_supply_current_test, V4SupplyCurrentTbParams
+from devices.hogervorst_page12_sky130_opa.source.measure import run_open_loop_test, run_supply_current_test, V4SupplyCurrentTbParams
 from devices.hogervorst_page12_sky130_opa.opamp import NeuronOaParams
 from devices.hogervorst_page12_sky130_opa.tests._helpers import BaseV4SimTest, write_metrics_json
 

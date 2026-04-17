@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from devices.hogervorst_page12_sky130_opa.measure import (
+from devices.hogervorst_page12_sky130_opa.source.measure import (
     V4OpenLoopTbParams,
     V4OutputDriveTbParams,
     V4SupplyCurrentTbParams,
