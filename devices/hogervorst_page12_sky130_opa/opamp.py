@@ -83,7 +83,7 @@ class NeuronOaParams:
     tail_p_uA = h.Param(dtype=h.Scalar, desc="Ideal PMOS tail current in uA", default=1.6)
     tail_n_uA = h.Param(dtype=h.Scalar, desc="Ideal NMOS tail current in uA", default=1.6)
     vb_m24_uA = h.Param(dtype=h.Scalar, desc="Ideal PMOS-source current into vb_m24 in uA", default=0.45)
-    vb_m35_uA = h.Param(dtype=h.Scalar, desc="Ideal NMOS-sink current from vb_m35 in uA", default=0.45)
+    vb_m35_V = h.Param(dtype=h.Scalar, desc="Ideal PMOS-side gate-bias voltage", default=0.00048137541564193713)
     iref_term_ohm = h.Param(dtype=h.Scalar, desc="Termination for the external iref pin", default=1e6)
 
 
@@ -185,7 +185,7 @@ def neuron_core_oa_sky130(params: NeuronOaParams) -> h.Module:
     dut.itail_p = h.Idc(dc=params.tail_p_uA * 1e-6)(p=avdd, n=tail_p)
     dut.itail_n = h.Idc(dc=params.tail_n_uA * 1e-6)(p=tail_n, n=vss)
     dut.ibias_m24 = h.Idc(dc=params.vb_m24_uA * 1e-6)(p=avdd, n=vb_m24)
-    dut.ibias_m35 = h.Idc(dc=params.vb_m35_uA * 1e-6)(p=vb_m35, n=vss)
+    dut.vb_m35_src = h.Vdc(dc=params.vb_m35_V)(p=vb_m35, n=vss)
 
     # Folded-cascode frontend.
     # tail_p -> PMOS pair -> NMOS folded nodes
@@ -216,15 +216,20 @@ def neuron_core_oa_sky130(params: NeuronOaParams) -> h.Module:
     )
 
     # Monticelli class-AB bias network.
-    # vb_m24 -> mn22 -> n_mid -> mn23 -> vss
-    dut.mn22 = _nmos(mp.w_stack_n, mp.l_stack)(d=vb_m24, g=vb_m24, s=n_mid, b=vss)
-    dut.mn23 = _nmos(mp.w_stack_n, mp.l_stack)(d=n_mid, g=n_mid, s=vss, b=vss)
-    # avdd -> mp33 -> p_mid -> mp34 -> vb_m35
-    dut.mp33 = _pmos(mp.w_stack_p, mp.l_stack, vth=MosVth.HIGH)(d=p_mid, g=p_mid, s=avdd, b=avdd)
-    dut.mp34 = _pmos(mp.w_stack_p, mp.l_stack, vth=MosVth.HIGH)(d=vb_m35, g=vb_m35, s=p_mid, b=avdd)
+    # vb_m24 = gate(M24) = gate/drain(M23)
+    # vgn    = gate(M1)  = source(M23) = gate/drain(M22)
+    dut.mn23 = _nmos(mp.w_stack_n, mp.l_stack)(d=vb_m24, g=vb_m24, s=vgn, b=vss)
+    dut.mn22 = _nmos(mp.w_stack_n, mp.l_stack)(d=vgn, g=vgn, s=vss, b=vss)
+    # vgp    = gate(M2)  = gate/drain(M33)
+    # vb_m35 = gate(M35) = gate/drain(M34)
+    dut.mp33 = _pmos(mp.w_stack_p, mp.l_stack, vth=MosVth.HIGH)(d=vgp, g=vgp, s=avdd, b=avdd)
+    dut.mp34 = _pmos(mp.w_stack_p, mp.l_stack, vth=MosVth.HIGH)(d=vb_m35, g=vb_m35, s=vgp, b=avdd)
     # floating battery between vgp and vgn
     dut.m24 = _nmos(mp.w_m24, mp.l_mont)(d=vgp, g=vb_m24, s=vgn, b=vss)
     dut.m35 = _pmos(mp.w_m35, mp.l_mont)(d=vgn, g=vb_m35, s=vgp, b=avdd)
+    # Probe replicas of the stack mid-nodes.
+    dut.n_mid_tap = h.Res(r=1e-3)(p=n_mid, n=vgn)
+    dut.p_mid_tap = h.Res(r=1e-3)(p=p_mid, n=vgp)
 
     # Output stage and compensation.
     dut.m2 = _pmos(op.w_out_p, op.l_out)(d=dut.vout, g=vgp, s=avdd, b=avdd)
