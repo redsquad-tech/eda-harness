@@ -59,6 +59,24 @@ class PmosMirrorSourceLegParams:
 
 
 @h.paramclass
+class PmosCascodeSourceLegParams:
+    out_w = h.Param(dtype=h.Scalar, desc="PMOS output width", default=3.0 * U)
+    out_l = h.Param(dtype=h.Scalar, desc="PMOS output length", default=0.8 * U)
+    cascode_w = h.Param(dtype=h.Scalar, desc="PMOS cascode width", default=3.0 * U)
+    cascode_l = h.Param(dtype=h.Scalar, desc="PMOS cascode length", default=1.2 * U)
+    vth = h.Param(dtype=MosVth, desc="PMOS threshold flavor", default=MosVth.HIGH)
+    sink_w = h.Param(dtype=h.Scalar, desc="NMOS sink width", default=0.9 * U)
+    sink_l = h.Param(dtype=h.Scalar, desc="NMOS sink length", default=1.5 * U)
+
+
+@h.paramclass
+class PmosGateBiasedSourceLegParams:
+    out_w = h.Param(dtype=h.Scalar, desc="PMOS output width", default=3.0 * U)
+    out_l = h.Param(dtype=h.Scalar, desc="PMOS output length", default=0.8 * U)
+    vth = h.Param(dtype=MosVth, desc="PMOS threshold flavor", default=MosVth.HIGH)
+
+
+@h.paramclass
 class NmosMirrorSinkLegParams:
     out_w = h.Param(dtype=h.Scalar, desc="NMOS output width", default=2.0 * U)
     out_l = h.Param(dtype=h.Scalar, desc="NMOS output length", default=0.8 * U)
@@ -137,6 +155,56 @@ def PmosMirrorSourceLeg(params: PmosMirrorSourceLegParams) -> h.Module:
         )
 
     return _PmosMirrorSourceLeg
+
+
+@h.generator
+def PmosCascodeSourceLeg(params: PmosCascodeSourceLegParams) -> h.Module:
+    @h.module
+    class _PmosCascodeSourceLeg:
+        avdd = h.Inout()
+        agnd = h.Inout()
+        nref = h.Input()
+        out = h.Inout()
+        vg = h.Output()
+        vcasc = h.Output()
+
+        out_mid = h.Signal()
+
+        # Reference stack: avdd -> cascode diode -> mirror diode -> NMOS sink.
+        mp_casc_ref = h.Pmos(w=params.cascode_w, l=params.cascode_l, vth=params.vth, family=h.MosFamily.CORE)(
+            d=vcasc, g=vcasc, s=avdd, b=avdd
+        )
+        mp_ref = h.Pmos(w=params.out_w, l=params.out_l, vth=params.vth, family=h.MosFamily.CORE)(
+            d=vg, g=vg, s=vcasc, b=avdd
+        )
+        mn_sink = h.Nmos(w=params.sink_w, l=params.sink_l, vth=MosVth.STD, family=h.MosFamily.CORE)(
+            d=vg, g=nref, s=agnd, b=agnd
+        )
+
+        # Output stack: avdd -> cascode device -> mirror output -> out.
+        mp_casc_out = h.Pmos(
+            w=params.cascode_w, l=params.cascode_l, vth=params.vth, family=h.MosFamily.CORE
+        )(d=out_mid, g=vcasc, s=avdd, b=avdd)
+        mp_out = h.Pmos(w=params.out_w, l=params.out_l, vth=params.vth, family=h.MosFamily.CORE)(
+            d=out, g=vg, s=out_mid, b=avdd
+        )
+
+    return _PmosCascodeSourceLeg
+
+
+@h.generator
+def PmosGateBiasedSourceLeg(params: PmosGateBiasedSourceLegParams) -> h.Module:
+    @h.module
+    class _PmosGateBiasedSourceLeg:
+        avdd = h.Inout()
+        out = h.Inout()
+        vg = h.Input()
+
+        mp_out = h.Pmos(w=params.out_w, l=params.out_l, vth=params.vth, family=h.MosFamily.CORE)(
+            d=out, g=vg, s=avdd, b=avdd
+        )
+
+    return _PmosGateBiasedSourceLeg
 
 
 @h.generator

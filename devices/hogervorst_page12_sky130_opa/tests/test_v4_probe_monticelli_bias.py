@@ -60,8 +60,8 @@ def _build_tb(dut):
     return Tb
 
 
-def measure_monticelli_bias() -> dict:
-    dut = h.elaborate(neuron_core_oa_sky130(NeuronOaParams()))
+def measure_monticelli_bias(dut_params: NeuronOaParams | None = None) -> dict:
+    dut = h.elaborate(neuron_core_oa_sky130(dut_params or NeuronOaParams()))
     compile_for_sky130(dut)
     op_save = [
         "v(xtop.xxdut.vb_m24)",
