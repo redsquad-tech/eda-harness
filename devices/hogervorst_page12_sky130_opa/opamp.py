@@ -18,10 +18,6 @@ from .source.opa_bias import (
     CurrentBiasLeg,
     CurrentBiasLegParams,
     OpaBiasGenParams,
-    PmosCascodeSourceLeg,
-    PmosCascodeSourceLegParams,
-    PmosGateBiasedSourceLeg,
-    PmosGateBiasedSourceLegParams,
 )
 
 
@@ -126,16 +122,6 @@ class NeuronOaParams:
         desc="Use non-ideal current-bias leg for vb_m24 instead of ideal Idc",
         default=False,
     )
-    use_cascoded_vb_m24_bias = h.Param(
-        dtype=bool,
-        desc="Use cascoded PMOS source leg for vb_m24 when the real leg is enabled",
-        default=False,
-    )
-    use_local_vgp_vb_m24_bias = h.Param(
-        dtype=bool,
-        desc="Use a local PMOS source into vb_m24 gated by VGP",
-        default=False,
-    )
 
     # PMOS-side Monticelli stack debug source:
     # vb_m35 -> Idc -> AGND.
@@ -143,11 +129,6 @@ class NeuronOaParams:
         dtype=h.Scalar,
         desc="Ideal current sunk from vb_m35 into AGND, in uA",
         default=0.45,
-    )
-    vb_m35_V = h.Param(
-        dtype=h.Scalar,
-        desc="Legacy ideal voltage on vb_m35, retained only for quick rollback",
-        default=1.05,
     )
 
     iref_term_ohm = h.Param(dtype=h.Scalar, desc="Termination for the external iref pin", default=1e6)
@@ -300,45 +281,16 @@ def neuron_core_oa_sky130(params: NeuronOaParams) -> h.Module:
     # NMOS-side can be driven either by an ideal source or by a non-ideal
     # PMOS mirror leg for A/B comparison against the idealized baseline.
     if params.use_real_vb_m24_bias:
-        if params.use_local_vgp_vb_m24_bias:
-            dut.ibias_into_vb_m24 = PmosGateBiasedSourceLeg(
-                PmosGateBiasedSourceLegParams(
-                    out_w=params.bias.ibias_p_w,
-                    out_l=params.bias.ibias_p_l,
-                    vth=MosVth.HIGH,
-                )
-            )(avdd=avdd, out=dut.vb_m24, vg=dut.vgp)
-        elif params.use_cascoded_vb_m24_bias:
-            dut.vcasc_ibias_m24 = h.Signal()
-            dut.ibias_into_vb_m24 = PmosCascodeSourceLeg(
-                PmosCascodeSourceLegParams(
-                    out_w=params.bias.ibias_p_w,
-                    out_l=params.bias.ibias_p_l,
-                    cascode_w=params.bias.ibias_p_w,
-                    cascode_l=max(params.bias.ibias_p_l, 1.2),
-                    vth=MosVth.HIGH,
-                    sink_w=params.bias.nref_w,
-                    sink_l=params.bias.nref_l,
-                )
-            )(
-                avdd=avdd,
-                agnd=vss,
-                nref=dut.nref,
-                out=dut.vb_m24,
-                vg=dut.vg_ibias_m24,
-                vcasc=dut.vcasc_ibias_m24,
+        dut.ibias_into_vb_m24 = CurrentBiasLeg(
+            CurrentBiasLegParams(
+                kind=CurrentBiasKind.SOURCE,
+                out_w=params.bias.ibias_p_w,
+                out_l=params.bias.ibias_p_l,
+                vth=MosVth.HIGH,
+                ref_w=params.bias.nref_w,
+                ref_l=params.bias.nref_l,
             )
-        else:
-            dut.ibias_into_vb_m24 = CurrentBiasLeg(
-                CurrentBiasLegParams(
-                    kind=CurrentBiasKind.SOURCE,
-                    out_w=params.bias.ibias_p_w,
-                    out_l=params.bias.ibias_p_l,
-                    vth=MosVth.HIGH,
-                    ref_w=params.bias.nref_w,
-                    ref_l=params.bias.nref_l,
-                )
-            )(avdd=avdd, agnd=vss, nref=dut.nref, out=dut.vb_m24, vg=dut.vg_ibias_m24)
+        )(avdd=avdd, agnd=vss, nref=dut.nref, out=dut.vb_m24, vg=dut.vg_ibias_m24)
     else:
         dut.ibias_into_vb_m24 = h.Idc(dc=params.ibias_nmos_stack_uA * 1e-6)(p=avdd, n=dut.vb_m24)
 
