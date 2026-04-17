@@ -131,34 +131,37 @@ def monticelli_cell(params: MonticelliParams) -> h.Module:
         vb_m35 = h.Inout()
         vgp = h.Inout()
         vgn = h.Inout()
+        n_mid = h.Inout()
+        p_mid = h.Inout()
         avdd = h.Inout()
         agnd = h.Inout()
 
-        n_mid = h.Signal()
-        p_mid = h.Signal()
-
-        # Page-12 M22-M23 rail for the gate of M24.
+        # NMOS-side branch:
+        # current source -> n_mid, where n_mid is common for M24 source and
+        # M23 source+gate, with M22 providing the gate-bias relation to vb_m24.
         mn22 = _nmos(params.w_stack_n, params.l_stack)(
             d=vb_m24, g=vb_m24, s=n_mid, b=agnd
         )
         mn23 = _nmos(params.w_stack_n, params.l_stack)(
-            d=n_mid, g=n_mid, s=agnd, b=agnd
+            d=agnd, g=n_mid, s=n_mid, b=agnd
         )
 
-        # Page-12 M33-M34 rail for the gate of M35.
+        # PMOS-side branch:
+        # p_mid is common for M34 source+gate and the gate of M35, with M33
+        # providing the bias relation to vb_m35.
         mp33 = _pmos(params.w_stack_p, params.l_stack, vth=MosVth.HIGH)(
-            d=p_mid, g=p_mid, s=avdd, b=avdd
+            d=vb_m35, g=vb_m35, s=avdd, b=avdd
         )
         mp34 = _pmos(params.w_stack_p, params.l_stack, vth=MosVth.HIGH)(
-            d=vb_m35, g=vb_m35, s=p_mid, b=avdd
+            d=vb_m35, g=p_mid, s=p_mid, b=avdd
         )
 
         # Explicit Monticelli floating battery.
         m24 = _nmos(params.w_m24, params.l_mont)(
-            d=vgp, g=vb_m24, s=vgn, b=agnd
+            d=vgp, g=vb_m24, s=n_mid, b=agnd
         )
         m35 = _pmos(params.w_m35, params.l_mont)(
-            d=vgn, g=vb_m35, s=vgp, b=avdd
+            d=vgn, g=p_mid, s=vgp, b=avdd
         )
 
     return MonticelliCell
@@ -198,6 +201,77 @@ def classab_output_stage(params: OutputStageParams) -> h.Module:
         ccn = h.Cap(c=params.cc)(p=ccn_mid, n=vout)
 
     return ClassAbOutputStage
+
+
+@h.paramclass
+class ClassabLoopParams:
+    monticelli = h.Param(
+        dtype=MonticelliParams,
+        desc="Page-12 Monticelli cell inside the local class-AB contour",
+        default=MonticelliParams(),
+    )
+    output = h.Param(
+        dtype=OutputStageParams,
+        desc="Page-12 output stage inside the local class-AB contour",
+        default=OutputStageParams(),
+    )
+    i_m24_uA = h.Param(
+        dtype=h.Scalar,
+        desc="Ideal local branch current into the M22-M23 / vb_m24 node in uA",
+        default=0.45,
+    )
+    i_m35_uA = h.Param(
+        dtype=h.Scalar,
+        desc="Ideal local branch current out of the M33-M34 / vb_m35 node in uA",
+        default=0.45,
+    )
+
+
+@h.generator
+def classab_loop(params: ClassabLoopParams) -> h.Module:
+    @h.module
+    class ClassabLoop:
+        vb_m24 = h.Inout()
+        vb_m35 = h.Inout()
+        vgp = h.Inout()
+        vgn = h.Inout()
+        vout = h.Output()
+        avdd = h.Inout()
+        agnd = h.Inout()
+        n_mid = h.Signal()
+        p_mid = h.Signal()
+
+    # Local ideal branch sources placed into the two common branch nodes:
+    # - AVDD -> n_mid branch common node
+    # - p_mid branch common node -> AGND
+    ClassabLoop.i_m35 = h.Idc(dc=params.i_m35_uA * 1e-6)(
+        p=ClassabLoop.avdd,
+        n=ClassabLoop.n_mid,
+    )
+    ClassabLoop.i_m24 = h.Idc(dc=params.i_m24_uA * 1e-6)(
+        p=ClassabLoop.p_mid,
+        n=ClassabLoop.agnd,
+    )
+
+    ClassabLoop.xmont = monticelli_cell(params.monticelli)(
+        vb_m24=ClassabLoop.vb_m24,
+        vb_m35=ClassabLoop.vb_m35,
+        vgp=ClassabLoop.vgp,
+        vgn=ClassabLoop.vgn,
+        n_mid=ClassabLoop.n_mid,
+        p_mid=ClassabLoop.p_mid,
+        avdd=ClassabLoop.avdd,
+        agnd=ClassabLoop.agnd,
+    )
+    ClassabLoop.xoutput_stage = classab_output_stage(params.output)(
+        vgp=ClassabLoop.vgp,
+        vgn=ClassabLoop.vgn,
+        vout=ClassabLoop.vout,
+        avdd=ClassabLoop.avdd,
+        agnd=ClassabLoop.agnd,
+    )
+
+    return ClassabLoop
 
 
 @h.paramclass
@@ -242,6 +316,8 @@ def neuron_core_oa_sky130(params: NeuronOaParams) -> h.Module:
         d_en_b, d_az_b, d_inf_b, d_tdi_b = h.Signals(4)
 
         iref_int = h.Signal()
+        ibias_p_unused = h.Signal()
+        ibias_n_unused = h.Signal()
         vbias1, vbias2, vbias3 = h.Signals(3)
         tail_p, tail_n, vb_m24, vb_m35 = h.Signals(4)
         vgp, vgn = h.Signals(2)
@@ -289,8 +365,8 @@ def neuron_core_oa_sky130(params: NeuronOaParams) -> h.Module:
         iref=NeuronCoreOaSky130.iref_int,
         i0_p=NeuronCoreOaSky130.tail_p,
         i0_n=NeuronCoreOaSky130.tail_n,
-        ibias_p=NeuronCoreOaSky130.vb_m24,
-        ibias_n=NeuronCoreOaSky130.vb_m35,
+        ibias_p=NeuronCoreOaSky130.ibias_p_unused,
+        ibias_n=NeuronCoreOaSky130.ibias_n_unused,
         vbias1=NeuronCoreOaSky130.vbias1,
         vbias2=NeuronCoreOaSky130.vbias2,
         vbias3=NeuronCoreOaSky130.vbias3,
@@ -321,18 +397,12 @@ def neuron_core_oa_sky130(params: NeuronOaParams) -> h.Module:
         agnd=NeuronCoreOaSky130.agnd,
     )
 
-    # Page-12 explicit Monticelli floating battery and diode stacks.
-    NeuronCoreOaSky130.mont = monticelli_cell(params.monticelli)(
+    # Page-12 local class-AB contour, grouped without changing connectivity.
+    NeuronCoreOaSky130.classab_loop = classab_loop(
+        ClassabLoopParams(monticelli=params.monticelli, output=params.output)
+    )(
         vb_m24=NeuronCoreOaSky130.vb_m24,
         vb_m35=NeuronCoreOaSky130.vb_m35,
-        vgp=NeuronCoreOaSky130.vgp,
-        vgn=NeuronCoreOaSky130.vgn,
-        avdd=NeuronCoreOaSky130.avdd1p2,
-        agnd=NeuronCoreOaSky130.agnd,
-    )
-
-    # Page-12 common-source push-pull output stage.
-    NeuronCoreOaSky130.output_stage = classab_output_stage(params.output)(
         vgp=NeuronCoreOaSky130.vgp,
         vgn=NeuronCoreOaSky130.vgn,
         vout=NeuronCoreOaSky130.vout,

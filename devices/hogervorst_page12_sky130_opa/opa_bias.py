@@ -49,7 +49,7 @@ def OpaBiasGen(params: OpaBiasGenParams) -> h.Module:
         vbias2 = h.Output()
         vbias3 = h.Output()
 
-        nref, vg_i0_p, vg_ibias_p, vg_i0_n, vg_ibias_n = h.Signals(5)
+        nref, vg_i0_p, vg_i0_n = h.Signals(3)
 
         mp_ref = h.Pmos(w=params.ref_w, l=params.ref_l, vth=MosVth.STD, family=h.MosFamily.CORE)(
             d=iref, g=iref, s=avdd, b=avdd
@@ -71,15 +71,6 @@ def OpaBiasGen(params: OpaBiasGenParams) -> h.Module:
             d=i0_p, g=vg_i0_p, s=avdd, b=avdd
         )
 
-        mp_ibias_p_ref = h.Pmos(w=params.ibias_p_w, l=params.ibias_p_l, vth=MosVth.HIGH, family=h.MosFamily.CORE)(
-            d=vg_ibias_p, g=vg_ibias_p, s=avdd, b=avdd
-        )
-        mn_ibias_p_sink = h.Nmos(w=params.nref_w, l=params.nref_l, vth=MosVth.STD, family=h.MosFamily.CORE)(
-            d=vg_ibias_p, g=nref, s=agnd, b=agnd
-        )
-        mp_ibias_p_out = h.Pmos(w=params.ibias_p_w, l=params.ibias_p_l, vth=MosVth.HIGH, family=h.MosFamily.CORE)(
-            d=ibias_p, g=vg_ibias_p, s=avdd, b=avdd
-        )
         mp_bias1 = h.Pmos(w=params.bias1_p_w, l=params.bias1_p_l, vth=MosVth.HIGH, family=h.MosFamily.CORE)(
             d=vbias1, g=vbias1, s=avdd, b=avdd
         )
@@ -103,15 +94,6 @@ def OpaBiasGen(params: OpaBiasGenParams) -> h.Module:
             d=i0_n, g=vg_i0_n, s=agnd, b=agnd
         )
 
-        mp_ibias_n_feed = h.Pmos(w=params.ibias_n_w, l=params.ibias_n_l, vth=MosVth.STD, family=h.MosFamily.CORE)(
-            d=vg_ibias_n, g=iref, s=avdd, b=avdd
-        )
-        mn_ibias_n_ref = h.Nmos(w=params.ibias_n_w, l=params.ibias_n_l, vth=MosVth.STD, family=h.MosFamily.CORE)(
-            d=vg_ibias_n, g=vg_ibias_n, s=agnd, b=agnd
-        )
-        mn_ibias_n_out = h.Nmos(w=params.ibias_n_w, l=params.ibias_n_l, vth=MosVth.STD, family=h.MosFamily.CORE)(
-            d=ibias_n, g=vg_ibias_n, s=agnd, b=agnd
-        )
         mp_bias3_feed = h.Pmos(w=params.bias3_n_w, l=params.bias3_n_l, vth=MosVth.STD, family=h.MosFamily.CORE)(
             d=vbias3, g=iref, s=avdd, b=avdd
         )

@@ -88,10 +88,10 @@ def measure_current_map() -> dict:
         "@m.xtop.xxdut.xfrontend.xmpb1_r.msky130_fd_pr__pfet_01v8[id]",
         "@m.xtop.xxdut.xfrontend.xmnb3_l.msky130_fd_pr__nfet_01v8[id]",
         "@m.xtop.xxdut.xfrontend.xmnb3_r.msky130_fd_pr__nfet_01v8[id]",
-        "@m.xtop.xxdut.xmont.xm24.msky130_fd_pr__nfet_01v8[id]",
-        "@m.xtop.xxdut.xmont.xm35.msky130_fd_pr__pfet_01v8[id]",
-        "@m.xtop.xxdut.xoutput_stage.xm1.msky130_fd_pr__nfet_01v8[id]",
-        "@m.xtop.xxdut.xoutput_stage.xm2.msky130_fd_pr__pfet_01v8[id]",
+        "@m.xtop.xxdut.xclassab_loop.xxmont.xm24.msky130_fd_pr__nfet_01v8[id]",
+        "@m.xtop.xxdut.xclassab_loop.xxmont.xm35.msky130_fd_pr__pfet_01v8[id]",
+        "@m.xtop.xxdut.xclassab_loop.xxoutput_stage.xm1.msky130_fd_pr__nfet_01v8[id]",
+        "@m.xtop.xxdut.xclassab_loop.xxoutput_stage.xm2.msky130_fd_pr__pfet_01v8[id]",
         "i(v.xtop.vvvdd)",
     ]
     sim = Sim(
@@ -127,10 +127,10 @@ def measure_current_map() -> dict:
         "frontend_mpb1_r_A": abs(float(d["i(@m.xtop.xxdut.xfrontend.xmpb1_r.msky130_fd_pr__pfet_01v8[id])"])),
         "frontend_mnb3_l_A": abs(float(d["i(@m.xtop.xxdut.xfrontend.xmnb3_l.msky130_fd_pr__nfet_01v8[id])"])),
         "frontend_mnb3_r_A": abs(float(d["i(@m.xtop.xxdut.xfrontend.xmnb3_r.msky130_fd_pr__nfet_01v8[id])"])),
-        "mont_n_bridge_A": abs(float(d["i(@m.xtop.xxdut.xmont.xm24.msky130_fd_pr__nfet_01v8[id])"])),
-        "mont_p_bridge_A": abs(float(d["i(@m.xtop.xxdut.xmont.xm35.msky130_fd_pr__pfet_01v8[id])"])),
-        "out_n_A": abs(float(d["i(@m.xtop.xxdut.xoutput_stage.xm1.msky130_fd_pr__nfet_01v8[id])"])),
-        "out_p_A": abs(float(d["i(@m.xtop.xxdut.xoutput_stage.xm2.msky130_fd_pr__pfet_01v8[id])"])),
+        "mont_n_bridge_A": abs(float(d["i(@m.xtop.xxdut.xclassab_loop.xxmont.xm24.msky130_fd_pr__nfet_01v8[id])"])),
+        "mont_p_bridge_A": abs(float(d["i(@m.xtop.xxdut.xclassab_loop.xxmont.xm35.msky130_fd_pr__pfet_01v8[id])"])),
+        "out_n_A": abs(float(d["i(@m.xtop.xxdut.xclassab_loop.xxoutput_stage.xm1.msky130_fd_pr__nfet_01v8[id])"])),
+        "out_p_A": abs(float(d["i(@m.xtop.xxdut.xclassab_loop.xxoutput_stage.xm2.msky130_fd_pr__pfet_01v8[id])"])),
         "iq_total_A": abs(float(d["i(v.xtop.vvvdd)"])),
     }
     payload["summary"] = {

@@ -68,12 +68,12 @@ def measure_monticelli_bias() -> dict:
         "v(xtop.xxdut.vgn)",
         "v(xtop.xxdut.vgp)",
         "v(xtop.xxdut.vb_m35)",
-        "v(xtop.xxdut.xmont.n_mid)",
-        "v(xtop.xxdut.xmont.p_mid)",
-        "@m.xtop.xxdut.xmont.xmn23.msky130_fd_pr__nfet_01v8[id]",
-        "@m.xtop.xxdut.xmont.xm24.msky130_fd_pr__nfet_01v8[id]",
-        "@m.xtop.xxdut.xmont.xmp34.msky130_fd_pr__pfet_01v8[id]",
-        "@m.xtop.xxdut.xmont.xm35.msky130_fd_pr__pfet_01v8[id]",
+        "v(xtop.xxdut.xclassab_loop.n_mid)",
+        "v(xtop.xxdut.xclassab_loop.p_mid)",
+        "@m.xtop.xxdut.xclassab_loop.xxmont.xmn23.msky130_fd_pr__nfet_01v8[id]",
+        "@m.xtop.xxdut.xclassab_loop.xxmont.xm24.msky130_fd_pr__nfet_01v8[id]",
+        "@m.xtop.xxdut.xclassab_loop.xxmont.xmp34.msky130_fd_pr__pfet_01v8[id]",
+        "@m.xtop.xxdut.xclassab_loop.xxmont.xm35.msky130_fd_pr__pfet_01v8[id]",
     ]
     sim = Sim(
         tb=_build_tb(dut),
@@ -89,8 +89,8 @@ def measure_monticelli_bias() -> dict:
     vgn = float(d["v(xtop.xxdut.vgn)"])
     vgp = float(d["v(xtop.xxdut.vgp)"])
     vb_m35 = float(d["v(xtop.xxdut.vb_m35)"])
-    n_mid = float(d["v(xtop.xxdut.xmont.n_mid)"])
-    p_mid = float(d["v(xtop.xxdut.xmont.p_mid)"])
+    n_mid = float(d["v(xtop.xxdut.xclassab_loop.n_mid)"])
+    p_mid = float(d["v(xtop.xxdut.xclassab_loop.p_mid)"])
 
     payload = {
         "vgs22_V": vb_m24 - n_mid,
@@ -99,10 +99,10 @@ def measure_monticelli_bias() -> dict:
         "vsg33_V": 1.8 - vgp,
         "vsg34_V": p_mid - vb_m35,
         "vsg35_V": vgp - vb_m35,
-        "id23_A": float(d["i(@m.xtop.xxdut.xmont.xmn23.msky130_fd_pr__nfet_01v8[id])"]),
-        "id24_A": float(d["i(@m.xtop.xxdut.xmont.xm24.msky130_fd_pr__nfet_01v8[id])"]),
-        "id34_A": float(d["i(@m.xtop.xxdut.xmont.xmp34.msky130_fd_pr__pfet_01v8[id])"]),
-        "id35_A": float(d["i(@m.xtop.xxdut.xmont.xm35.msky130_fd_pr__pfet_01v8[id])"]),
+        "id23_A": float(d["i(@m.xtop.xxdut.xclassab_loop.xxmont.xmn23.msky130_fd_pr__nfet_01v8[id])"]),
+        "id24_A": float(d["i(@m.xtop.xxdut.xclassab_loop.xxmont.xm24.msky130_fd_pr__nfet_01v8[id])"]),
+        "id34_A": float(d["i(@m.xtop.xxdut.xclassab_loop.xxmont.xmp34.msky130_fd_pr__pfet_01v8[id])"]),
+        "id35_A": float(d["i(@m.xtop.xxdut.xclassab_loop.xxmont.xm35.msky130_fd_pr__pfet_01v8[id])"]),
         "vgn_V": vgn,
         "vgp_V": vgp,
         "vb_m24_V": vb_m24,

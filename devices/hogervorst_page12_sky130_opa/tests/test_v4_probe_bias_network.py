@@ -84,8 +84,8 @@ class TestV4ProbeBiasNetwork(BaseV4SimTest):
             "vb_m35_V": find_signal(data, exact="v(xtop.xxdut.vb_m35)"),
             "vgp_V": find_signal(data, exact="v(xtop.xxdut.vgp)"),
             "vgn_V": find_signal(data, exact="v(xtop.xxdut.vgn)"),
-            "mont_n_mid_V": find_signal(data, exact="v(xtop.xxdut.xmont.n_mid)"),
-            "mont_p_mid_V": find_signal(data, exact="v(xtop.xxdut.xmont.p_mid)"),
+            "mont_n_mid_V": find_signal(data, exact="v(xtop.xxdut.xclassab_loop.xxmont.n_mid)"),
+            "mont_p_mid_V": find_signal(data, exact="v(xtop.xxdut.xclassab_loop.xxmont.p_mid)"),
             "vout_V": find_signal(data, exact="v(xtop.vout)"),
         }
         payload["derived"] = {

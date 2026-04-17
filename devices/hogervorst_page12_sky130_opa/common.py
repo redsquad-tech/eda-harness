@@ -1,18 +1,70 @@
 from pathlib import Path
 
+import numpy as np
 import sky130_hdl21 as sky130
+from vlsirtools.spice import ResultFormat, SimOptions, SupportedSimulators
 
-from devices.opamp.v2.common import (
-    default_ngspice_options,
-    extract_ac_trace,
-    extract_subckt_name,
-    interp_crossing,
-    interp_value,
-    make_test_result,
-    negative_feedback_phase_trace,
-    op_scalar,
-    run_ngspice_sim,
-)
+from components import extract_subckt_name, make_test_result, run_ngspice_sim
+
+
+def default_ngspice_options(test_name: str, *, fmt=ResultFormat.SIM_DATA) -> SimOptions:
+    return SimOptions(
+        simulator=SupportedSimulators.NGSPICE,
+        fmt=fmt,
+        rundir=f"./tmp/{test_name}",
+    )
+
+
+def extract_ac_trace(result, trace_name: str):
+    ac = result.an[0]
+    target = trace_name.lower()
+    for key, data in ac.data.items():
+        if key.lower() == target:
+            return ac.freq, data
+    raise RuntimeError(f"AC trace {trace_name} not found in result keys: {list(ac.data.keys())}")
+
+
+def interp_value(x, y, x_target: float) -> float:
+    x = np.asarray(x, dtype=float)
+    y = np.asarray(y, dtype=float)
+    if len(x) == 0 or len(y) == 0:
+        return float("nan")
+    if x_target < x[0] or x_target > x[-1]:
+        return float("nan")
+    return float(np.interp(x_target, x, y))
+
+
+def interp_crossing(x, y, target: float):
+    x = np.asarray(x, dtype=float)
+    y = np.asarray(y, dtype=float)
+    if len(x) < 2 or len(y) < 2:
+        return float("nan"), -1
+    delta = y - target
+    for idx in range(len(delta) - 1):
+        a = delta[idx]
+        b = delta[idx + 1]
+        if a == 0.0:
+            return float(x[idx]), idx
+        if a * b <= 0.0 and a != b:
+            frac = a / (a - b)
+            return float(x[idx] + frac * (x[idx + 1] - x[idx])), idx
+    return float("nan"), -1
+
+
+def negative_feedback_phase_trace(loop_gain):
+    phase_deg = np.unwrap(np.angle(loop_gain)) * 180.0 / np.pi
+    phase_deg = np.where(phase_deg > 0.0, phase_deg - 360.0, phase_deg)
+    low_freq_phase_deg_raw = float(phase_deg[0]) if len(phase_deg) else float("nan")
+    return phase_deg, low_freq_phase_deg_raw
+
+
+def op_scalar(result, signal_name: str) -> float:
+    target = signal_name.lower()
+    op = result.an[0]
+    for name, value in op.data.items():
+        if name.lower() == target:
+            return float(value)
+    raise RuntimeError(f"Signal {signal_name} not found in op result: {list(op.data.keys())}")
 
 
 def sky130_root() -> Path:
