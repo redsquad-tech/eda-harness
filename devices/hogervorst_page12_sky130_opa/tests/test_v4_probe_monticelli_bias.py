@@ -64,16 +64,18 @@ def measure_monticelli_bias() -> dict:
     dut = h.elaborate(neuron_core_oa_sky130(NeuronOaParams()))
     compile_for_sky130(dut)
     op_save = [
-        "v(xtop.xxdut.vb_m24)",
+        "v(xtop.xxdut.m24_gate_mid)",
         "v(xtop.xxdut.vgn)",
         "v(xtop.xxdut.vgp)",
-        "v(xtop.xxdut.vb_m35)",
-        "v(xtop.xxdut.xmont.n_mid)",
-        "v(xtop.xxdut.xmont.p_mid)",
-        "@m.xtop.xxdut.xmont.xmn23.msky130_fd_pr__nfet_01v8[id]",
-        "@m.xtop.xxdut.xmont.xm24.msky130_fd_pr__nfet_01v8[id]",
-        "@m.xtop.xxdut.xmont.xmp34.msky130_fd_pr__pfet_01v8[id]",
-        "@m.xtop.xxdut.xmont.xm35.msky130_fd_pr__pfet_01v8[id]",
+        "v(xtop.xxdut.m35_gate_mid)",
+        "v(xtop.xxdut.xanalog_core.n_mid)",
+        "v(xtop.xxdut.xanalog_core.p_mid)",
+        "@m.xtop.xxdut.xanalog_core.xm22.msky130_fd_pr__nfet_01v8[id]",
+        "@m.xtop.xxdut.xanalog_core.xm23.msky130_fd_pr__nfet_01v8[id]",
+        "@m.xtop.xxdut.xanalog_core.xm33.msky130_fd_pr__pfet_01v8[id]",
+        "@m.xtop.xxdut.xanalog_core.xm24.msky130_fd_pr__nfet_01v8[id]",
+        "@m.xtop.xxdut.xanalog_core.xm34.msky130_fd_pr__pfet_01v8[id]",
+        "@m.xtop.xxdut.xanalog_core.xm35.msky130_fd_pr__pfet_01v8[id]",
     ]
     sim = Sim(
         tb=_build_tb(dut),
@@ -85,34 +87,36 @@ def measure_monticelli_bias() -> dict:
     )
     d = result.an[0].data
 
-    vb_m24 = float(d["v(xtop.xxdut.vb_m24)"])
+    m24_gate_mid = float(d["v(xtop.xxdut.m24_gate_mid)"])
     vgn = float(d["v(xtop.xxdut.vgn)"])
     vgp = float(d["v(xtop.xxdut.vgp)"])
-    vb_m35 = float(d["v(xtop.xxdut.vb_m35)"])
-    n_mid = float(d["v(xtop.xxdut.xmont.n_mid)"])
-    p_mid = float(d["v(xtop.xxdut.xmont.p_mid)"])
+    m35_gate_mid = float(d["v(xtop.xxdut.m35_gate_mid)"])
+    n_mid = float(d["v(xtop.xxdut.xanalog_core.n_mid)"])
+    p_mid = float(d["v(xtop.xxdut.xanalog_core.p_mid)"])
 
     payload = {
-        "vgs22_V": vb_m24 - n_mid,
-        "vgs23_V": n_mid,
-        "vgs24_V": vb_m24 - vgn,
-        "vsg33_V": 1.8 - vgp,
-        "vsg34_V": p_mid - vb_m35,
-        "vsg35_V": vgp - vb_m35,
-        "id23_A": float(d["i(@m.xtop.xxdut.xmont.xmn23.msky130_fd_pr__nfet_01v8[id])"]),
-        "id24_A": float(d["i(@m.xtop.xxdut.xmont.xm24.msky130_fd_pr__nfet_01v8[id])"]),
-        "id34_A": float(d["i(@m.xtop.xxdut.xmont.xmp34.msky130_fd_pr__pfet_01v8[id])"]),
-        "id35_A": float(d["i(@m.xtop.xxdut.xmont.xm35.msky130_fd_pr__pfet_01v8[id])"]),
+        "vgs22_V": n_mid,
+        "vgs23_V": m24_gate_mid - n_mid,
+        "vgs24_V": m24_gate_mid - vgn,
+        "vsg33_V": 1.8 - p_mid,
+        "vsg34_V": p_mid - m35_gate_mid,
+        "vsg35_V": vgp - m35_gate_mid,
+        "id22_A": float(d["i(@m.xtop.xxdut.xanalog_core.xm22.msky130_fd_pr__nfet_01v8[id])"]),
+        "id23_A": float(d["i(@m.xtop.xxdut.xanalog_core.xm23.msky130_fd_pr__nfet_01v8[id])"]),
+        "id33_A": float(d["i(@m.xtop.xxdut.xanalog_core.xm33.msky130_fd_pr__pfet_01v8[id])"]),
+        "id24_A": float(d["i(@m.xtop.xxdut.xanalog_core.xm24.msky130_fd_pr__nfet_01v8[id])"]),
+        "id34_A": float(d["i(@m.xtop.xxdut.xanalog_core.xm34.msky130_fd_pr__pfet_01v8[id])"]),
+        "id35_A": float(d["i(@m.xtop.xxdut.xanalog_core.xm35.msky130_fd_pr__pfet_01v8[id])"]),
         "vgn_V": vgn,
         "vgp_V": vgp,
-        "vb_m24_V": vb_m24,
-        "vb_m35_V": vb_m35,
+        "m24_gate_mid_V": m24_gate_mid,
+        "m35_gate_mid_V": m35_gate_mid,
         "n_mid_V": n_mid,
         "p_mid_V": p_mid,
     }
     payload["derived"] = {
-        "nm_stack_order_ok": payload["vb_m24_V"] > payload["n_mid_V"] > 0.0,
-        "pm_stack_order_ok": payload["p_mid_V"] > payload["vb_m35_V"] >= 0.0,
+        "nm_stack_order_ok": payload["m24_gate_mid_V"] > payload["n_mid_V"] > 0.0,
+        "pm_stack_order_ok": payload["p_mid_V"] > payload["m35_gate_mid_V"] >= 0.0,
         "gates_within_rails": 0.0 <= payload["vgn_V"] <= 1.8 and 0.0 <= payload["vgp_V"] <= 1.8,
     }
     return payload
@@ -125,6 +129,6 @@ class TestV4ProbeMonticelliBias(BaseV4SimTest):
 
         self.assertFinite(payload["vgs23_V"])
         self.assertFinite(payload["vsg34_V"])
-        self.assertTrue(payload["derived"]["nm_stack_order_ok"], f"Expected vb_m24_V={payload['vb_m24_V']:.6g} > n_mid_V={payload['n_mid_V']:.6g} > 0")
-        self.assertTrue(payload["derived"]["pm_stack_order_ok"], f"Expected p_mid_V={payload['p_mid_V']:.6g} > vb_m35_V={payload['vb_m35_V']:.6g} >= 0")
+        self.assertTrue(payload["derived"]["nm_stack_order_ok"], f"Expected m24_gate_mid_V={payload['m24_gate_mid_V']:.6g} > n_mid_V={payload['n_mid_V']:.6g} > 0")
+        self.assertTrue(payload["derived"]["pm_stack_order_ok"], f"Expected p_mid_V={payload['p_mid_V']:.6g} > m35_gate_mid_V={payload['m35_gate_mid_V']:.6g} >= 0")
         self.assertTrue(payload["derived"]["gates_within_rails"])

@@ -12,7 +12,8 @@ from .export_spice import export_spice
 
 
 ROOT = Path(__file__).resolve().parents[2]
-ARCHIVE_ROOT = ROOT / "opamp" / "v4" / "customer_archive_current"
+DEVICE_ROOT = Path(__file__).resolve().parent
+ARCHIVE_ROOT = DEVICE_ROOT / "customer_archive_current"
 SKY130_LIB_PLACEHOLDER = "__SKY130_LIB_SPICE__"
 
 
@@ -39,9 +40,15 @@ def _write_text(path: Path, text: str) -> None:
 
 
 def _subckt_name_from_netlist(path: Path) -> str:
+    fallback = None
     for line in path.read_text(encoding="utf-8").splitlines():
         if line.startswith(".SUBCKT "):
-            return line.split()[1]
+            name = line.split()[1]
+            fallback = name
+            if name.startswith("NeuronCoreOaSky130_"):
+                return name
+    if fallback is not None:
+        return fallback
     raise RuntimeError(f"No .SUBCKT found in {path}")
 
 
@@ -92,7 +99,17 @@ def _common_sources(vdd: float = 1.8, vin: float = 0.9, iref_uA: float = 0.25) -
     )
 
 
-def _open_loop_tb(subckt: str, dut_relpath: str, *, vdd: float, temp_c: float, corner: str) -> str:
+def _open_loop_tb(
+    subckt: str,
+    dut_relpath: str,
+    *,
+    vdd: float,
+    temp_c: float,
+    corner: str,
+    fstart: float = 1.0,
+    fstop: float = 1e8,
+    npts: int = 20,
+) -> str:
     return (
         _tb_header(f"v4 open-loop follower AC {corner} vdd={vdd} temp={temp_c}", dut_relpath, corner)
         + _common_sources(vdd=vdd)
@@ -103,7 +120,7 @@ def _open_loop_tb(subckt: str, dut_relpath: str, *, vdd: float, temp_c: float, c
         + _instantiate_dut(subckt)
         + ".save v(vout) v(vinp) i(VVDD)\n"
         + f".temp {temp_c}\n"
-        + _tb_footer(op=True, ac=(1.0, 1e8, 20))
+        + _tb_footer(op=True, ac=(fstart, fstop, npts))
     )
 
 
@@ -157,6 +174,40 @@ def _drive_tb(subckt: str, dut_relpath: str, *, direction: str, load_uA: float) 
     )
 
 
+def _acceptance_tb_entries(subckt: str, dut_relpath: str) -> list[tuple[str, str]]:
+    return [
+        (
+            "acceptance/accept_open_loop_tt_v1p80_t27.sp",
+            _open_loop_tb(
+                subckt,
+                dut_relpath,
+                vdd=1.8,
+                temp_c=27.0,
+                corner="tt",
+                fstart=1.0,
+                fstop=1e9,
+                npts=200,
+            ),
+        ),
+        (
+            "acceptance/accept_supply_enabled_tt_v1p80_t27.sp",
+            _supply_tb(subckt, dut_relpath, en_v=1.8, inf_v=1.8, label="accept_enabled"),
+        ),
+        (
+            "acceptance/accept_supply_disabled_tt_v1p80_t27.sp",
+            _supply_tb(subckt, dut_relpath, en_v=0.0, inf_v=0.0, label="accept_disabled"),
+        ),
+        (
+            "acceptance/accept_drive_source_25uA_tt_v1p80_t27.sp",
+            _drive_tb(subckt, dut_relpath, direction="source", load_uA=25.0),
+        ),
+        (
+            "acceptance/accept_drive_sink_25uA_tt_v1p80_t27.sp",
+            _drive_tb(subckt, dut_relpath, direction="sink", load_uA=25.0),
+        ),
+    ]
+
+
 def _readme() -> str:
     return f"""# v4 Customer SPICE Archive
 
@@ -168,6 +219,7 @@ customer-facing product metrics.
 Contents:
 - `spice/dut/neuron_core_oa_sky130.sp`: current top-level DUT
 - `spice/testbenches/core/open_loop_*.sp`: open-loop follower benches, including PVT
+- `spice/testbenches/acceptance/accept_*.sp`: acceptance benches matching the nominal acceptance measurements
 - `spice/testbenches/core/supply_enabled_tt_v1p80_t27.sp`
 - `spice/testbenches/core/supply_disabled_tt_v1p80_t27.sp`
 - `spice/testbenches/core/drive_source_25uA_tt_v1p80_t27.sp`
@@ -179,6 +231,53 @@ Notes:
 """
 
 
+def _usage_readme() -> str:
+    return f"""# Running The SPICE Bundle
+
+## 1. Point ngspice to SKY130 models
+
+All benches use the placeholder:
+
+`{SKY130_LIB_PLACEHOLDER}`
+
+Replace it in the `.sp` files with your local SKY130 ngspice library path, for example:
+
+`/path/to/sky130A/libs.tech/ngspice/sky130.lib.spice`
+
+## 2. Run an acceptance bench
+
+Example:
+
+```bash
+cd spice/testbenches/acceptance
+ngspice -b accept_open_loop_tt_v1p80_t27.sp -o accept_open_loop_tt_v1p80_t27.log
+```
+
+Other acceptance benches:
+
+- `accept_supply_enabled_tt_v1p80_t27.sp`
+- `accept_supply_disabled_tt_v1p80_t27.sp`
+- `accept_drive_source_25uA_tt_v1p80_t27.sp`
+- `accept_drive_sink_25uA_tt_v1p80_t27.sp`
+
+## 3. Run a core PVT bench
+
+Example:
+
+```bash
+cd spice/testbenches/core
+ngspice -b open_loop_tt_v1p80_t27.sp -o open_loop_tt_v1p80_t27.log
+```
+
+## 4. Files
+
+- `spice/dut/neuron_core_oa_sky130.sp`: DUT netlist
+- `spice/testbenches/core/`: characterization and PVT benches
+- `spice/testbenches/acceptance/`: nominal acceptance benches
+- `reports/`: exported JSON metrics from repository acceptance runs
+"""
+
+
 def build_archive(outdir: str | None = None) -> tuple[Path, Path]:
     outroot = Path(outdir).resolve() if outdir else ARCHIVE_ROOT.resolve()
     if outroot.exists():
@@ -187,9 +286,11 @@ def build_archive(outdir: str | None = None) -> tuple[Path, Path]:
 
     dut_dir = outroot / "spice" / "dut"
     tb_dir = outroot / "spice" / "testbenches" / "core"
+    acc_tb_dir = outroot / "spice" / "testbenches" / "acceptance"
     reports_dir = outroot / "reports"
     dut_dir.mkdir(parents=True, exist_ok=True)
     tb_dir.mkdir(parents=True, exist_ok=True)
+    acc_tb_dir.mkdir(parents=True, exist_ok=True)
     reports_dir.mkdir(parents=True, exist_ok=True)
 
     dut_path = export_spice(dut_dir / "neuron_core_oa_sky130.sp")
@@ -215,9 +316,16 @@ def build_archive(outdir: str | None = None) -> tuple[Path, Path]:
                     _open_loop_tb(subckt, dut_rel, vdd=vdd, temp_c=temp_c, corner=corner),
                 )
 
-    spec_json = ROOT / "devices" / "hogervorst_page12_sky130_opa" / "tests" / "acceptance" / "v4_accept_spec_snapshot_metrics.json"
-    if spec_json.exists():
-        shutil.copy2(spec_json, reports_dir / spec_json.name)
+    for relpath, text in _acceptance_tb_entries(subckt, dut_rel):
+        _write_text(outroot / "spice" / "testbenches" / relpath, text)
+
+    for metrics_name in (
+        "v4_accept_spec_snapshot_metrics.json",
+        "v4_accept_main_characteristics_metrics.json",
+    ):
+        metrics_path = DEVICE_ROOT / "tests" / "acceptance" / metrics_name
+        if metrics_path.exists():
+            shutil.copy2(metrics_path, reports_dir / metrics_path.name)
 
     manifest = {
         "generated_at": _utc_ts(),
@@ -230,11 +338,18 @@ def build_archive(outdir: str | None = None) -> tuple[Path, Path]:
             {"path": "spice/testbenches/core/supply_disabled_tt_v1p80_t27.sp", "kind": "testbench"},
             {"path": "spice/testbenches/core/drive_source_25uA_tt_v1p80_t27.sp", "kind": "testbench"},
             {"path": "spice/testbenches/core/drive_sink_25uA_tt_v1p80_t27.sp", "kind": "testbench"},
+            {"path": "spice/testbenches/acceptance/accept_open_loop_tt_v1p80_t27.sp", "kind": "testbench"},
+            {"path": "spice/testbenches/acceptance/accept_supply_enabled_tt_v1p80_t27.sp", "kind": "testbench"},
+            {"path": "spice/testbenches/acceptance/accept_supply_disabled_tt_v1p80_t27.sp", "kind": "testbench"},
+            {"path": "spice/testbenches/acceptance/accept_drive_source_25uA_tt_v1p80_t27.sp", "kind": "testbench"},
+            {"path": "spice/testbenches/acceptance/accept_drive_sink_25uA_tt_v1p80_t27.sp", "kind": "testbench"},
             {"path": "reports/v4_accept_spec_snapshot_metrics.json", "kind": "metrics"},
+            {"path": "reports/v4_accept_main_characteristics_metrics.json", "kind": "metrics"},
         ],
     }
     _write_text(outroot / "manifest.json", json.dumps(manifest, indent=2, sort_keys=True))
     _write_text(outroot / "README.md", _readme())
+    _write_text(outroot / "USAGE.md", _usage_readme())
 
     archive = outroot.with_suffix(".tar.gz")
     if archive.exists():

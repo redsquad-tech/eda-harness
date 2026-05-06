@@ -80,12 +80,12 @@ class TestV4ProbeBiasNetwork(BaseV4SimTest):
             "vbias3_V": find_signal(data, exact="v(xtop.xxdut.vbias3)"),
             "tail_p_V": find_signal(data, exact="v(xtop.xxdut.tail_p)"),
             "tail_n_V": find_signal(data, exact="v(xtop.xxdut.tail_n)"),
-            "vb_m24_V": find_signal(data, exact="v(xtop.xxdut.vb_m24)"),
-            "vb_m35_V": find_signal(data, exact="v(xtop.xxdut.vb_m35)"),
+            "m24_gate_mid_V": find_signal(data, exact="v(xtop.xxdut.m24_gate_mid)"),
+            "m35_gate_mid_V": find_signal(data, exact="v(xtop.xxdut.m35_gate_mid)"),
             "vgp_V": find_signal(data, exact="v(xtop.xxdut.vgp)"),
             "vgn_V": find_signal(data, exact="v(xtop.xxdut.vgn)"),
-            "mont_n_mid_V": find_signal(data, exact="v(xtop.xxdut.xmont.n_mid)"),
-            "mont_p_mid_V": find_signal(data, exact="v(xtop.xxdut.xmont.p_mid)"),
+            "mont_n_mid_V": find_signal(data, exact="v(xtop.xxdut.xanalog_core.n_mid)"),
+            "mont_p_mid_V": find_signal(data, exact="v(xtop.xxdut.xanalog_core.p_mid)"),
             "vout_V": find_signal(data, exact="v(xtop.vout)"),
         }
         payload["derived"] = {
@@ -99,19 +99,19 @@ class TestV4ProbeBiasNetwork(BaseV4SimTest):
                     "vbias3_V",
                     "tail_p_V",
                     "tail_n_V",
-                    "vb_m24_V",
-                    "vb_m35_V",
+                    "m24_gate_mid_V",
+                    "m35_gate_mid_V",
                     "vgp_V",
                     "vgn_V",
                     "vout_V",
                 ]
             ),
-            "mont_n_separated": abs(payload["vb_m24_V"] - payload["mont_n_mid_V"]) > 1e-3,
-            "mont_p_separated": abs(payload["vb_m35_V"] - payload["mont_p_mid_V"]) > 1e-3,
+            "mont_n_separated": abs(payload["m24_gate_mid_V"] - payload["mont_n_mid_V"]) > 1e-3,
+            "mont_p_separated": abs(payload["m35_gate_mid_V"] - payload["mont_p_mid_V"]) > 1e-3,
         }
         write_metrics_json(METRICS_PATH, payload)
 
         self.assertGreater(payload["iq_uA"], 0.0)
         self.assertTrue(payload["derived"]["observable_nodes_within_rails"])
-        self.assertTrue(payload["derived"]["mont_n_separated"], f"|vb_m24_V-mont_n_mid_V|={abs(payload['vb_m24_V'] - payload['mont_n_mid_V']):.6g} must be > 1e-3")
-        self.assertTrue(payload["derived"]["mont_p_separated"], f"|vb_m35_V-mont_p_mid_V|={abs(payload['vb_m35_V'] - payload['mont_p_mid_V']):.6g} must be > 1e-3")
+        self.assertTrue(payload["derived"]["mont_n_separated"], f"|m24_gate_mid_V-mont_n_mid_V|={abs(payload['m24_gate_mid_V'] - payload['mont_n_mid_V']):.6g} must be > 1e-3")
+        self.assertTrue(payload["derived"]["mont_p_separated"], f"|m35_gate_mid_V-mont_p_mid_V|={abs(payload['m35_gate_mid_V'] - payload['mont_p_mid_V']):.6g} must be > 1e-3")

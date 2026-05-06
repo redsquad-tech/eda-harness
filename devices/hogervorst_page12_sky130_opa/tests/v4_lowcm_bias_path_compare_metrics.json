@@ -1,0 +1,718 @@
+{
+  "comparisons": {
+    "vin0p1_failure": {
+      "core_ideal": false,
+      "core_real_bias": false,
+      "full_dut": false
+    },
+    "vin0p1_track_error_mV": {
+      "core_ideal": 0.08016324148601983,
+      "core_real_bias": 0.33741734791953304,
+      "full_dut": 0.3374165563144321
+    }
+  },
+  "core_ideal": {
+    "rows": [
+      {
+        "derived": {
+          "bias_nodes_within_rails": false,
+          "driver_diff_V": 1.109024505563383e-08,
+          "driver_nodes_within_rails": true,
+          "track_error_mV": 0.000693963686459671
+        },
+        "flags": {
+          "ac_nonfinite": false,
+          "iq_lt_10uA": true,
+          "low_cm_failure": false,
+          "track_error_gt_50mV": false
+        },
+        "iq_uA": 3.740601680561617,
+        "m24_gate_mid_V": 1.3551952220135368,
+        "m35_gate_mid_V": -0.5152268330799449,
+        "nnode_l_V": 0.5876195670603104,
+        "nnode_r_V": 0.5876195669234283,
+        "pnode_l_V": -0.6003581466953138,
+        "pnode_r_V": -0.6003581466952393,
+        "tail_n_V": -0.6015360628276334,
+        "tail_p_V": 0.6360668824471024,
+        "vbias1_V": 0.8240000000000001,
+        "vbias2_V": 0.891,
+        "vbias3_V": 0.634,
+        "vgn_V": 0.8991059988604294,
+        "vgp_V": 0.8991060099506745,
+        "vin_V": 0.0,
+        "vout_V": 6.93963686459671e-07,
+        "vref_mid_V": 0.8961559357027034
+      },
+      {
+        "derived": {
+          "bias_nodes_within_rails": false,
+          "driver_diff_V": 1.1085492634954619e-08,
+          "driver_nodes_within_rails": true,
+          "track_error_mV": 0.044764211633276096
+        },
+        "flags": {
+          "ac_nonfinite": false,
+          "iq_lt_10uA": true,
+          "low_cm_failure": false,
+          "track_error_gt_50mV": false
+        },
+        "iq_uA": 3.735412982985853,
+        "m24_gate_mid_V": 1.3551952218594303,
+        "m35_gate_mid_V": -0.5152268330083696,
+        "nnode_l_V": 0.5876195655380259,
+        "nnode_r_V": 0.5876195661882422,
+        "pnode_l_V": -0.6004820254829769,
+        "pnode_r_V": -0.6004820254817261,
+        "tail_n_V": -0.6014153634776445,
+        "tail_p_V": 0.6652631756256598,
+        "vbias1_V": 0.8240000000000001,
+        "vbias2_V": 0.891,
+        "vbias3_V": 0.634,
+        "vgn_V": 0.8992986571922167,
+        "vgp_V": 0.8992986682777093,
+        "vin_V": 0.05,
+        "vout_V": 0.04995523578836673,
+        "vref_mid_V": 0.8961559355542514
+      },
+      {
+        "derived": {
+          "bias_nodes_within_rails": false,
+          "driver_diff_V": 1.1075887429434772e-08,
+          "driver_nodes_within_rails": true,
+          "track_error_mV": 0.08016324148601983
+        },
+        "flags": {
+          "ac_nonfinite": false,
+          "iq_lt_10uA": true,
+          "low_cm_failure": false,
+          "track_error_gt_50mV": false
+        },
+        "iq_uA": 3.7333123966420967,
+        "m24_gate_mid_V": 1.3551952217838088,
+        "m35_gate_mid_V": -0.5152268331174202,
+        "nnode_l_V": 0.5876195634968697,
+        "nnode_r_V": 0.5876195633154512,
+        "pnode_l_V": -0.6005627831442033,
+        "pnode_r_V": -0.6005627831425469,
+        "tail_n_V": -0.6013362031872513,
+        "tail_p_V": 0.7005263246710828,
+        "vbias1_V": 0.8240000000000001,
+        "vbias2_V": 0.891,
+        "vbias3_V": 0.634,
+        "vgn_V": 0.8992469619629698,
+        "vgp_V": 0.8992469730388573,
+        "vin_V": 0.1,
+        "vout_V": 0.09991983675851399,
+        "vref_mid_V": 0.8961546317868139
+      },
+      {
+        "derived": {
+          "bias_nodes_within_rails": false,
+          "driver_diff_V": 1.108893943335687e-08,
+          "driver_nodes_within_rails": true,
+          "track_error_mV": 0.12293222655948566
+        },
+        "flags": {
+          "ac_nonfinite": false,
+          "iq_lt_10uA": true,
+          "low_cm_failure": false,
+          "track_error_gt_50mV": false
+        },
+        "iq_uA": 3.728825297977245,
+        "m24_gate_mid_V": 1.3551952218594303,
+        "m35_gate_mid_V": -0.5152268330083696,
+        "nnode_l_V": 0.5876195590655331,
+        "nnode_r_V": 0.5876195595668707,
+        "pnode_l_V": -0.6006602996623144,
+        "pnode_r_V": -0.6006602996650048,
+        "tail_n_V": -0.6012401091694255,
+        "tail_p_V": 0.7784894980145878,
+        "vbias1_V": 0.8240000000000001,
+        "vbias2_V": 0.891,
+        "vbias3_V": 0.634,
+        "vgn_V": 0.8991923147694726,
+        "vgp_V": 0.899192325858412,
+        "vin_V": 0.2,
+        "vout_V": 0.19987706777344053,
+        "vref_mid_V": 0.8961559349242939
+      },
+      {
+        "derived": {
+          "bias_nodes_within_rails": false,
+          "driver_diff_V": 1.1086136786353507e-08,
+          "driver_nodes_within_rails": true,
+          "track_error_mV": 0.14602375511574284
+        },
+        "flags": {
+          "ac_nonfinite": false,
+          "iq_lt_10uA": true,
+          "low_cm_failure": false,
+          "track_error_gt_50mV": false
+        },
+        "iq_uA": 3.7137666715966744,
+        "m24_gate_mid_V": 1.3551952218957883,
+        "m35_gate_mid_V": -0.5152268330737927,
+        "nnode_l_V": 0.5876195451087661,
+        "nnode_r_V": 0.5876195454191843,
+        "pnode_l_V": -0.6007794905696745,
+        "pnode_r_V": -0.6007794905696939,
+        "tail_n_V": -0.6011219006544064,
+        "tail_p_V": 1.0227672242641825,
+        "vbias1_V": 0.8240000000000001,
+        "vbias2_V": 0.891,
+        "vbias3_V": 0.634,
+        "vgn_V": 0.8992589589960069,
+        "vgp_V": 0.8992589700821437,
+        "vin_V": 0.5,
+        "vout_V": 0.49985397624488426,
+        "vref_mid_V": 0.8961559335572961
+      },
+      {
+        "derived": {
+          "bias_nodes_within_rails": false,
+          "driver_diff_V": 1.1060586113664783e-08,
+          "driver_nodes_within_rails": true,
+          "track_error_mV": 0.1525686274294058
+        },
+        "flags": {
+          "ac_nonfinite": false,
+          "iq_lt_10uA": true,
+          "low_cm_failure": false,
+          "track_error_gt_50mV": false
+        },
+        "iq_uA": 3.6903387789222197,
+        "m24_gate_mid_V": 1.3551952218594303,
+        "m35_gate_mid_V": -0.5152268330083696,
+        "nnode_l_V": 0.5876195263654612,
+        "nnode_r_V": 0.5876195303153263,
+        "pnode_l_V": -0.6008327272094367,
+        "pnode_r_V": -0.6008327272095232,
+        "tail_n_V": -0.6010688316546433,
+        "tail_p_V": 1.3492827636386626,
+        "vbias1_V": 0.8240000000000001,
+        "vbias2_V": 0.891,
+        "vbias3_V": 0.634,
+        "vgn_V": 0.8995889877053612,
+        "vgp_V": 0.8995889987659473,
+        "vin_V": 0.9,
+        "vout_V": 0.8998474313725706,
+        "vref_mid_V": 0.8961559317073362
+      }
+    ]
+  },
+  "core_real_bias": {
+    "ac": {
+      "0.1": {
+        "aol_db": 10.066442105935192,
+        "gain_margin_db": 22.98530824447606,
+        "gbw_hz": 2501354.471103895,
+        "phase_margin_deg": 60.63736006224566
+      },
+      "0.9": {
+        "aol_db": 51.44842389262181,
+        "gain_margin_db": 17.928181699962604,
+        "gbw_hz": 7287.377637011283,
+        "phase_margin_deg": 82.46839022216982
+      }
+    },
+    "rows": [
+      {
+        "derived": {
+          "bias_nodes_within_rails": true,
+          "driver_diff_V": 1.3457798875293747e-08,
+          "driver_nodes_within_rails": true,
+          "track_error_mV": 2.7000935514552665e-09
+        },
+        "flags": {
+          "ac_nonfinite": false,
+          "iq_lt_10uA": true,
+          "low_cm_failure": false,
+          "track_error_gt_50mV": false
+        },
+        "id_i0_n_out_A": 0.0,
+        "id_i0_p_out_A": 0.0,
+        "id_ibias_n_out_A": 0.0,
+        "id_ibias_p_out_A": 0.0,
+        "iq_uA": 6.275996131677175,
+        "m24_gate_mid_V": 1.3210078011369455,
+        "m35_gate_mid_V": 0.0004077712968081383,
+        "nnode_l_V": 0.5395350005071031,
+        "nnode_r_V": 0.5395350033342451,
+        "pnode_l_V": 1.7999989210155751,
+        "pnode_r_V": 1.7999984013944677,
+        "tail_n_V": 1.2890688259648952e-07,
+        "tail_p_V": 0.5844896366097934,
+        "vbias1_V": 0.823832402869158,
+        "vbias2_V": 0.8907308464797679,
+        "vbias3_V": 0.6335261041500685,
+        "vg_i0_n_V": 0.6305181906076684,
+        "vg_i0_p_V": 0.8804478819243773,
+        "vg_ibias_n_V": 0.6308325397610911,
+        "vg_ibias_p_V": 0.8617819180339492,
+        "vgn_V": 1.7999975661516585,
+        "vgp_V": 1.7999975796094574,
+        "vin_V": 0.0,
+        "vout_V": 2.7000935514552665e-12,
+        "vref_mid_V": 1.799998642368707
+      },
+      {
+        "derived": {
+          "bias_nodes_within_rails": true,
+          "driver_diff_V": 1.3466900483649624e-08,
+          "driver_nodes_within_rails": true,
+          "track_error_mV": 0.17436797858374348
+        },
+        "flags": {
+          "ac_nonfinite": false,
+          "iq_lt_10uA": true,
+          "low_cm_failure": false,
+          "track_error_gt_50mV": false
+        },
+        "id_i0_n_out_A": 0.0,
+        "id_i0_p_out_A": 0.0,
+        "id_ibias_n_out_A": 0.0,
+        "id_ibias_p_out_A": 0.0,
+        "iq_uA": 6.274861522825859,
+        "m24_gate_mid_V": 1.3210078011495674,
+        "m35_gate_mid_V": 0.0004077713263254436,
+        "nnode_l_V": 0.5394451137524888,
+        "nnode_r_V": 0.5394451258051545,
+        "pnode_l_V": 1.7999972203740262,
+        "pnode_r_V": 1.7999966992738876,
+        "tail_n_V": 5.274089077150857e-07,
+        "tail_p_V": 0.6144983118442362,
+        "vbias1_V": 0.8238324027469406,
+        "vbias2_V": 0.8907308466779578,
+        "vbias3_V": 0.6335261041184078,
+        "vg_i0_n_V": 0.6305181906408773,
+        "vg_i0_p_V": 0.8804478823757114,
+        "vg_ibias_n_V": 0.6308325397400493,
+        "vg_ibias_p_V": 0.8617819180725392,
+        "vgn_V": 1.7999958640394556,
+        "vgp_V": 1.799995877506356,
+        "vin_V": 0.05,
+        "vout_V": 0.04982563202141626,
+        "vref_mid_V": 1.79999694150586
+      },
+      {
+        "derived": {
+          "bias_nodes_within_rails": true,
+          "driver_diff_V": 1.3441047608253598e-08,
+          "driver_nodes_within_rails": true,
+          "track_error_mV": 0.33741734791953304
+        },
+        "flags": {
+          "ac_nonfinite": false,
+          "iq_lt_10uA": true,
+          "low_cm_failure": false,
+          "track_error_gt_50mV": false
+        },
+        "id_i0_n_out_A": 0.0,
+        "id_i0_p_out_A": 0.0,
+        "id_ibias_n_out_A": 0.0,
+        "id_ibias_p_out_A": 0.0,
+        "iq_uA": 6.273567432657501,
+        "m24_gate_mid_V": 1.3210078008720738,
+        "m35_gate_mid_V": 0.00040777125435540384,
+        "nnode_l_V": 0.5393316431986882,
+        "nnode_r_V": 0.5393316416282259,
+        "pnode_l_V": 1.7999902712337863,
+        "pnode_r_V": 1.799989752120123,
+        "tail_n_V": 2.1548974020776323e-06,
+        "tail_p_V": 0.6502687840451078,
+        "vbias1_V": 0.8238324031248206,
+        "vbias2_V": 0.8907308466158574,
+        "vbias3_V": 0.6335261041309205,
+        "vg_i0_n_V": 0.6305181906016806,
+        "vg_i0_p_V": 0.8804478820220947,
+        "vg_ibias_n_V": 0.6308325396992448,
+        "vg_ibias_p_V": 0.861781918342003,
+        "vgn_V": 1.799991632439427,
+        "vgp_V": 1.7999916458804746,
+        "vin_V": 0.1,
+        "vout_V": 0.09966258265208047,
+        "vref_mid_V": 1.7999899920970872
+      },
+      {
+        "derived": {
+          "bias_nodes_within_rails": true,
+          "driver_diff_V": 1.347751421576504e-08,
+          "driver_nodes_within_rails": true,
+          "track_error_mV": 0.6308386648780362
+        },
+        "flags": {
+          "ac_nonfinite": false,
+          "iq_lt_10uA": true,
+          "low_cm_failure": false,
+          "track_error_gt_50mV": false
+        },
+        "id_i0_n_out_A": 0.0,
+        "id_i0_p_out_A": 0.0,
+        "id_ibias_n_out_A": 0.0,
+        "id_ibias_p_out_A": 0.0,
+        "iq_uA": 6.272460677081426,
+        "m24_gate_mid_V": 1.3210078013268571,
+        "m35_gate_mid_V": 0.0004077712807302597,
+        "nnode_l_V": 0.5390846461437455,
+        "nnode_r_V": 0.5390846489467975,
+        "pnode_l_V": 1.7998474744196655,
+        "pnode_r_V": 1.7998469526711554,
+        "tail_n_V": 3.556319194988876e-05,
+        "tail_p_V": 0.7283755562737604,
+        "vbias1_V": 0.8238324031464836,
+        "vbias2_V": 0.8907308467620698,
+        "vbias3_V": 0.6335261040969565,
+        "vg_i0_n_V": 0.630518190589584,
+        "vg_i0_p_V": 0.8804478823222978,
+        "vg_ibias_n_V": 0.6308325397316018,
+        "vg_ibias_p_V": 0.8617819181852171,
+        "vgn_V": 1.7998461140149875,
+        "vgp_V": 1.7998461274925017,
+        "vin_V": 0.2,
+        "vout_V": 0.19936916133512197,
+        "vref_mid_V": 1.7998471946532244
+      },
+      {
+        "derived": {
+          "bias_nodes_within_rails": true,
+          "driver_diff_V": 7.261887992160432e-06,
+          "driver_nodes_within_rails": true,
+          "track_error_mV": 0.14099623479180146
+        },
+        "flags": {
+          "ac_nonfinite": false,
+          "iq_lt_10uA": true,
+          "low_cm_failure": false,
+          "track_error_gt_50mV": false
+        },
+        "id_i0_n_out_A": 0.0,
+        "id_i0_p_out_A": 0.0,
+        "id_ibias_n_out_A": 0.0,
+        "id_ibias_p_out_A": 0.0,
+        "iq_uA": 7.507283090291139,
+        "m24_gate_mid_V": 1.3210078001459589,
+        "m35_gate_mid_V": 0.00040777125429649437,
+        "nnode_l_V": 0.5382622392641797,
+        "nnode_r_V": 0.5382622365162231,
+        "pnode_l_V": 0.0182193189551414,
+        "pnode_r_V": 0.018219318955164307,
+        "tail_n_V": 0.00935557928525202,
+        "tail_p_V": 0.9721639318177921,
+        "vbias1_V": 0.8238324030528834,
+        "vbias2_V": 0.8907308463828502,
+        "vbias3_V": 0.6335261039089317,
+        "vg_i0_n_V": 0.6305181904336847,
+        "vg_i0_p_V": 0.8804478822969669,
+        "vg_ibias_n_V": 0.6308325395705003,
+        "vg_ibias_p_V": 0.8617819185962846,
+        "vgn_V": 0.8937525348607896,
+        "vgp_V": 0.8937597967487818,
+        "vin_V": 0.5,
+        "vout_V": 0.4998590037652082,
+        "vref_mid_V": 0.8796826817743693
+      },
+      {
+        "derived": {
+          "bias_nodes_within_rails": true,
+          "driver_diff_V": 7.360432912606463e-06,
+          "driver_nodes_within_rails": true,
+          "track_error_mV": 0.14651204186033606
+        },
+        "flags": {
+          "ac_nonfinite": false,
+          "iq_lt_10uA": true,
+          "low_cm_failure": false,
+          "track_error_gt_50mV": false
+        },
+        "id_i0_n_out_A": 0.0,
+        "id_i0_p_out_A": 0.0,
+        "id_ibias_n_out_A": 0.0,
+        "id_ibias_p_out_A": 0.0,
+        "iq_uA": 7.476725620847446,
+        "m24_gate_mid_V": 1.3210078006916657,
+        "m35_gate_mid_V": 0.0004077712993834472,
+        "nnode_l_V": 0.5369630614934546,
+        "nnode_r_V": 0.5369630643877166,
+        "pnode_l_V": 0.009686955430114299,
+        "pnode_r_V": 0.009686955430114302,
+        "tail_n_V": 0.009361790685638192,
+        "tail_p_V": 1.2983777637523628,
+        "vbias1_V": 0.8238324029293111,
+        "vbias2_V": 0.8907308462281305,
+        "vbias3_V": 0.6335261041063752,
+        "vg_i0_n_V": 0.6305181905362642,
+        "vg_i0_p_V": 0.8804478823997356,
+        "vg_ibias_n_V": 0.6308325396926857,
+        "vg_ibias_p_V": 0.8617819182597899,
+        "vgn_V": 0.893240995177383,
+        "vgp_V": 0.8932483556102956,
+        "vin_V": 0.9,
+        "vout_V": 0.8998534879581397,
+        "vref_mid_V": 0.8789109860334008
+      }
+    ]
+  },
+  "full_dut": {
+    "ac": {
+      "0.1": {
+        "aol_db": 10.066468588725234,
+        "gain_margin_db": 23.46783314144035,
+        "gbw_hz": 2364650.9512850353,
+        "phase_margin_deg": 61.01736009855402
+      },
+      "0.9": {
+        "aol_db": 50.40536028782576,
+        "gain_margin_db": 16.657777648079154,
+        "gbw_hz": 12160.75114625382,
+        "phase_margin_deg": 81.23369055783641
+      }
+    },
+    "rows": [
+      {
+        "derived": {
+          "bias_nodes_within_rails": true,
+          "driver_diff_V": 2.0142361556452215e-08,
+          "driver_nodes_within_rails": true,
+          "track_error_mV": 4.757606278641914e-09
+        },
+        "flags": {
+          "ac_nonfinite": false,
+          "iq_lt_10uA": true,
+          "low_cm_failure": false,
+          "track_error_gt_50mV": false
+        },
+        "id_i0_n_out_A": 7.609755982743888e-12,
+        "id_i0_p_out_A": 5.417762660997444e-07,
+        "id_ibias_n_out_A": 5.095723120784118e-09,
+        "id_ibias_p_out_A": 3.251740442578111e-07,
+        "iq_uA": 6.27599778165594,
+        "iref_int_V": 0.7485223703242183,
+        "m24_gate_mid_V": 1.3210075591616965,
+        "m35_gate_mid_V": 0.00040777200058156153,
+        "nnode_l_V": 0.5395349012784854,
+        "nnode_r_V": 0.5395349222758621,
+        "pnode_l_V": 1.7999989208376512,
+        "pnode_r_V": 1.7999978766335007,
+        "tail_n_V": 1.2890712236941642e-07,
+        "tail_p_V": 0.5844895325542687,
+        "vbias1_V": 0.8238325306793329,
+        "vbias2_V": 0.8907309780919483,
+        "vbias3_V": 0.6335259797931079,
+        "vg_i0_n_V": 0.6305180607872891,
+        "vg_i0_p_V": 0.8804480141772074,
+        "vg_ibias_n_V": 0.6308324246521728,
+        "vg_ibias_p_V": 0.8617820547983884,
+        "vgn_V": 1.7999964876485797,
+        "vgp_V": 1.7999965077909412,
+        "vin_V": 0.0,
+        "vout_V": 4.757606278641914e-12,
+        "vref_mid_V": 1.7999986420198768
+      },
+      {
+        "derived": {
+          "bias_nodes_within_rails": true,
+          "driver_diff_V": 2.0140682899238982e-08,
+          "driver_nodes_within_rails": true,
+          "track_error_mV": 0.17436787008182075
+        },
+        "flags": {
+          "ac_nonfinite": false,
+          "iq_lt_10uA": true,
+          "low_cm_failure": false,
+          "track_error_gt_50mV": false
+        },
+        "id_i0_n_out_A": 3.11344168226559e-11,
+        "id_i0_p_out_A": 5.406230654283859e-07,
+        "id_ibias_n_out_A": 5.0957226589271605e-09,
+        "id_ibias_p_out_A": 3.2517404968321563e-07,
+        "iq_uA": 6.2748629933995215,
+        "iref_int_V": 0.7485223689098611,
+        "m24_gate_mid_V": 1.3210075616160821,
+        "m35_gate_mid_V": 0.0004077719581714219,
+        "nnode_l_V": 0.5394426065479878,
+        "nnode_r_V": 0.5394426063181608,
+        "pnode_l_V": 1.7999972192717733,
+        "pnode_r_V": 1.7999961746091973,
+        "tail_n_V": 5.274098808651049e-07,
+        "tail_p_V": 0.6144980347343451,
+        "vbias1_V": 0.8238325295598466,
+        "vbias2_V": 0.8907309770367603,
+        "vbias3_V": 0.6335259807052851,
+        "vg_i0_n_V": 0.6305180618223017,
+        "vg_i0_p_V": 0.8804480135125146,
+        "vg_ibias_n_V": 0.6308324255384874,
+        "vg_ibias_p_V": 0.8617820538167099,
+        "vgn_V": 1.799994784929057,
+        "vgp_V": 1.7999948050697399,
+        "vin_V": 0.05,
+        "vout_V": 0.04982563212991818,
+        "vref_mid_V": 1.7999969403807359
+      },
+      {
+        "derived": {
+          "bias_nodes_within_rails": true,
+          "driver_diff_V": 2.0144683032796706e-08,
+          "driver_nodes_within_rails": true,
+          "track_error_mV": 0.3374165563144321
+        },
+        "flags": {
+          "ac_nonfinite": false,
+          "iq_lt_10uA": true,
+          "low_cm_failure": false,
+          "track_error_gt_50mV": false
+        },
+        "id_i0_n_out_A": 1.2720798042096017e-10,
+        "id_i0_p_out_A": 5.392367183874722e-07,
+        "id_ibias_n_out_A": 5.095722608727419e-09,
+        "id_ibias_p_out_A": 3.2517404490615405e-07,
+        "iq_uA": 6.2735687185108695,
+        "iref_int_V": 0.7485223706080806,
+        "m24_gate_mid_V": 1.3210075593636141,
+        "m35_gate_mid_V": 0.00040777196072872175,
+        "nnode_l_V": 0.5393315406899528,
+        "nnode_r_V": 0.5393321074322026,
+        "pnode_l_V": 1.799990272106539,
+        "pnode_r_V": 1.799989227252722,
+        "tail_n_V": 2.15490141541214e-06,
+        "tail_p_V": 0.6502692728777115,
+        "vbias1_V": 0.8238325309383627,
+        "vbias2_V": 0.8907309785094023,
+        "vbias3_V": 0.6335259795863742,
+        "vg_i0_n_V": 0.630518060632588,
+        "vg_i0_p_V": 0.8804480146149626,
+        "vg_ibias_n_V": 0.6308324244437897,
+        "vg_ibias_p_V": 0.8617820546816662,
+        "vgn_V": 1.7999878377078922,
+        "vgp_V": 1.7999878578525752,
+        "vin_V": 0.1,
+        "vout_V": 0.09966258344368557,
+        "vref_mid_V": 1.7999899930566672
+      },
+      {
+        "derived": {
+          "bias_nodes_within_rails": true,
+          "driver_diff_V": 2.0147682411320034e-08,
+          "driver_nodes_within_rails": true,
+          "track_error_mV": 0.6308382237528165
+        },
+        "flags": {
+          "ac_nonfinite": false,
+          "iq_lt_10uA": true,
+          "low_cm_failure": false,
+          "track_error_gt_50mV": false
+        },
+        "id_i0_n_out_A": 2.0988204262927312e-09,
+        "id_i0_p_out_A": 5.361617131456758e-07,
+        "id_ibias_n_out_A": 5.095722867149262e-09,
+        "id_ibias_p_out_A": 3.25174046857898e-07,
+        "iq_uA": 6.27246201628795,
+        "iref_int_V": 0.7485223701882114,
+        "m24_gate_mid_V": 1.3210075601403584,
+        "m35_gate_mid_V": 0.0004077719799023098,
+        "nnode_l_V": 0.5390845481058255,
+        "nnode_r_V": 0.5390845536006434,
+        "pnode_l_V": 1.799847474753159,
+        "pnode_r_V": 1.7998464273088575,
+        "tail_n_V": 3.5563257977565916e-05,
+        "tail_p_V": 0.7283754570203032,
+        "vbias1_V": 0.8238325301869653,
+        "vbias2_V": 0.8907309783623529,
+        "vbias3_V": 0.6335259798747788,
+        "vg_i0_n_V": 0.6305180609017159,
+        "vg_i0_p_V": 0.8804480141783464,
+        "vg_ibias_n_V": 0.6308324247050247,
+        "vg_ibias_p_V": 0.8617820543291996,
+        "vgn_V": 1.7998450339050027,
+        "vgp_V": 1.7998450540526851,
+        "vin_V": 0.2,
+        "vout_V": 0.1993691617762472,
+        "vref_mid_V": 1.7998471951294643
+      },
+      {
+        "derived": {
+          "bias_nodes_within_rails": true,
+          "driver_diff_V": 6.907878925210831e-06,
+          "driver_nodes_within_rails": true,
+          "track_error_mV": 0.14285029056454457
+        },
+        "flags": {
+          "ac_nonfinite": false,
+          "iq_lt_10uA": true,
+          "low_cm_failure": false,
+          "track_error_gt_50mV": false
+        },
+        "id_i0_n_out_A": 5.123248528478485e-07,
+        "id_i0_p_out_A": 5.260320342854146e-07,
+        "id_ibias_n_out_A": 5.09572309671731e-09,
+        "id_ibias_p_out_A": 3.251740505983509e-07,
+        "iq_uA": 7.481733009004343,
+        "iref_int_V": 0.7485223687708908,
+        "m24_gate_mid_V": 1.321007561876871,
+        "m35_gate_mid_V": 0.000407771992569644,
+        "nnode_l_V": 0.5382621405937292,
+        "nnode_r_V": 0.5382621418601641,
+        "pnode_l_V": 0.018219293399551015,
+        "pnode_r_V": 0.018219293399551084,
+        "tail_n_V": 0.009355576387928055,
+        "tail_p_V": 0.97216383434076,
+        "vbias1_V": 0.8238325294764585,
+        "vbias2_V": 0.8907309773635402,
+        "vbias3_V": 0.6335259808418621,
+        "vg_i0_n_V": 0.6305180619398266,
+        "vg_i0_p_V": 0.8804480134390957,
+        "vg_ibias_n_V": 0.6308324256625695,
+        "vg_ibias_p_V": 0.8617820536521121,
+        "vgn_V": 0.8957910692398459,
+        "vgp_V": 0.8957979771187711,
+        "vin_V": 0.5,
+        "vout_V": 0.49985714970943546,
+        "vref_mid_V": 0.8796826813861196
+      },
+      {
+        "derived": {
+          "bias_nodes_within_rails": true,
+          "driver_diff_V": 6.9651950378446514e-06,
+          "driver_nodes_within_rails": true,
+          "track_error_mV": 0.14864275427250995
+        },
+        "flags": {
+          "ac_nonfinite": false,
+          "iq_lt_10uA": true,
+          "low_cm_failure": false,
+          "track_error_gt_50mV": false
+        },
+        "id_i0_n_out_A": 5.126386989906906e-07,
+        "id_i0_p_out_A": 5.103982738157181e-07,
+        "id_ibias_n_out_A": 5.0957226589271605e-09,
+        "id_ibias_p_out_A": 3.2517404968321563e-07,
+        "iq_uA": 7.449215271321252,
+        "iref_int_V": 0.7485223689098611,
+        "m24_gate_mid_V": 1.3210075616160821,
+        "m35_gate_mid_V": 0.0004077719581714219,
+        "nnode_l_V": 0.5369629650672101,
+        "nnode_r_V": 0.5369629676991075,
+        "pnode_l_V": 0.009686951774869779,
+        "pnode_r_V": 0.009686951774869779,
+        "tail_n_V": 0.009361787767689273,
+        "tail_p_V": 1.298377671042182,
+        "vbias1_V": 0.8238325295598466,
+        "vbias2_V": 0.8907309770367603,
+        "vbias3_V": 0.6335259807052851,
+        "vg_i0_n_V": 0.6305180618223017,
+        "vg_i0_p_V": 0.8804480135125146,
+        "vg_ibias_n_V": 0.6308324255384874,
+        "vg_ibias_p_V": 0.8617820538167099,
+        "vgn_V": 0.895484824223608,
+        "vgp_V": 0.8954917894186458,
+        "vin_V": 0.9,
+        "vout_V": 0.8998513572457275,
+        "vref_mid_V": 0.8789109540442719
+      }
+    ]
+  },
+  "verdict": {
+    "vin0p0_status": "separate hard lower-bound case; do not merge with VIN=0.1 diagnosis",
+    "vin0p1_primary_culprit": "unresolved or mixed; re-open topology hypothesis"
+  }
+}

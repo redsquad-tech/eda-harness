@@ -1,0 +1,119 @@
+{
+  "rows": [
+    {
+      "derived": {
+        "collapsed_like_product": true,
+        "driver_cm_V": 0.8991060044055519,
+        "driver_diff_V": 1.109024505563383e-08,
+        "drivers_within_rails": true,
+        "internal_nodes_finite": true
+      },
+      "iq_uA": 3.740601680561617,
+      "m24_gate_mid_V": 1.3551952220135368,
+      "m35_gate_mid_V": -0.5152268330799449,
+      "nnode_l_V": 0.5876195670603104,
+      "nnode_r_V": 0.5876195669234283,
+      "pnode_l_V": -0.6003581466953138,
+      "pnode_r_V": -0.6003581466952393,
+      "tail_n_V": -0.6015360628276334,
+      "tail_p_V": 0.6360668824471024,
+      "vbias1_V": 0.8240000000000001,
+      "vbias2_V": 0.891,
+      "vbias3_V": 0.634,
+      "vgn_V": 0.8991059988604294,
+      "vgp_V": 0.8991060099506745,
+      "vin_V": 0.0,
+      "vout_V": 6.93963686459671e-07,
+      "vref_mid_V": 0.8961559357027034
+    },
+    {
+      "derived": {
+        "collapsed_like_product": false,
+        "driver_cm_V": 0.8992469675009136,
+        "driver_diff_V": 1.1075887429434772e-08,
+        "drivers_within_rails": true,
+        "internal_nodes_finite": true
+      },
+      "iq_uA": 3.7333123966420967,
+      "m24_gate_mid_V": 1.3551952217838088,
+      "m35_gate_mid_V": -0.5152268331174202,
+      "nnode_l_V": 0.5876195634968697,
+      "nnode_r_V": 0.5876195633154512,
+      "pnode_l_V": -0.6005627831442033,
+      "pnode_r_V": -0.6005627831425469,
+      "tail_n_V": -0.6013362031872513,
+      "tail_p_V": 0.7005263246710828,
+      "vbias1_V": 0.8240000000000001,
+      "vbias2_V": 0.891,
+      "vbias3_V": 0.634,
+      "vgn_V": 0.8992469619629698,
+      "vgp_V": 0.8992469730388573,
+      "vin_V": 0.1,
+      "vout_V": 0.09991983675851399,
+      "vref_mid_V": 0.8961546317868139
+    },
+    {
+      "derived": {
+        "collapsed_like_product": false,
+        "driver_cm_V": 0.8992589645390754,
+        "driver_diff_V": 1.1086136786353507e-08,
+        "drivers_within_rails": true,
+        "internal_nodes_finite": true
+      },
+      "iq_uA": 3.7137666715966744,
+      "m24_gate_mid_V": 1.3551952218957883,
+      "m35_gate_mid_V": -0.5152268330737927,
+      "nnode_l_V": 0.5876195451087661,
+      "nnode_r_V": 0.5876195454191843,
+      "pnode_l_V": -0.6007794905696745,
+      "pnode_r_V": -0.6007794905696939,
+      "tail_n_V": -0.6011219006544064,
+      "tail_p_V": 1.0227672242641825,
+      "vbias1_V": 0.8240000000000001,
+      "vbias2_V": 0.891,
+      "vbias3_V": 0.634,
+      "vgn_V": 0.8992589589960069,
+      "vgp_V": 0.8992589700821437,
+      "vin_V": 0.5,
+      "vout_V": 0.49985397624488426,
+      "vref_mid_V": 0.8961559335572961
+    },
+    {
+      "derived": {
+        "collapsed_like_product": false,
+        "driver_cm_V": 0.8995889932356542,
+        "driver_diff_V": 1.1060586113664783e-08,
+        "drivers_within_rails": true,
+        "internal_nodes_finite": true
+      },
+      "iq_uA": 3.6903387789222197,
+      "m24_gate_mid_V": 1.3551952218594303,
+      "m35_gate_mid_V": -0.5152268330083696,
+      "nnode_l_V": 0.5876195263654612,
+      "nnode_r_V": 0.5876195303153263,
+      "pnode_l_V": -0.6008327272094367,
+      "pnode_r_V": -0.6008327272095232,
+      "tail_n_V": -0.6010688316546433,
+      "tail_p_V": 1.3492827636386626,
+      "vbias1_V": 0.8240000000000001,
+      "vbias2_V": 0.891,
+      "vbias3_V": 0.634,
+      "vgn_V": 0.8995889877053612,
+      "vgp_V": 0.8995889987659473,
+      "vin_V": 0.9,
+      "vout_V": 0.8998474313725706,
+      "vref_mid_V": 0.8961559317073362
+    }
+  ],
+  "summary": {
+    "all_driver_nodes_within_rails": true,
+    "all_nodes_finite": true,
+    "low_cm_collapsed_points": [
+      0.0
+    ],
+    "vin09_iq_uA": 3.6903387789222197,
+    "vin09_vout_V": 0.8998474313725706,
+    "vin0_iq_uA": 3.740601680561617,
+    "vin0_vout_V": 6.93963686459671e-07
+  }
+}

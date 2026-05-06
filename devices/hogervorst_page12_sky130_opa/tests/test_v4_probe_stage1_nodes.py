@@ -75,20 +75,20 @@ class TestV4ProbeStage1Nodes(BaseV4SimTest):
         payload = {
             "tail_p_V": find_signal(data, exact="v(xtop.xxdut.tail_p)"),
             "tail_n_V": find_signal(data, exact="v(xtop.xxdut.tail_n)"),
-            "vb_m24_V": find_signal(data, exact="v(xtop.xxdut.vb_m24)"),
-            "vb_m35_V": find_signal(data, exact="v(xtop.xxdut.vb_m35)"),
+            "m24_gate_mid_V": find_signal(data, exact="v(xtop.xxdut.m24_gate_mid)"),
+            "m35_gate_mid_V": find_signal(data, exact="v(xtop.xxdut.m35_gate_mid)"),
             "vgp_V": find_signal(data, exact="v(xtop.xxdut.vgp)"),
             "vgn_V": find_signal(data, exact="v(xtop.xxdut.vgn)"),
-            "pnode_l_V": find_signal(data, exact="v(xtop.xxdut.xfrontend.pnode_l)"),
-            "pnode_r_V": find_signal(data, exact="v(xtop.xxdut.xfrontend.pnode_r)"),
-            "nnode_l_V": find_signal(data, exact="v(xtop.xxdut.xfrontend.nnode_l)"),
-            "nnode_r_V": find_signal(data, exact="v(xtop.xxdut.xfrontend.nnode_r)"),
-            "vref_mid_V": find_signal(data, exact="v(xtop.xxdut.xfrontend.vref_mid)"),
+            "pnode_l_V": find_signal(data, exact="v(xtop.xxdut.pnode_l)"),
+            "pnode_r_V": find_signal(data, exact="v(xtop.xxdut.pnode_r)"),
+            "nnode_l_V": find_signal(data, exact="v(xtop.xxdut.nnode_l)"),
+            "nnode_r_V": find_signal(data, exact="v(xtop.xxdut.nnode_r)"),
+            "vref_mid_V": find_signal(data, exact="v(xtop.xxdut.vref_mid)"),
         }
         payload["derived"] = {
             "stage1_cm_V": 0.5 * (payload["vgp_V"] + payload["vgn_V"]),
             "stage1_diff_V": payload["vgp_V"] - payload["vgn_V"],
-            "outputs_within_rails": all(0.0 <= payload[key] <= vdd for key in ["vgp_V", "vgn_V", "vb_m24_V", "vb_m35_V"]),
+            "outputs_within_rails": all(0.0 <= payload[key] <= vdd for key in ["vgp_V", "vgn_V", "m24_gate_mid_V", "m35_gate_mid_V"]),
             "internal_nodes_finite": all(abs(payload[key]) < 10.0 for key in payload if key.endswith("_V")),
             "outputs_resolved": abs(payload["vgp_V"] - payload["vgn_V"]) > 1e-6,
         }

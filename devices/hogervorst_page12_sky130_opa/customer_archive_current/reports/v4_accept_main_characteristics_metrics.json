@@ -1,0 +1,67 @@
+{
+  "acceptance": {
+    "aol_db_max": 200.0,
+    "aol_db_min": 0.0,
+    "drive_current_uA": 25.0,
+    "gain_margin_db_max": 200.0,
+    "gain_margin_db_min": 0.0,
+    "gbw_hz_max": 1000000000.0,
+    "gbw_hz_min": 1.0,
+    "iq_uA_max": 1000.0,
+    "iq_uA_min": 0.0,
+    "phase_margin_deg_max": 180.0,
+    "phase_margin_deg_min": 0.0,
+    "rails_high_v": 1.8,
+    "rails_low_v": 0.0,
+    "vdd_nominal": 1.8
+  },
+  "disabled": {
+    "az_v": 0.0,
+    "en_v": 0.0,
+    "inf_v": 0.0,
+    "iq_uA": 23.97679731321045,
+    "temp_c": 27.0,
+    "vdd": 1.8,
+    "vout_dc": 0.8965577984207611
+  },
+  "enabled": {
+    "az_v": 0.0,
+    "en_v": 1.8,
+    "inf_v": 1.8,
+    "iq_uA": 23.994491299875186,
+    "temp_c": 27.0,
+    "vdd": 1.8,
+    "vout_dc": 0.8965581640762389
+  },
+  "open_loop": {
+    "aol_db": 53.939612372184335,
+    "gain_margin_db": 16.177479351925133,
+    "gbw_hz": 12824.785110682282,
+    "iq_uA": 23.994491299875186,
+    "low_freq_phase_deg_raw": -177.7495273025282,
+    "phase_at_unity_deg_raw": -99.33123481679633,
+    "phase_margin_deg": 80.66876518320367,
+    "vout_dc": 0.8965581640762389
+  },
+  "sink_25uA": {
+    "direction": "sink",
+    "iq_uA": 40.85770826842139,
+    "load_current_uA": 25.0,
+    "vin_target": 0.9,
+    "vout_dc": 0.8968702722798463
+  },
+  "source_25uA": {
+    "direction": "source",
+    "iq_uA": 35.294600586585624,
+    "load_current_uA": 25.0,
+    "vin_target": 0.9,
+    "vout_dc": 1.6599728959999225
+  },
+  "summary": {
+    "disabled_to_enabled_ratio": 0.9992625812965317,
+    "disabled_vout_within_rails": true,
+    "enabled_vout_within_rails": true,
+    "sink_25uA_vout_within_rails": true,
+    "source_25uA_vout_within_rails": true
+  }
+}

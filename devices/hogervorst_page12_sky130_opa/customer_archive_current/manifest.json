@@ -25,11 +25,35 @@
       "path": "spice/testbenches/core/drive_sink_25uA_tt_v1p80_t27.sp"
     },
     {
+      "kind": "testbench",
+      "path": "spice/testbenches/acceptance/accept_open_loop_tt_v1p80_t27.sp"
+    },
+    {
+      "kind": "testbench",
+      "path": "spice/testbenches/acceptance/accept_supply_enabled_tt_v1p80_t27.sp"
+    },
+    {
+      "kind": "testbench",
+      "path": "spice/testbenches/acceptance/accept_supply_disabled_tt_v1p80_t27.sp"
+    },
+    {
+      "kind": "testbench",
+      "path": "spice/testbenches/acceptance/accept_drive_source_25uA_tt_v1p80_t27.sp"
+    },
+    {
+      "kind": "testbench",
+      "path": "spice/testbenches/acceptance/accept_drive_sink_25uA_tt_v1p80_t27.sp"
+    },
+    {
       "kind": "metrics",
       "path": "reports/v4_accept_spec_snapshot_metrics.json"
+    },
+    {
+      "kind": "metrics",
+      "path": "reports/v4_accept_main_characteristics_metrics.json"
     }
   ],
   "dut": "neuron_core_oa_sky130",
-  "generated_at": "2026-04-16T05:54:32.981540+00:00",
-  "subckt": "CmosInv_3e3a48af070f445359b4b2b4e367924b_"
+  "generated_at": "2026-04-19T23:08:26.869273+00:00",
+  "subckt": "NeuronCoreOaSky130_4f6ed3d2a22f7fd4752668b8eace8b8f_"
 }

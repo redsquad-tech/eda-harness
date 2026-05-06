@@ -25,6 +25,14 @@ class OpaBiasGenParams:
     ibias_p_l = h.Param(dtype=h.Scalar, desc="PMOS output-device length for Monticelli PMOS source", default=1.0 * U)
     ibias_n_w = h.Param(dtype=h.Scalar, desc="NMOS output-device width for Monticelli NMOS sink", default=1.0 * U)
     ibias_n_l = h.Param(dtype=h.Scalar, desc="NMOS output-device length for Monticelli NMOS sink", default=1.0 * U)
+    pmos_bias_l = h.Param(dtype=h.Scalar, desc="Shorter length for PMOS current-delivery branches", default=0.6 * U)
+    nmos_bias_l = h.Param(dtype=h.Scalar, desc="Shorter length for NMOS current-sink branches", default=0.6 * U)
+    i0_p_out_scale = h.Param(dtype=h.Scalar, desc="Output mirror boost for i0_p branch", default=3.0)
+    ibias_p_out_scale = h.Param(dtype=h.Scalar, desc="Output mirror boost for ibias_p branch", default=2.0)
+    i0_n_feed_scale = h.Param(dtype=h.Scalar, desc="PMOS feed scale for i0_n branch", default=1.5)
+    i0_n_out_scale = h.Param(dtype=h.Scalar, desc="NMOS output scale for i0_n branch", default=2.0)
+    ibias_n_feed_scale = h.Param(dtype=h.Scalar, desc="PMOS feed scale for ibias_n branch", default=1.0)
+    ibias_n_out_scale = h.Param(dtype=h.Scalar, desc="NMOS output scale for ibias_n branch", default=1.0)
     bias1_p_w = h.Param(dtype=h.Scalar, desc="PMOS bias-device width for frontend vbias1", default=4.0 * U)
     bias1_p_l = h.Param(dtype=h.Scalar, desc="PMOS bias-device length for frontend vbias1", default=0.6 * U)
     bias2_p_w = h.Param(dtype=h.Scalar, desc="PMOS bias-device width for frontend vbias2", default=4.0 * U)
@@ -61,23 +69,41 @@ def OpaBiasGen(params: OpaBiasGenParams) -> h.Module:
             w=params.nref_w, l=params.nref_l, vth=MosVth.STD, family=h.MosFamily.CORE
         )(d=nref, g=nref, s=agnd, b=agnd)
 
-        mp_i0_p_ref = h.Pmos(w=params.i0_p_w, l=params.i0_p_l, vth=MosVth.HIGH, family=h.MosFamily.CORE)(
+        # PMOS-side delivery branches are the low-CM failure point.
+        # Use STD-Vt devices and stronger output mirrors so i0_p / ibias_p
+        # keep sourcing current when the analog core pulls these nodes upward.
+        mp_i0_p_ref = h.Pmos(w=params.i0_p_w, l=params.pmos_bias_l, vth=MosVth.STD, family=h.MosFamily.CORE)(
             d=vg_i0_p, g=vg_i0_p, s=avdd, b=avdd
         )
         mn_i0_p_sink = h.Nmos(w=params.nref_w, l=params.nref_l, vth=MosVth.STD, family=h.MosFamily.CORE)(
             d=vg_i0_p, g=nref, s=agnd, b=agnd
         )
-        mp_i0_p_out = h.Pmos(w=params.i0_p_w, l=params.i0_p_l, vth=MosVth.HIGH, family=h.MosFamily.CORE)(
+        mp_i0_p_out = h.Pmos(
+            w=params.i0_p_w * params.i0_p_out_scale,
+            l=params.pmos_bias_l,
+            vth=MosVth.STD,
+            family=h.MosFamily.CORE,
+        )(
             d=i0_p, g=vg_i0_p, s=avdd, b=avdd
         )
 
-        mp_ibias_p_ref = h.Pmos(w=params.ibias_p_w, l=params.ibias_p_l, vth=MosVth.HIGH, family=h.MosFamily.CORE)(
+        mp_ibias_p_ref = h.Pmos(
+            w=params.ibias_p_w,
+            l=params.pmos_bias_l,
+            vth=MosVth.STD,
+            family=h.MosFamily.CORE,
+        )(
             d=vg_ibias_p, g=vg_ibias_p, s=avdd, b=avdd
         )
         mn_ibias_p_sink = h.Nmos(w=params.nref_w, l=params.nref_l, vth=MosVth.STD, family=h.MosFamily.CORE)(
             d=vg_ibias_p, g=nref, s=agnd, b=agnd
         )
-        mp_ibias_p_out = h.Pmos(w=params.ibias_p_w, l=params.ibias_p_l, vth=MosVth.HIGH, family=h.MosFamily.CORE)(
+        mp_ibias_p_out = h.Pmos(
+            w=params.ibias_p_w * params.ibias_p_out_scale,
+            l=params.pmos_bias_l,
+            vth=MosVth.STD,
+            family=h.MosFamily.CORE,
+        )(
             d=ibias_p, g=vg_ibias_p, s=avdd, b=avdd
         )
         mp_bias1 = h.Pmos(w=params.bias1_p_w, l=params.bias1_p_l, vth=MosVth.HIGH, family=h.MosFamily.CORE)(
@@ -93,23 +119,53 @@ def OpaBiasGen(params: OpaBiasGenParams) -> h.Module:
             d=vbias2, g=nref, s=agnd, b=agnd
         )
 
-        mp_i0_n_feed = h.Pmos(w=params.i0_n_w, l=params.i0_n_l, vth=MosVth.STD, family=h.MosFamily.CORE)(
+        mp_i0_n_feed = h.Pmos(
+            w=params.i0_n_w * params.i0_n_feed_scale,
+            l=params.i0_n_l,
+            vth=MosVth.STD,
+            family=h.MosFamily.CORE,
+        )(
             d=vg_i0_n, g=iref, s=avdd, b=avdd
         )
-        mn_i0_n_ref = h.Nmos(w=params.i0_n_w, l=params.i0_n_l, vth=MosVth.STD, family=h.MosFamily.CORE)(
+        mn_i0_n_ref = h.Nmos(
+            w=params.i0_n_w,
+            l=params.nmos_bias_l,
+            vth=MosVth.STD,
+            family=h.MosFamily.CORE,
+        )(
             d=vg_i0_n, g=vg_i0_n, s=agnd, b=agnd
         )
-        mn_i0_n_out = h.Nmos(w=params.i0_n_w, l=params.i0_n_l, vth=MosVth.STD, family=h.MosFamily.CORE)(
+        mn_i0_n_out = h.Nmos(
+            w=params.i0_n_w * params.i0_n_out_scale,
+            l=params.nmos_bias_l,
+            vth=MosVth.STD,
+            family=h.MosFamily.CORE,
+        )(
             d=i0_n, g=vg_i0_n, s=agnd, b=agnd
         )
 
-        mp_ibias_n_feed = h.Pmos(w=params.ibias_n_w, l=params.ibias_n_l, vth=MosVth.STD, family=h.MosFamily.CORE)(
+        mp_ibias_n_feed = h.Pmos(
+            w=params.ibias_n_w * params.ibias_n_feed_scale,
+            l=params.ibias_n_l,
+            vth=MosVth.STD,
+            family=h.MosFamily.CORE,
+        )(
             d=vg_ibias_n, g=iref, s=avdd, b=avdd
         )
-        mn_ibias_n_ref = h.Nmos(w=params.ibias_n_w, l=params.ibias_n_l, vth=MosVth.STD, family=h.MosFamily.CORE)(
+        mn_ibias_n_ref = h.Nmos(
+            w=params.ibias_n_w,
+            l=params.nmos_bias_l,
+            vth=MosVth.STD,
+            family=h.MosFamily.CORE,
+        )(
             d=vg_ibias_n, g=vg_ibias_n, s=agnd, b=agnd
         )
-        mn_ibias_n_out = h.Nmos(w=params.ibias_n_w, l=params.ibias_n_l, vth=MosVth.STD, family=h.MosFamily.CORE)(
+        mn_ibias_n_out = h.Nmos(
+            w=params.ibias_n_w * params.ibias_n_out_scale,
+            l=params.nmos_bias_l,
+            vth=MosVth.STD,
+            family=h.MosFamily.CORE,
+        )(
             d=ibias_n, g=vg_ibias_n, s=agnd, b=agnd
         )
         mp_bias3_feed = h.Pmos(w=params.bias3_n_w, l=params.bias3_n_l, vth=MosVth.STD, family=h.MosFamily.CORE)(

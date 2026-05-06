@@ -21,7 +21,7 @@ RVFEED vfeed 0 1e12
 RVTEST vtest 0 1e12
 RDTCKO d_tcko 0 1e12
 RDTDO d_tdo 0 1e12
-XDUT avdd1p2 agnd vinp vinn vout in0u25_oa vbase vfeed d_en_oa d_az_oa d_inf_oa vtest d_treset_oa d_tcki d_tcko d_tdi d_tdo CmosInv_3e3a48af070f445359b4b2b4e367924b_
+XDUT avdd1p2 agnd vinp vinn vout in0u25_oa vbase vfeed d_en_oa d_az_oa d_inf_oa vtest d_treset_oa d_tcki d_tcko d_tdi d_tdo NeuronCoreOaSky130_4f6ed3d2a22f7fd4752668b8eace8b8f_
 .save i(VVDD) v(vout)
 .op
 .end

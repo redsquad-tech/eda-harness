@@ -79,15 +79,15 @@ class TestV4Stage1HandoffCm(BaseV4SimTest):
             "vgn_V": find_signal(d, exact="v(xtop.xxdut.vgn)"),
             "tail_p_V": find_signal(d, exact="v(xtop.xxdut.tail_p)"),
             "tail_n_V": find_signal(d, exact="v(xtop.xxdut.tail_n)"),
-            "vb_m24_V": find_signal(d, exact="v(xtop.xxdut.vb_m24)"),
-            "vb_m35_V": find_signal(d, exact="v(xtop.xxdut.vb_m35)"),
+            "m24_gate_mid_V": find_signal(d, exact="v(xtop.xxdut.m24_gate_mid)"),
+            "m35_gate_mid_V": find_signal(d, exact="v(xtop.xxdut.m35_gate_mid)"),
             "vout_V": find_signal(d, exact="v(xtop.vout)"),
         }
         payload["derived"] = {
             "stage1_cm_V": 0.5 * (payload["vgp_V"] + payload["vgn_V"]),
             "stage1_diff_V": payload["vgp_V"] - payload["vgn_V"],
             "gates_within_rails": 0.0 <= payload["vgp_V"] <= vdd and 0.0 <= payload["vgn_V"] <= vdd,
-            "bias_nodes_within_rails": all(0.0 <= payload[key] <= vdd for key in ["tail_p_V", "tail_n_V", "vb_m24_V", "vb_m35_V"]),
+            "bias_nodes_within_rails": all(0.0 <= payload[key] <= vdd for key in ["tail_p_V", "tail_n_V", "m24_gate_mid_V", "m35_gate_mid_V"]),
         }
         write_metrics_json(METRICS_PATH, payload)
 
