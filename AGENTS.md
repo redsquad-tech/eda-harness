@@ -183,6 +183,10 @@ When creating or substantially updating a device, the agent should first use the
 
 - `.agents/skills/code-test-or-component-hdl21/SKILL.md`
 
+When user requests to capture a stable device state as a named version (freeze/snapshot/release baseline), the agent should use:
+
+- `.agents/skills/version-device/SKILL.md`
+
 Expected behavior:
 
 1. Convert user PRD/spec into HDL21-oriented implementation and test plan.
@@ -190,3 +194,49 @@ Expected behavior:
 3. Verify final outputs still satisfy this `AGENTS.md` contract.
 
 Skill usage is preferred workflow for consistency; if skill execution is not possible, the agent must still meet all requirements in this document.
+
+## 12. Versioning and Branching Contract
+
+This repository supports parallel device R&D. Use line-based development:
+
+- branch format: `device/<device_name>/<line_name>`
+- freeze tag format: `device/<device_name>/<line_name>/vX.Y.Z`
+- release tag format (main only): `release/<device_name>/vA.B.C`
+
+Rules:
+
+- User chooses line strategy once at start of create/update session:
+  - create new line from selected base (`main` or specific version),
+  - or continue existing line.
+- Before any code changes for create/update requests, agent must:
+  - inspect existing lines/versions for that device,
+  - report discovery results to user including lines, freeze tags, release tags, and promoted status from catalog (if available),
+  - ask user to choose new-line or continue-line mode,
+  - create/switch the selected `device/<device>/<line>` branch.
+- Discovery source-of-truth rule:
+  - agent must use `.agents/skills/version-device/scripts/list_device_versions.py` output as authoritative,
+  - if output includes non-null `version_index`, agent must not claim index is missing.
+- If no lines/versions exist for the device:
+  - report that explicitly,
+  - suggest creating a new line from `main`,
+  - ask only for missing minimal identifiers (device name and optional line name),
+  - if line name is not provided, use `mainline`.
+- For `new line` mode, base-ref selection is mandatory:
+  - agent must always ask user to choose base-ref explicitly (`main` or specific freeze tag/commit),
+  - agent must not silently assume base-ref.
+- Agent performs implementation and iterative checks only in selected line.
+- On freeze request, agent must:
+  - run required validation targets,
+  - save artifacts and metrics under `devices/<device_name>/versions/<line_name>/<version>/`,
+  - create freeze commit and freeze tag,
+  - update `devices/<device_name>/VERSION_INDEX.json` on `main` with `promoted_to_main=false`.
+- After freeze, agent asks whether to promote to `main`.
+- On promote approval, agent must:
+  - merge line branch into `main` (no-ff),
+  - assign next release version for `main`,
+  - create release tag,
+  - update corresponding catalog entry (`promoted_to_main=true`, release tag, merge commit).
+
+Catalog file:
+
+- `devices/<device_name>/VERSION_INDEX.json` is the single visibility index for all known line freezes and promoted releases.

@@ -7,6 +7,34 @@ description: Use this skill when you need to describe a circuit or a test in hdl
 
 This document defines the mandatory repository standard for reusable HDL21 components and opamp-architecture workspaces.
 
+## 0. Mandatory Line Selection (Before Any Coding)
+
+For any user request `create/update/modify device`, the agent **MUST** do line selection first and only once for the session:
+
+1. Identify target `device_name`.
+2. Discover existing lines and versions:
+   - `python .agents/skills/version-device/scripts/list_device_versions.py --device <device_name>`
+   - In the user-facing message, explicitly include:
+     - available line branches,
+     - available freeze tags,
+     - available release tags,
+     - promoted/not-promoted status from `VERSION_INDEX.json` (if present).
+   - Treat script JSON output as source of truth. Do not infer or override its `version_index` / `version_index_source` fields.
+   - If `version_index` is present, agent MUST NOT say "VERSION_INDEX.json not found".
+3. Ask user to choose one mode:
+   - create new line `device/<device>/<line>` from base (`main` or explicit freeze tag), or
+   - continue existing line.
+   - For `create new line`, always ask user for explicit `<base_ref>`; do not assume defaults silently.
+4. If discovery returns no lines/versions:
+   - explicitly state that no prior versions exist,
+   - suggest `new line mainline from main`,
+   - still ask user to confirm explicit base-ref.
+5. Create/switch branch:
+   - `python .agents/skills/version-device/scripts/start_device_line.py --device <device_name> --line <line_name> --base-ref <base_ref>`
+6. Only after branch is selected, start implementation/tests.
+
+The agent **MUST NOT** start coding before this line-selection gate is resolved.
+
 ## 1. Repository Structure
 
 - common patterns and subblocks (hdl21 library, e.g. diffpair, current mirror, etc.) SHOULD live in: `components/<component_name>.py`
