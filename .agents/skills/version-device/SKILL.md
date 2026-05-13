@@ -5,7 +5,7 @@ description: Use when user asks to freeze/snapshot/version a device, promote a f
 
 # Version Device Skill
 
-Use this skill for device version lifecycle management: line selection, freeze snapshots, and promotion to `main`.
+This skill standardizes device version lifecycle operations: line selection, freeze snapshots, promotion to `main`, and version-history queries.
 
 ## Trigger Guidance
 

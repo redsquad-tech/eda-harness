@@ -35,6 +35,43 @@ For any user request `create/update/modify device`, the agent **MUST** do line s
 
 The agent **MUST NOT** start coding before this line-selection gate is resolved.
 
+## 0.1 Create/Update Completion Gate (Mandatory)
+
+Before reporting create/update as successful, agent **MUST** run characterization contract check:
+
+```bash
+python .agents/skills/characterize-device/scripts/characterize_device.py \
+  --device <device_name> \
+  --description "creation characterization contract check" \
+  --validate-only
+```
+
+And **MUST** run corner-sensitivity precheck (no artifacts):
+
+```bash
+python .agents/skills/characterize-device/scripts/characterize_device.py \
+  --device <device_name> \
+  --description "creation corner-sensitivity precheck" \
+  --no-csv \
+  --no-tag \
+  --no-commit \
+  --corners TT,FF,SS,FS,SF
+```
+
+Rules:
+
+- this is a hard gate for create/update completion
+- if either command fails, task is not complete
+- agent must not claim success until the gate passes
+- for new devices, create `devices/<device>/characterization_spec.json` with device-relevant target metrics for characterization CSV pass/fail columns
+- full characterization CSV/tag run is not part of create/update unless user explicitly requested characterization
+- run these gate commands using `python` from active project venv
+- during create/update, any direct call to `characterize_device.py` must be either:
+  - `--validate-only`, or
+  - `--no-csv` (for corner-sensitivity precheck)
+- running `characterize_device.py` in create/update without `--validate-only` and without `--no-csv` is not allowed
+- `--no-tag` and `--no-commit` are allowed in this section only for the mandatory no-artifact precheck command above
+
 ## 1. Repository Structure
 
 - common patterns and subblocks (hdl21 library, e.g. diffpair, current mirror, etc.) SHOULD live in: `components/<component_name>.py`

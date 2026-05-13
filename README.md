@@ -9,11 +9,13 @@ Primary workflow:
    - continue an existing line, or
    - create a new line with explicit base-ref (`main` or freeze tag/commit).
 3. Codex creates/switches `device/<device>/<line>` and performs implementation in that line.
-4. Codex runs development checks/simulations and reports metrics and pass/fail status.
-5. User asks Codex to freeze a stable line state.
-6. Codex runs freeze pipeline (`quick` + `char` by default), saves artifacts, updates `VERSION/CHANGELOG`, creates freeze commit/tag, and updates `devices/<device>/VERSION_INDEX.json` on `main` with `promoted_to_main=false`.
-7. Codex asks whether to promote this frozen version to `main`.
-8. If approved, Codex runs promote pipeline: merge to `main` (`--no-ff`), assign release version, create release tag, and update `VERSION_INDEX.json` (`promoted_to_main=true`).
+4. Codex runs development checks (`quick`, `char`, characterization contract-check, corner-sensitivity precheck) and reports metrics and pass/fail status.
+5. When user explicitly asks to characterize, Codex runs full characterization (`TT/FF/SS/FS/SF`), writes CSV, creates characterization commit, and creates characterization tag `char/<device>/<experiment_id>`.
+6. User may iterate (modify + characterize) until results are acceptable.
+7. User asks Codex to freeze a stable line state.
+8. Codex runs freeze pipeline (`quick` + `char` by default), saves artifacts, updates `VERSION/CHANGELOG`, creates freeze commit/tag, and updates `devices/<device>/VERSION_INDEX.json` on `main` with `promoted_to_main=false`.
+9. Codex asks whether to promote this frozen version to `main`.
+10. If approved, Codex runs promote pipeline: merge to `main` (`--no-ff`), assign release version, create release tag, and update `VERSION_INDEX.json` (`promoted_to_main=true`).
 
 ## 1) System Requirements
 
@@ -178,6 +180,53 @@ python .agents/skills/version-device/scripts/promote_device_version.py \
   --device <device> \
   --line <line> \
   --version <vX.Y.Z>
+```
+
+### 5.4 Characterization Workflow
+
+Primary path: when user explicitly asks Codex to characterize a device (`характеризуй`), Codex runs the characterization workflow.
+
+When to use:
+
+- after meaningful device updates to capture PVT results
+- when you need one comparable experiment snapshot (CSV + git tag)
+- when you want to compare current results with previous experiments
+
+What happens on full characterization request:
+
+- run characterization over repository corners (`TT`, `FF`, `SS`, `FS`, `SF`)
+- write one CSV under `devices/<device>/characterizations/char_<experiment_id>.csv`
+- create characterization commit on current branch:
+  - `characterization(<device>): <experiment_id>`
+- create characterization tag:
+  - `char/<device>/<experiment_id>`
+
+Important:
+
+- full characterization is not part of generic create/update flow unless user explicitly requests it
+- create/update flow runs only:
+  - validate-only contract check
+  - corner-sensitivity precheck without CSV artifacts
+
+See characterization history (results of past experiments):
+
+- ask Codex: "какие результаты есть для устройства <device>?"
+
+Manual/debug fallback:
+
+Run full characterization:
+
+```bash
+python .agents/skills/characterize-device/scripts/characterize_device.py \
+  --device <device> \
+  --description "<experiment description>"
+```
+
+List experiments:
+
+```bash
+python .agents/skills/characterize-device/scripts/list_characterization_experiments.py \
+  --device <device>
 ```
 
 ## 6) Troubleshooting

@@ -37,6 +37,7 @@ For a new device `devices/<device_name>/`, create at least:
 - `tests/__init__.py`
 - `tests/test_smoke_*.py` — import/elaborate/compile/netlist checks
 - `tests/test_char_*.py` — basic measurable behavior checks
+- `characterization_spec.json` — per-metric targets used for characterization CSV `target_*` / `pass_*` columns
 
 When requirements are mature, also add:
 
@@ -154,6 +155,34 @@ A new device is minimally ready when:
 3. `run_tests.py char` passes.
 4. Characterization returns numeric metrics and tests assert them.
 5. README explains what was built and how to run tests.
+6. Characterization contract-check passes via validate-only mode:
+
+```bash
+python .agents/skills/characterize-device/scripts/characterize_device.py \
+  --device <device_name> \
+  --description "creation characterization contract check" \
+  --validate-only
+```
+
+7. If step 6 fails, create/update task is not complete and must be reported as failed (do not present device as ready).
+8. Run steps 6 and 9 using `python` from active project venv.
+9. Corner-sensitivity precheck passes before declaring create/update ready:
+
+```bash
+python .agents/skills/characterize-device/scripts/characterize_device.py \
+  --device <device_name> \
+  --description "creation corner-sensitivity precheck" \
+  --no-csv \
+  --no-tag \
+  --no-commit \
+  --corners TT,FF,SS,FS,SF
+```
+
+10. If step 9 fails, create/update task is not complete; fix implementation before reporting create/update success.
+11. During create/update, `characterize_device.py` is allowed only in non-artifact modes:
+    - `--validate-only`, or
+    - `--no-csv` (for corner-sensitivity precheck).
+    Full CSV-producing characterize runs in create/update are not allowed unless user explicitly requested characterization.
 
 ## 9. Definition of Done (Mature Device)
 
@@ -240,3 +269,37 @@ Rules:
 Catalog file:
 
 - `devices/<device_name>/VERSION_INDEX.json` is the single visibility index for all known line freezes and promoted releases.
+
+## 13. Characterization Contract
+
+When user explicitly requests characterization/PVT/CSV:
+
+- use `.agents/skills/characterize-device/SKILL.md`
+- run repository characterization flow over defined corners
+- write one CSV per characterization run under `devices/<device>/characterizations/`
+- create characterization commit for full device state under `devices/<device>/` (`characterization(<device>): <experiment_id>`)
+- create characterization tag for each successful full run: `char/<device>/<experiment_id>`
+- default mode is run/report only (no implementation edits)
+- do not use `--no-tag` or `--no-commit` unless user explicitly requested a no-git dry run
+- do not auto-run full characterization CSV during generic create/update requests
+
+When user asks about past experiments/results:
+
+- list characterization history using repository characterize-device tooling
+- report tags, commits, CSV paths, and short metric/pass summaries
+
+Measurement function used for characterization must:
+
+- accept a `corner` argument
+- return a dictionary with `component`, `category`, `purpose`, and `metrics`
+- provide meaningful spec-related metrics (not smoke-only placeholder output)
+- normalize incoming corner values to canonical labels (`TT`, `FF`, `SS`, `FS`, `SF`) before model selection
+- support both enum-style inputs (`TYP`, `FAST`, `SLOW`) and string labels (`tt`, `ff`, `ss`)
+- use explicit and deterministic corner-to-model mapping (no ambiguous fallback-only selection)
+- for multi-corner characterization, numeric metric set must reflect corner influence (corner labels alone are insufficient)
+
+If characterization contract is not satisfied:
+
+- stop characterization run
+- return exact missing contract items
+- do not patch device code unless user explicitly asks to fix and rerun
