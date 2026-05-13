@@ -13,7 +13,7 @@ For any user request `create/update/modify device`, the agent **MUST** do line s
 
 1. Identify target `device_name`.
 2. Discover existing lines and versions:
-   - `python .agents/skills/version-device/scripts/list_device_versions.py --device <device_name>`
+   - `python ../version-device/scripts/list_device_versions.py --device <device_name>`
    - In the user-facing message, explicitly include:
      - available line branches,
      - available freeze tags,
@@ -30,7 +30,7 @@ For any user request `create/update/modify device`, the agent **MUST** do line s
    - suggest `new line mainline from main`,
    - still ask user to confirm explicit base-ref.
 5. Create/switch branch:
-   - `python .agents/skills/version-device/scripts/start_device_line.py --device <device_name> --line <line_name> --base-ref <base_ref>`
+   - `python ../version-device/scripts/start_device_line.py --device <device_name> --line <line_name> --base-ref <base_ref>`
 6. Only after branch is selected, start implementation/tests.
 
 The agent **MUST NOT** start coding before this line-selection gate is resolved.
@@ -40,7 +40,7 @@ The agent **MUST NOT** start coding before this line-selection gate is resolved.
 Before reporting create/update as successful, agent **MUST** run characterization contract check:
 
 ```bash
-python .agents/skills/characterize-device/scripts/characterize_device.py \
+python ../characterize-device/scripts/characterize_device.py \
   --device <device_name> \
   --description "creation characterization contract check" \
   --validate-only
@@ -49,7 +49,7 @@ python .agents/skills/characterize-device/scripts/characterize_device.py \
 And **MUST** run corner-sensitivity precheck (no artifacts):
 
 ```bash
-python .agents/skills/characterize-device/scripts/characterize_device.py \
+python ../characterize-device/scripts/characterize_device.py \
   --device <device_name> \
   --description "creation corner-sensitivity precheck" \
   --no-csv \

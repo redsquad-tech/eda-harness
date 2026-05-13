@@ -48,7 +48,7 @@ Line versions and release versions are intentionally separate.
 Start or switch line:
 
 ```bash
-python .agents/skills/version-device/scripts/start_device_line.py \
+python scripts/start_device_line.py \
   --device <device_name> \
   --line <line_name> \
   --base-ref <main_or_tag_or_commit>
@@ -57,7 +57,7 @@ python .agents/skills/version-device/scripts/start_device_line.py \
 Freeze current line state:
 
 ```bash
-python .agents/skills/version-device/scripts/freeze_device_version.py \
+python scripts/freeze_device_version.py \
   --device <device_name> \
   --line <line_name>
 ```
@@ -65,7 +65,7 @@ python .agents/skills/version-device/scripts/freeze_device_version.py \
 Promote frozen version to `main`:
 
 ```bash
-python .agents/skills/version-device/scripts/promote_device_version.py \
+python scripts/promote_device_version.py \
   --device <device_name> \
   --line <line_name> \
   --version <vX.Y.Z>
@@ -74,7 +74,7 @@ python .agents/skills/version-device/scripts/promote_device_version.py \
 List all known versions and lines for a device:
 
 ```bash
-python .agents/skills/version-device/scripts/list_device_versions.py \
+python scripts/list_device_versions.py \
   --device <device_name>
 ```
 

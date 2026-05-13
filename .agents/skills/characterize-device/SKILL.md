@@ -45,7 +45,7 @@ Safety rule:
 3. Run characterization script for full characterization:
 
 ```bash
-python .agents/skills/characterize-device/scripts/characterize_device.py \
+python scripts/characterize_device.py \
   --device <device_name> \
   --description "<free-form description>"
 ```
@@ -62,7 +62,7 @@ Default guard:
 - increase minimum when user asks for denser characterization:
 
 ```bash
-python .agents/skills/characterize-device/scripts/characterize_device.py \
+python scripts/characterize_device.py \
   --device <device_name> \
   --description "<free-form description>" \
   --num-points 16 \
@@ -72,7 +72,7 @@ python .agents/skills/characterize-device/scripts/characterize_device.py \
 Optional measurement function override:
 
 ```bash
-python .agents/skills/characterize-device/scripts/characterize_device.py \
+python scripts/characterize_device.py \
   --device <device_name> \
   --description "<free-form description>" \
   --measure-fn <measure_function_name>
@@ -90,10 +90,6 @@ Selection rule:
 - for multi-corner runs, the resulting numeric metric set must not be fully identical across all corners
 - for sweep-based characterization metrics, treat 3 points as a smoke-only minimum; use denser sweeps for meaningful characterization
 
-Note:
-
-- create/update completion gates (validate-only contract check and multi-corner no-artifact precheck) are defined in `AGENTS.md` and `.agents/skills/code-test-or-component-hdl21/SKILL.md`
-
 4. Return:
 - output CSV path
 - corners used (`TT/FF/SS/FS/SF`)
@@ -106,7 +102,7 @@ Note:
 When user asks "какие были эксперименты" / "show characterization history":
 
 ```bash
-python .agents/skills/characterize-device/scripts/list_characterization_experiments.py \
+python scripts/list_characterization_experiments.py \
   --device <device_name>
 ```
 
