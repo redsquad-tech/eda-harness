@@ -3,11 +3,13 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import importlib
 import inspect
 import json
 import subprocess
 import sys
+import zipfile
 from dataclasses import asdict, is_dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -259,10 +261,9 @@ def _corner_sensitivity_contract(rows: list[dict[str, Any]], corners: tuple[str,
         )
 
 
-def write_csv(device: str, rows: list[dict[str, Any]], experiment_id: str) -> Path:
-    out_dir = Path("devices") / device / "characterizations"
-    out_dir.mkdir(parents=True, exist_ok=True)
-    out_path = out_dir / f"char_{experiment_id}.csv"
+def write_csv(experiment_dir: Path, rows: list[dict[str, Any]], experiment_id: str) -> Path:
+    experiment_dir.mkdir(parents=True, exist_ok=True)
+    out_path = experiment_dir / f"char_{experiment_id}.csv"
 
     fieldnames: list[str] = []
     seen = set()
@@ -279,6 +280,133 @@ def write_csv(device: str, rows: list[dict[str, Any]], experiment_id: str) -> Pa
             writer.writerow(row)
 
     return out_path
+
+
+def export_artifacts_from_measure(
+    device: str,
+    experiment_dir: Path,
+    corners: tuple[str, ...],
+    num_points: int | None,
+    measure_fn_name: str | None,
+) -> dict[str, Any]:
+    mod = importlib.import_module(f"devices.{device}.measure")
+    exporter = getattr(mod, "export_characterization_artifacts", None)
+    if exporter is None or not callable(exporter):
+        raise RuntimeError(
+            "Artifact export contract missing: define callable "
+            f"devices.{device}.measure.export_characterization_artifacts(...)"
+        )
+
+    out: dict[str, Any] = {"bench_by_corner": {}, "files": []}
+    spice_root = experiment_dir / "spice"
+    expected_dut_path = (spice_root / f"{device}_dut.sp").resolve()
+    canonical_dut_src: Path | None = None
+    canonical_dut_hash: str | None = None
+    for corner in corners:
+        corner_dir = experiment_dir / "spice" / corner
+        corner_dir.mkdir(parents=True, exist_ok=True)
+        kwargs: dict[str, Any] = {
+            "corner": corner,
+            "out_dir": corner_dir,
+            "dut_out_path": expected_dut_path,
+        }
+        if num_points is not None:
+            kwargs["num_points"] = num_points
+        if measure_fn_name:
+            kwargs["measure_fn_name"] = measure_fn_name
+        payload = exporter(**kwargs)
+        if not isinstance(payload, dict):
+            raise RuntimeError(
+                "export_characterization_artifacts must return dict with keys "
+                "'dut_spice_path' and 'bench_spice_path'"
+            )
+        dut_path = payload.get("dut_spice_path")
+        bench_path = payload.get("bench_spice_path")
+        if not dut_path or not bench_path:
+            raise RuntimeError(
+                "export_characterization_artifacts must return non-empty "
+                "'dut_spice_path' and 'bench_spice_path'"
+            )
+        dut_abs = Path(str(dut_path)).resolve()
+        bench_abs = Path(str(bench_path))
+        if not dut_abs.exists() or not bench_abs.exists():
+            raise RuntimeError(
+                "export_characterization_artifacts returned missing files: "
+                f"dut={dut_abs} bench={bench_abs}"
+            )
+        if dut_abs != expected_dut_path:
+            raise RuntimeError(
+                "Artifact export contract failed: DUT must be exported once to "
+                f"{expected_dut_path}, got {dut_abs}"
+            )
+        dut_hash = hashlib.sha256(dut_abs.read_bytes()).hexdigest()
+        if canonical_dut_hash is None:
+            canonical_dut_hash = dut_hash
+            canonical_dut_src = dut_abs
+        elif dut_hash != canonical_dut_hash:
+            raise RuntimeError(
+                "DUT SPICE differs across corners for one characterization run. "
+                "Current report format expects one DUT netlist per experiment."
+            )
+        out["bench_by_corner"][corner] = {
+            "bench_spice_path": str(bench_abs),
+        }
+        out["files"].append(str(bench_abs))
+
+    if canonical_dut_src is None:
+        raise RuntimeError("Artifact export failed: no DUT SPICE generated")
+
+    out["dut_spice_path"] = str(expected_dut_path)
+    out["files"].insert(0, str(expected_dut_path))
+    return out
+
+
+def require_artifact_exporter(device: str) -> None:
+    mod = importlib.import_module(f"devices.{device}.measure")
+    exporter = getattr(mod, "export_characterization_artifacts", None)
+    if exporter is None or not callable(exporter):
+        raise RuntimeError(
+            "Artifact export contract missing: define callable "
+            f"devices.{device}.measure.export_characterization_artifacts(...)"
+        )
+
+
+def write_manifest(
+    experiment_dir: Path,
+    *,
+    device: str,
+    experiment_id: str,
+    description: str,
+    corners: tuple[str, ...],
+    measure_fn_name: str,
+    csv_path: Path,
+    spice_exports: dict[str, Any],
+) -> Path:
+    manifest = {
+        "device": device,
+        "experiment_id": experiment_id,
+        "description": description,
+        "corners": list(corners),
+        "measure_fn": measure_fn_name,
+        "csv_path": str(csv_path),
+        "spice": spice_exports,
+        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+    }
+    out = experiment_dir / "manifest.json"
+    out.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    return out
+
+
+def build_zip(experiment_dir: Path, experiment_id: str, include_files: list[Path]) -> Path:
+    experiment_dir = experiment_dir.resolve()
+    zip_path = experiment_dir / f"artifacts_{experiment_id}.zip"
+    include_set = {p.resolve() for p in include_files}
+    with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for p in sorted(include_set):
+            if p == zip_path.resolve() or not p.is_file():
+                continue
+            zf.write(p, arcname=p.relative_to(experiment_dir))
+    return zip_path
 
 
 def git_output(args: list[str], cwd: Path) -> str:
@@ -409,15 +537,43 @@ def main() -> int:
         print(f"Experiment ID: {experiment_id}")
         return 0
 
-    out_path = write_csv(args.device, rows, experiment_id)
+    # Fail fast before creating any full-characterization artifacts.
+    require_artifact_exporter(args.device)
+
+    experiment_dir = Path("devices") / args.device / "characterizations" / experiment_id
+    out_path = write_csv(experiment_dir, rows, experiment_id)
     commit_hash = ""
+    tag_name = ""
+    used_measure_fn_name = str(rows[0].get("measure_fn")) if rows else (args.measure_fn or "")
+    spice_exports = export_artifacts_from_measure(
+        device=args.device,
+        experiment_dir=experiment_dir,
+        corners=corners,
+        num_points=args.num_points,
+        measure_fn_name=used_measure_fn_name if used_measure_fn_name else None,
+    )
+    manifest_path = write_manifest(
+        experiment_dir,
+        device=args.device,
+        experiment_id=experiment_id,
+        description=args.description,
+        corners=corners,
+        measure_fn_name=used_measure_fn_name,
+        csv_path=out_path,
+        spice_exports=spice_exports,
+    )
+    zip_inputs: list[Path] = [Path(out_path), Path(manifest_path)]
+    zip_inputs.extend(Path(str(p)) for p in spice_exports.get("files", []))
+    zip_path = build_zip(experiment_dir, experiment_id, zip_inputs)
+
+    # Commit newly created artifacts (csv + spice + manifest + zip) on top of
+    # existing device state if commit mode is enabled.
     if not args.no_commit:
         commit_hash = commit_characterization_device_state(
             repo=Path.cwd(),
             device=args.device,
             experiment_id=experiment_id,
         )
-    tag_name = ""
     if not args.no_tag:
         tag_name = create_char_tag(
             repo=Path.cwd(),
@@ -428,6 +584,9 @@ def main() -> int:
             corners=corners,
         )
     print(f"Characterization done: {out_path}")
+    print(f"Experiment dir: {experiment_dir}")
+    print(f"Manifest: {manifest_path}")
+    print(f"Archive: {zip_path}")
     print(f"Corners: {', '.join(corners)}")
     print(f"Experiment ID: {experiment_id}")
     if commit_hash:

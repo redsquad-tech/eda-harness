@@ -85,15 +85,20 @@ def main() -> int:
     out: dict[str, Any] = {"device": args.device, "count": len(tags), "experiments": []}
     for tag in tags:
         exp_id = tag.split("/")[-1]
-        csv_path = repo / "devices" / args.device / "characterizations" / f"char_{exp_id}.csv"
         commit = git_output(["rev-list", "-n", "1", tag], repo)
+        experiment_dir = repo / "devices" / args.device / "characterizations" / exp_id
+        csv_path = experiment_dir / f"char_{exp_id}.csv"
         summary = parse_csv_summary(csv_path, repo=repo, ref=tag)
+        zip_path = experiment_dir / f"artifacts_{exp_id}.zip"
+        manifest_path = experiment_dir / "manifest.json"
         out["experiments"].append(
             {
                 "tag": tag,
                 "experiment_id": exp_id,
                 "commit": commit,
                 "csv_path": str(csv_path),
+                "manifest_path": str(manifest_path),
+                "archive_path": str(zip_path),
                 **summary,
             }
         )

@@ -33,6 +33,9 @@ For a new device `devices/<device_name>/`, create at least:
 - `__init__.py` — exports
 - `opamp.py` or `device.py` — top-level HDL21 DUT generator and params
 - `measure.py` — measurement/testbench builders and characterization functions
+- `measure.py` must implement characterization artifact exporter:
+  - `export_characterization_artifacts(corner, out_dir, dut_out_path, ...) -> {dut_spice_path, bench_spice_path}`
+  - `dut_spice_path` must equal provided `dut_out_path` (single DUT netlist per experiment)
 - `run_tests.py` — entry point for quick/char suites
 - `tests/__init__.py`
 - `tests/test_smoke_*.py` — import/elaborate/compile/netlist checks
@@ -183,6 +186,7 @@ python .agents/skills/characterize-device/scripts/characterize_device.py \
     - `--validate-only`, or
     - `--no-csv` (for corner-sensitivity precheck).
     Full CSV-producing characterize runs in create/update are not allowed unless user explicitly requested characterization.
+12. For new devices, `measure.py` must include callable `export_characterization_artifacts(...)` compatible with characterize workflow.
 
 ## 9. Definition of Done (Mature Device)
 
@@ -276,7 +280,8 @@ When user explicitly requests characterization/PVT/CSV:
 
 - use `.agents/skills/characterize-device/SKILL.md`
 - run repository characterization flow over defined corners
-- write one CSV per characterization run under `devices/<device>/characterizations/`
+- write one experiment folder per run under `devices/<device>/characterizations/<experiment_id>/`
+- save characterization CSV, DUT SPICE, benchmark/testbench SPICE, manifest, and zip archive in that folder
 - create characterization commit for full device state under `devices/<device>/` (`characterization(<device>): <experiment_id>`)
 - create characterization tag for each successful full run: `char/<device>/<experiment_id>`
 - default mode is run/report only (no implementation edits)
@@ -297,6 +302,18 @@ Measurement function used for characterization must:
 - support both enum-style inputs (`TYP`, `FAST`, `SLOW`) and string labels (`tt`, `ff`, `ss`)
 - use explicit and deterministic corner-to-model mapping (no ambiguous fallback-only selection)
 - for multi-corner characterization, numeric metric set must reflect corner influence (corner labels alone are insufficient)
+- for 5-corner runs, `FS` and `SF` must be handled as distinct corners; do not silently collapse them to `FF`/`SS`
+- if physical/tooling support for true `FS`/`SF` is unavailable, characterization must fail with explicit contract error (do not fake pass by remapping)
+
+Artifact exporter implementation rule (for new/updated devices):
+
+- implement `export_characterization_artifacts(corner, out_dir, dut_out_path, ...)` in `measure.py`
+- write DUT SPICE exactly once to `dut_out_path` (shared for all corners in one experiment)
+- write only corner-specific benchmark/testbench SPICE under `out_dir`
+- return:
+  - `dut_spice_path == dut_out_path`
+  - `bench_spice_path` inside `out_dir`
+- do not generate per-corner DUT filenames (`..._dut_TT.sp`, etc.) for characterization artifacts
 
 If characterization contract is not satisfied:
 

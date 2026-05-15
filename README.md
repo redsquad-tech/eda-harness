@@ -10,7 +10,7 @@ Primary workflow:
    - create a new line with explicit base-ref (`main` or freeze tag/commit).
 3. Codex creates/switches `device/<device>/<line>` and performs implementation in that line.
 4. Codex runs development checks (`quick`, `char`, characterization contract-check, corner-sensitivity precheck) and reports metrics and pass/fail status.
-5. When user explicitly asks to characterize, Codex runs full characterization (`TT/FF/SS/FS/SF`), writes CSV, creates characterization commit, and creates characterization tag `char/<device>/<experiment_id>`.
+5. When user explicitly asks to characterize, Codex runs full characterization (`TT/FF/SS/FS/SF`), writes experiment artifacts (CSV + DUT/bench SPICE + manifest + zip), creates characterization commit, and creates characterization tag `char/<device>/<experiment_id>`.
 6. User may iterate (modify + characterize) until results are acceptable.
 7. User asks Codex to freeze a stable line state.
 8. Codex runs freeze pipeline (`quick` + `char` by default), saves artifacts, updates `VERSION/CHANGELOG`, creates freeze commit/tag, and updates `devices/<device>/VERSION_INDEX.json` on `main` with `promoted_to_main=false`.
@@ -189,13 +189,19 @@ Primary path: when user explicitly asks Codex to characterize a device (`хар�
 When to use:
 
 - after meaningful device updates to capture PVT results
-- when you need one comparable experiment snapshot (CSV + git tag)
+- when you need one comparable experiment snapshot (CSV + SPICE + zip + git tag)
 - when you want to compare current results with previous experiments
 
 What happens on full characterization request:
 
 - run characterization over repository corners (`TT`, `FF`, `SS`, `FS`, `SF`)
-- write one CSV under `devices/<device>/characterizations/char_<experiment_id>.csv`
+- write one experiment folder under `devices/<device>/characterizations/<experiment_id>/`
+- include:
+  - `char_<experiment_id>.csv`
+  - DUT SPICE netlist
+  - benchmark/testbench SPICE netlists
+  - `manifest.json`
+  - `artifacts_<experiment_id>.zip`
 - create characterization commit on current branch:
   - `characterization(<device>): <experiment_id>`
 - create characterization tag:

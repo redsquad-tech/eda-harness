@@ -64,6 +64,17 @@ Rules:
 - if either command fails, task is not complete
 - agent must not claim success until the gate passes
 - for new devices, create `devices/<device>/characterization_spec.json` with device-relevant target metrics for characterization CSV pass/fail columns
+- for new devices, implement `devices/<device>/measure.py::export_characterization_artifacts(corner, out_dir, dut_out_path, ...)` returning `dut_spice_path` and `bench_spice_path`
+- exporter must write DUT once to `dut_out_path`; corner folders should contain only bench netlists
+- exporter implementation pattern:
+  - always build/write DUT netlist to `dut_out_path` (shared file for the whole experiment)
+  - build/write bench netlist to a corner-local file under `out_dir`
+  - return exact paths from disk, with `dut_spice_path` equal to `dut_out_path`
+  - avoid generating corner-specific DUT files
+- 5-corner readiness rule for new devices:
+  - implement explicit handling for `TT`, `FF`, `SS`, `FS`, `SF`
+  - do not collapse `FS`/`SF` into `FF`/`SS`
+  - if true `FS`/`SF` behavior cannot be supported yet, fail gate with explicit contract message instead of silent remap
 - full characterization CSV/tag run is not part of create/update unless user explicitly requested characterization
 - run these gate commands using `python` from active project venv
 - during create/update, any direct call to `characterize_device.py` must be either:

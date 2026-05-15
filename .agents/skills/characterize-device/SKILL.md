@@ -19,6 +19,7 @@ Use this skill for requests like:
 
 - 5-corner characterization: `TT`, `FF`, `SS`, `FS`, `SF`
 - one CSV per characterization run
+- one experiment artifact folder per run under `devices/<device>/characterizations/<experiment_id>/`
 - create one git commit + one git tag for each successful full characterization:
   - commit message: `characterization(<device>): <experiment_id>`
   - commit scope: all changes under `devices/<device>/` (device code + tests + artifacts including CSV)
@@ -30,6 +31,10 @@ Use this skill for requests like:
   - `category`
   - `purpose`
   - `metrics` (dictionary)
+- `measure.py` must provide artifact exporter:
+  - `export_characterization_artifacts(corner, out_dir, dut_out_path, ...) -> {dut_spice_path, bench_spice_path}`
+  - exporter must write DUT once to `dut_out_path` and return that exact path
+  - corner folders should contain only benchmark/testbench SPICE
 
 Safety rule:
 
@@ -87,7 +92,9 @@ Selection rule:
 - treat corner-normalization as mandatory contract:
   - measurement must correctly map both enum aliases (`TYP/FAST/SLOW`) and string labels (`TT/FF/SS/FS/SF`)
   - corner argument must influence selected model/conditions according to declared PVT mapping
+  - in 5-corner mode, `FS` and `SF` must remain distinct; do not remap them to `FF`/`SS`
 - for multi-corner runs, the resulting numeric metric set must not be fully identical across all corners
+- if true `FS`/`SF` support is not available for the device flow, stop with contract failure and report missing support explicitly
 - for sweep-based characterization metrics, treat 3 points as a smoke-only minimum; use denser sweeps for meaningful characterization
 
 4. Return:
@@ -111,12 +118,17 @@ Return:
 - experiment tags
 - related commits
 - CSV paths
+- manifest and archive paths
 - short per-experiment summary (corners, pass_* status, metric preview)
 - if CSV is not present in working tree, history reader falls back to CSV content from git tag/commit
 
 ## Output Location
 
-- `devices/<device>/characterizations/char_<experiment_id>.csv`
+- `devices/<device>/characterizations/<experiment_id>/char_<experiment_id>.csv`
+- `devices/<device>/characterizations/<experiment_id>/spice/<device>_dut.sp`
+- `devices/<device>/characterizations/<experiment_id>/spice/<corner>/bench*.sp`
+- `devices/<device>/characterizations/<experiment_id>/manifest.json`
+- `devices/<device>/characterizations/<experiment_id>/artifacts_<experiment_id>.zip`
 
 ## Spec Targets In CSV
 
