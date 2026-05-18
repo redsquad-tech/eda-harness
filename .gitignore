@@ -1,5 +1,6 @@
 pdks/
 .venv/
+venv/
 __pycache__/
 output/
 tmp/
