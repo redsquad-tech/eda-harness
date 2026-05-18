@@ -28,9 +28,21 @@ def main() -> int:
     repo = Path.cwd()
 
     if not args.allow_dirty:
-        changed = subprocess.run(["git", "status", "--porcelain"], cwd=str(repo), capture_output=True, text=True, check=True).stdout.strip()
-        if changed:
-            raise SystemExit("Working tree is not clean. Commit/stash changes before switching lines.")
+        device_prefix = f"devices/{args.device}/"
+        tracked = subprocess.run(
+            ["git", "diff", "--name-only", "HEAD"],
+            cwd=str(repo),
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.splitlines()
+        tracked = [p.strip() for p in tracked if p.strip()]
+        disallowed = [p for p in tracked if not p.startswith(device_prefix)]
+        if disallowed:
+            raise SystemExit(
+                "Working tree has tracked changes outside target device. "
+                "Commit/stash them first or pass --allow-dirty.\n" + "\n".join(disallowed)
+            )
 
     branch = f"device/{args.device}/{args.line}"
     if git_ref_exists(f"refs/heads/{branch}", repo):

@@ -371,6 +371,36 @@ def require_artifact_exporter(device: str) -> None:
         )
 
 
+def validate_exporter_contract(
+    *,
+    device: str,
+    corners: tuple[str, ...],
+    num_points: int | None,
+    measure_fn_name: str | None,
+) -> None:
+    """
+    Dry-run exporter contract validation used by --validate-only:
+    checks callable signature-compatibility and required path semantics
+    without producing CSV/commit/tag artifacts.
+    """
+    tmp_root = Path("tmp") / "characterize_validate" / device / utc_stamp()
+    try:
+        _ = export_artifacts_from_measure(
+            device=device,
+            experiment_dir=tmp_root,
+            corners=corners,
+            num_points=num_points,
+            measure_fn_name=measure_fn_name,
+        )
+    finally:
+        if tmp_root.exists():
+            for p in sorted(tmp_root.rglob("*"), reverse=True):
+                if p.is_file():
+                    p.unlink()
+                elif p.is_dir():
+                    p.rmdir()
+
+
 def write_manifest(
     experiment_dir: Path,
     *,
@@ -525,9 +555,18 @@ def main() -> int:
     )
     _corner_sensitivity_contract(rows, corners)
     if args.validate_only:
+        used_measure_fn_name = str(rows[0].get("measure_fn")) if rows else (args.measure_fn or "")
+        require_artifact_exporter(args.device)
+        validate_exporter_contract(
+            device=args.device,
+            corners=corners,
+            num_points=args.num_points,
+            measure_fn_name=used_measure_fn_name if used_measure_fn_name else None,
+        )
         print("Characterization contract validation passed")
         print("Mode: validate-only")
         print("Corners: TT")
+        print("Exporter: validated")
         print(f"Experiment ID: {experiment_id}")
         return 0
 

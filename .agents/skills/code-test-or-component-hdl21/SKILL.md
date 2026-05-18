@@ -63,8 +63,11 @@ Rules:
 - this is a hard gate for create/update completion
 - if either command fails, task is not complete
 - agent must not claim success until the gate passes
+- `--validate-only` must validate both measurement-output contract and exporter contract (dry-run, no CSV artifacts)
 - for new devices, create `devices/<device>/characterization_spec.json` with device-relevant target metrics for characterization CSV pass/fail columns
 - for new devices, implement `devices/<device>/measure.py::export_characterization_artifacts(corner, out_dir, dut_out_path, ...)` returning `dut_spice_path` and `bench_spice_path`
+- exporter function must accept characterize-runner optional args for compatibility:
+  - `num_points=None`, `measure_fn_name=None`, and `**kwargs`
 - exporter must write DUT once to `dut_out_path`; corner folders should contain only bench netlists
 - exporter implementation pattern:
   - always build/write DUT netlist to `dut_out_path` (shared file for the whole experiment)

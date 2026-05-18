@@ -167,6 +167,8 @@ python .agents/skills/characterize-device/scripts/characterize_device.py \
   --validate-only
 ```
 
+`--validate-only` must validate both measurement-output contract and exporter contract (dry-run, no CSV artifacts).
+
 7. If step 6 fails, create/update task is not complete and must be reported as failed (do not present device as ready).
 8. Run steps 6 and 9 using `python` from active project venv.
 9. Corner-sensitivity precheck passes before declaring create/update ready:
@@ -308,6 +310,8 @@ Measurement function used for characterization must:
 Artifact exporter implementation rule (for new/updated devices):
 
 - implement `export_characterization_artifacts(corner, out_dir, dut_out_path, ...)` in `measure.py`
+- required compatible signature:
+  - `export_characterization_artifacts(corner, out_dir, dut_out_path, num_points=None, measure_fn_name=None, **kwargs)`
 - write DUT SPICE exactly once to `dut_out_path` (shared for all corners in one experiment)
 - write only corner-specific benchmark/testbench SPICE under `out_dir`
 - return:

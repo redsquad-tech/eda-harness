@@ -32,7 +32,7 @@ Use this skill for requests like:
   - `purpose`
   - `metrics` (dictionary)
 - `measure.py` must provide artifact exporter:
-  - `export_characterization_artifacts(corner, out_dir, dut_out_path, ...) -> {dut_spice_path, bench_spice_path}`
+  - `export_characterization_artifacts(corner, out_dir, dut_out_path, num_points=None, measure_fn_name=None, **kwargs) -> {dut_spice_path, bench_spice_path}`
   - exporter must write DUT once to `dut_out_path` and return that exact path
   - corner folders should contain only benchmark/testbench SPICE
 
@@ -59,6 +59,12 @@ Tagging rule:
 
 - full characterization creates a git commit for full device state under `devices/<device>/`, then creates a git tag (`char/<device>/<experiment_id>`)
 - use `--no-commit` and/or `--no-tag` only when user explicitly requests a no-git dry run
+
+Validate-only rule:
+
+- `--validate-only` must validate both:
+  - measurement function output contract, and
+  - exporter contract via dry-run invocation (without CSV/commit/tag artifacts).
 
 Default guard:
 
