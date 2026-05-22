@@ -7,6 +7,85 @@ description: Use this skill when you need to describe a circuit or a test in hdl
 
 This document defines the mandatory repository standard for reusable HDL21 components and opamp-architecture workspaces.
 
+## 0. Mandatory Line Selection (Before Any Coding)
+
+For any user request `create/update/modify device`, the agent **MUST** do line selection first and only once for the session:
+
+1. Identify target `device_name`.
+2. Discover existing lines and versions:
+   - `python ../version-device/scripts/list_device_versions.py --device <device_name>`
+   - In the user-facing message, explicitly include:
+     - available line branches,
+     - available freeze tags,
+     - available release tags,
+     - promoted/not-promoted status from `VERSION_INDEX.json` (if present).
+   - Treat script JSON output as source of truth. Do not infer or override its `version_index` / `version_index_source` fields.
+   - If `version_index` is present, agent MUST NOT say "VERSION_INDEX.json not found".
+3. Ask user to choose one mode:
+   - create new line `device/<device>/<line>` from base (`main` or explicit freeze tag), or
+   - continue existing line.
+   - For `create new line`, always ask user for explicit `<base_ref>`; do not assume defaults silently.
+4. If discovery returns no lines/versions:
+   - explicitly state that no prior versions exist,
+   - suggest `new line mainline from main`,
+   - still ask user to confirm explicit base-ref.
+5. Create/switch branch:
+   - `python ../version-device/scripts/start_device_line.py --device <device_name> --line <line_name> --base-ref <base_ref>`
+6. Only after branch is selected, start implementation/tests.
+
+The agent **MUST NOT** start coding before this line-selection gate is resolved.
+
+## 0.1 Create/Update Completion Gate (Mandatory)
+
+Before reporting create/update as successful, agent **MUST** run characterization contract check:
+
+```bash
+python ../characterize-device/scripts/characterize_device.py \
+  --device <device_name> \
+  --description "creation characterization contract check" \
+  --validate-only
+```
+
+And **MUST** run corner-sensitivity precheck (no artifacts):
+
+```bash
+python ../characterize-device/scripts/characterize_device.py \
+  --device <device_name> \
+  --description "creation corner-sensitivity precheck" \
+  --no-csv \
+  --no-tag \
+  --no-commit \
+  --corners TT,FF,SS,FS,SF
+```
+
+Rules:
+
+- this is a hard gate for create/update completion
+- if either command fails, task is not complete
+- agent must not claim success until the gate passes
+- `--validate-only` must validate both measurement-output contract and exporter contract (dry-run, no CSV artifacts)
+- for new devices, create `devices/<device>/characterization_spec.json` with device-relevant target metrics for characterization CSV pass/fail columns
+- for new devices, implement `devices/<device>/measure.py::export_characterization_artifacts(corner, out_dir, dut_out_path, ...)` returning `dut_spice_path` and `bench_spice_path`
+- exporter function must accept characterize-runner optional args for compatibility:
+  - `num_points=None`, `measure_fn_name=None`, and `**kwargs`
+- exporter must write DUT once to `dut_out_path`; corner folders should contain only bench netlists
+- exporter implementation pattern:
+  - always build/write DUT netlist to `dut_out_path` (shared file for the whole experiment)
+  - build/write bench netlist to a corner-local file under `out_dir`
+  - return exact paths from disk, with `dut_spice_path` equal to `dut_out_path`
+  - avoid generating corner-specific DUT files
+- 5-corner readiness rule for new devices:
+  - implement explicit handling for `TT`, `FF`, `SS`, `FS`, `SF`
+  - do not collapse `FS`/`SF` into `FF`/`SS`
+  - if true `FS`/`SF` behavior cannot be supported yet, fail gate with explicit contract message instead of silent remap
+- full characterization CSV/tag run is not part of create/update unless user explicitly requested characterization
+- run these gate commands using `python` from active project venv
+- during create/update, any direct call to `characterize_device.py` must be either:
+  - `--validate-only`, or
+  - `--no-csv` (for corner-sensitivity precheck)
+- running `characterize_device.py` in create/update without `--validate-only` and without `--no-csv` is not allowed
+- `--no-tag` and `--no-commit` are allowed in this section only for the mandatory no-artifact precheck command above
+
 ## 1. Repository Structure
 
 - common patterns and subblocks (hdl21 library, e.g. diffpair, current mirror, etc.) SHOULD live in: `components/<component_name>.py`

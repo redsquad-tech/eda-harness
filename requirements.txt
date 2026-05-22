@@ -1,0 +1,6 @@
+hdl21
+sky130-hdl21
+vlsirtools
+numpy
+pytest
+volare
