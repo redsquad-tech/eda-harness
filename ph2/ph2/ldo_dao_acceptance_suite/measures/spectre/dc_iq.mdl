@@ -1,0 +1,40 @@
+// LDO_DAO SpectreMDL checks for dc_iq.
+alias measurement dc_iq_check {
+  run dcOp
+
+  export real Vout_V
+  export real Iq_uA
+  export real fail_count
+  export real pass
+  real iload_A=@ILOAD@
+
+  Vout_V = V(vout_1v2)
+  Iq_uA = @IQ_SIGN@*1e6*I(V_VDD)
+  fail_count = 0
+  pass = 1
+
+  print fmt("BEGIN suite=dc_iq simulator=spectre corner=%s sweep=%s temp_c=%g vdd=%g vref=%g ibias_A=%g iload_A=%g\n", "@CORNER@", "@SWEEP@", @TEMP_C@, @VDD@, @VREF@, @IBIAS@, iload_A) to="spectre_results.txt"
+
+  if (Vout_V < 1.08) {
+    print fmt("FAIL test=dc_iq reason=VOUT_LOW simulator=spectre corner=%s sweep=%s temp_c=%g vdd=%g vref=%g ibias_A=%g iload_A=%g value_V=%g limit_min_V=1.08\n", "@CORNER@", "@SWEEP@", @TEMP_C@, @VDD@, @VREF@, @IBIAS@, iload_A, Vout_V) addto="spectre_results.txt"
+    fail_count = fail_count + 1
+    pass = 0
+  }
+  if (Vout_V > 1.32) {
+    print fmt("FAIL test=dc_iq reason=VOUT_HIGH simulator=spectre corner=%s sweep=%s temp_c=%g vdd=%g vref=%g ibias_A=%g iload_A=%g value_V=%g limit_max_V=1.32\n", "@CORNER@", "@SWEEP@", @TEMP_C@, @VDD@, @VREF@, @IBIAS@, iload_A, Vout_V) addto="spectre_results.txt"
+    fail_count = fail_count + 1
+    pass = 0
+  }
+  if (iload_A < 1e-18) {
+    if (Iq_uA > 3.0) {
+      print fmt("FAIL test=dc_iq reason=IQ_HIGH simulator=spectre corner=%s sweep=%s temp_c=%g vdd=%g vref=%g ibias_A=%g value_uA=%g limit_max_uA=3.0\n", "@CORNER@", "@SWEEP@", @TEMP_C@, @VDD@, @VREF@, @IBIAS@, Iq_uA) addto="spectre_results.txt"
+      fail_count = fail_count + 1
+      pass = 0
+    }
+  }
+
+  print fmt("RESULT test=dc_iq simulator=spectre corner=%s sweep=%s temp_c=%g vdd=%g vref=%g ibias_A=%g iload_A=%g Vout_V=%g Iq_uA=%g pass=%g\n", "@CORNER@", "@SWEEP@", @TEMP_C@, @VDD@, @VREF@, @IBIAS@, iload_A, Vout_V, Iq_uA, pass) addto="spectre_results.txt"
+  print fmt("SUMMARY suite=dc_iq simulator=spectre runs=1 fail_count=%g\n", fail_count) addto="spectre_results.txt"
+}
+
+run dc_iq_check

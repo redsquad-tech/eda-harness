@@ -1,0 +1,51 @@
+// LDO_DAO SpectreMDL checks for dynamic_load_tran.
+alias measurement dynamic_load_check {
+  run tran1
+
+  export real Vout_pre_V
+  export real Vout_min_V
+  export real Vout_max_V
+  export real Vout_dyn_avg_V
+  export real drop_mV
+  export real overshoot_mV
+  export real avg_drop_mV
+  export real fail_count
+  export real pass
+
+  Vout_pre_V = avg(trim(sig=V(vout_1v2), from=150e-9, to=190e-9))
+  Vout_min_V = min(trim(sig=V(vout_1v2), from=200e-9, to=400e-9))
+  Vout_max_V = max(trim(sig=V(vout_1v2), from=200e-9, to=400e-9))
+  Vout_dyn_avg_V = avg(trim(sig=V(vout_1v2), from=400e-9, to=900e-9))
+  drop_mV = 1000*(Vout_pre_V - Vout_min_V)
+  overshoot_mV = 1000*(Vout_max_V - Vout_pre_V)
+  avg_drop_mV = 1000*(Vout_pre_V - Vout_dyn_avg_V)
+  if (drop_mV < 0) { drop_mV = 0 }
+  if (overshoot_mV < 0) { overshoot_mV = 0 }
+  if (avg_drop_mV < 0) { avg_drop_mV = 0 }
+
+  fail_count = 0
+  pass = 1
+
+  print fmt("BEGIN suite=dynamic_load_tran simulator=spectre corner=%s temp_c=%g vdd=%g\n", "@CORNER@", @TEMP_C@, @VDD@) to="spectre_results.txt"
+
+  if (drop_mV > 50) {
+    print fmt("FAIL test=dynamic_load_tran reason=DROP_HIGH simulator=spectre corner=%s temp_c=%g vdd=%g drop_mV=%g limit_max_mV=50\n", "@CORNER@", @TEMP_C@, @VDD@, drop_mV) addto="spectre_results.txt"
+    fail_count = fail_count + 1
+    pass = 0
+  }
+  if (overshoot_mV > 20) {
+    print fmt("FAIL test=dynamic_load_tran reason=OVERSHOOT_HIGH simulator=spectre corner=%s temp_c=%g vdd=%g overshoot_mV=%g limit_max_mV=20\n", "@CORNER@", @TEMP_C@, @VDD@, overshoot_mV) addto="spectre_results.txt"
+    fail_count = fail_count + 1
+    pass = 0
+  }
+  if (avg_drop_mV > 25) {
+    print fmt("FAIL test=dynamic_load_tran reason=AVG_DROP_HIGH simulator=spectre corner=%s temp_c=%g vdd=%g avg_drop_mV=%g limit_max_mV=25\n", "@CORNER@", @TEMP_C@, @VDD@, avg_drop_mV) addto="spectre_results.txt"
+    fail_count = fail_count + 1
+    pass = 0
+  }
+
+  print fmt("RESULT test=dynamic_load_tran simulator=spectre corner=%s temp_c=%g vdd=%g Vout_pre_V=%g Vout_min_V=%g Vout_max_V=%g Vout_dyn_avg_V=%g drop_mV=%g overshoot_mV=%g avg_drop_mV=%g pass=%g\n", "@CORNER@", @TEMP_C@, @VDD@, Vout_pre_V, Vout_min_V, Vout_max_V, Vout_dyn_avg_V, drop_mV, overshoot_mV, avg_drop_mV, pass) addto="spectre_results.txt"
+  print fmt("SUMMARY suite=dynamic_load_tran simulator=spectre runs=1 fail_count=%g\n", fail_count) addto="spectre_results.txt"
+}
+
+run dynamic_load_check

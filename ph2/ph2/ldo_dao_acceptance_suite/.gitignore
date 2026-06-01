@@ -1,0 +1,10 @@
+results/**
+!results/
+!results/*.csv
+!results/*/
+!results/*/summary.txt
+results/latest
+__pycache__/
+*.pyc
+.*.__render.md
+loop_stability_ac_phase_fix*.csv

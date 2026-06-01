@@ -1,0 +1,25 @@
+// LDO_DAO SpectreMDL checks for psrr_ac.
+alias measurement psrr_check {
+  run ac1
+
+  export real PSRR_min_dB
+  export real fail_count
+  export real pass
+
+  PSRR_min_dB = min(-db(V(vout_1v2)/V(vdd_3v3)))
+  fail_count = 0
+  pass = 1
+
+  print fmt("BEGIN suite=psrr_ac simulator=spectre corner=%s temp_c=%g vdd=%g\n", "@CORNER@", @TEMP_C@, @VDD@) to="spectre_results.txt"
+
+  if (PSRR_min_dB < 40) {
+    print fmt("FAIL test=psrr_ac reason=PSRR_LOW simulator=spectre corner=%s temp_c=%g vdd=%g PSRR_min_dB=%g limit_min_dB=40\n", "@CORNER@", @TEMP_C@, @VDD@, PSRR_min_dB) addto="spectre_results.txt"
+    fail_count = fail_count + 1
+    pass = 0
+  }
+
+  print fmt("RESULT test=psrr_ac simulator=spectre corner=%s temp_c=%g vdd=%g PSRR_min_dB=%g pass=%g\n", "@CORNER@", @TEMP_C@, @VDD@, PSRR_min_dB, pass) addto="spectre_results.txt"
+  print fmt("SUMMARY suite=psrr_ac simulator=spectre runs=1 fail_count=%g\n", fail_count) addto="spectre_results.txt"
+}
+
+run psrr_check

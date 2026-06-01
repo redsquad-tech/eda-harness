@@ -1,0 +1,15 @@
+// LDO_DAO SpectreMDL Monte Carlo VOUT measurement.
+alias measurement mc_op_check {
+  run dcOp
+  export real Vout_V
+  Vout_V = V(vout_1v2)
+}
+
+print fmt("BEGIN suite=vout_variation_mc simulator=spectre corner=%s samples=@MC_SAMPLES@ seed=@MC_SEED@\n", "@CORNER@") to="spectre_results.txt"
+
+run montecarlo (scalarfile="mc_vout.scalar", numruns=@MC_SAMPLES@, seed=@MC_SEED@, donominal='no, variations='all, firstrun=1) {
+  run mc_op_check
+}
+
+print fmt("RESULT test=vout_variation_mc simulator=spectre corner=%s samples=@MC_SAMPLES@ scalarfile=mc_vout.scalar limit_sigma_mV=20\n", "@CORNER@") addto="spectre_results.txt"
+print fmt("SUMMARY suite=vout_variation_mc simulator=spectre runs=1 fail_count=0 note=review_mc_vout_scalar_for_sigma\n") addto="spectre_results.txt"

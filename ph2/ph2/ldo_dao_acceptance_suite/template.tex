@@ -1,0 +1,88 @@
+\documentclass[12pt]{extarticle}
+\PassOptionsToPackage{hyphens}{url}
+
+\usepackage{fontspec}
+\usepackage{polyglossia}
+\setmainlanguage{english}
+\setotherlanguage{russian}
+\setmainfont{Noto Serif}
+\newfontfamily\cyrillicfont{Noto Serif}
+\setsansfont{DejaVu Sans}
+\newfontfamily\cyrillicfontsf{DejaVu Sans}
+\setmonofont{DejaVu Sans Mono}
+\newfontfamily\cyrillicfonttt{DejaVu Sans Mono}
+
+\usepackage{geometry}
+\geometry{a4paper,left=22mm,right=18mm,top=18mm,bottom=20mm}
+\usepackage{setspace}
+\onehalfspacing
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt}
+
+\usepackage{graphicx}
+\usepackage{float}
+\floatplacement{figure}{H}
+\setkeys{Gin}{width=0.92\linewidth,height=0.32\textheight,keepaspectratio}
+
+\usepackage{longtable}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{ragged2e}
+\usepackage{fancyhdr}
+\usepackage{xcolor}
+\usepackage[hidelinks,breaklinks=true]{hyperref}
+\usepackage{xurl}
+\urlstyle{same}
+\setlength{\emergencystretch}{4em}
+\sloppy
+
+\usepackage{fvextra}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,breakanywhere,commandchars=\\\{\}}
+\DefineVerbatimEnvironment{verbatim}{Verbatim}{breaklines,breakanywhere}
+
+\providecommand{\tightlist}{\setlength{\itemsep}{2pt}\setlength{\parskip}{0pt}}
+
+\usepackage{titlesec}
+\setcounter{secnumdepth}{0}
+\setcounter{tocdepth}{3}
+\titleformat{\section}{\normalfont\bfseries\large}{}{0pt}{}
+\titleformat{\subsection}{\normalfont\bfseries\normalsize}{}{0pt}{}
+\titleformat{\subsubsection}{\normalfont\bfseries\normalsize}{}{0pt}{}
+\titlespacing*{\section}{0pt}{*3}{*1.4}
+\titlespacing*{\subsection}{0pt}{*2.2}{*1}
+\titlespacing*{\subsubsection}{0pt}{*1.8}{*0.8}
+
+\newcommand{\AnadetoHeader}{anadeto}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\AnadetoHeader}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.3pt}
+
+\begin{document}
+
+\begin{titlepage}
+\thispagestyle{empty}
+\begin{center}
+\vspace*{1cm}
+anadeto\\[2.5cm]
+{\bfseries\LARGE $title$}\\[0.8cm]
+$if(subtitle)$
+{\Large $subtitle$}\\[2.5cm]
+$endif$
+\vfill
+$if(city)$$city$, $endif$$if(year)$$year$$endif$
+\end{center}
+\end{titlepage}
+
+\pagestyle{fancy}
+
+$if(toc)$
+\tableofcontents
+\newpage
+$endif$
+
+$body$
+
+\end{document}

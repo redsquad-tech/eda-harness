@@ -1,0 +1,80 @@
+.control
+set noaskquit
+set numdgt=12
+unset appendwrite
+
+let run_index = 0
+let fail_count = 0
+
+echo BEGIN suite=loop_stability_ac simulator=ngspice
+
+foreach temp_c -40 27 150
+  foreach vdd_v 2.0 3.3 3.6
+    let run_index = run_index + 1
+    alterparam TB_VDD = $vdd_v
+    alterparam TB_VREF = 0.80
+    alterparam TB_IBIAS = 400n
+    reset
+    set temp=$temp_c
+    ac dec 200 1 1e9
+
+    let loop = -v(vfb_o)/v(vfb_i)
+    let loop_gain_db = vdb(loop)
+    let neg_loop_gain_db = -loop_gain_db
+    let loop_phase_rad = vp(loop)
+    let loop_phase_deg = 57.29577951308232 * loop_phase_rad
+    meas ac ugf WHEN vdb(loop)=0 FALL=1
+    meas ac pm_raw_rad FIND vp(loop) WHEN vdb(loop)=0 FALL=1
+    let pm_deg = 180 + (57.29577951308232 * pm_raw_rad)
+
+    meas ac phmin_deg MIN loop_phase_deg
+    if phmin_deg > -179
+      let gm_dB = 1e9
+      let gm_mode = 1
+    else
+      meas ac gm_tmp FIND neg_loop_gain_db WHEN loop_phase_deg=-179 FALL=1
+      let gm_dB = gm_tmp
+      let gm_mode = 0
+    end
+
+    let gbw_Hz = ugf
+    let pass_code = 1
+    let run_x = run_index
+    let temp_num = $temp_c
+    let vdd_num = $vdd_v
+
+    if gbw_Hz < 100k
+      echo FAIL test=loop_stability_ac reason=GBW_LOW temp_c=$temp_c vdd=$vdd_v GBW_Hz=$&gbw_Hz limit_min_Hz=100000
+      let pass_code = 0
+      let fail_count = fail_count + 1
+    end
+    if pm_deg < 40
+      echo FAIL test=loop_stability_ac reason=PM_LOW temp_c=$temp_c vdd=$vdd_v PM_deg=$&pm_deg limit_min_deg=40
+      let pass_code = 0
+      let fail_count = fail_count + 1
+    end
+    if gm_dB < 20
+      echo FAIL test=loop_stability_ac reason=GM_LOW temp_c=$temp_c vdd=$vdd_v GM_dB=$&gm_dB limit_min_dB=20
+      let pass_code = 0
+      let fail_count = fail_count + 1
+    end
+
+    echo RESULT test=loop_stability_ac temp_c=$temp_c vdd=$vdd_v GBW_Hz=$&gbw_Hz PM_deg=$&pm_deg GM_dB=$&gm_dB GM_mode=$&gm_mode pass=$&pass_code
+    let temp_vec = frequency*0 + temp_num
+    let vdd_vec = frequency*0 + vdd_num
+    setscale frequency
+    wrdata loop_stability_waveforms.dat temp_vec vdd_vec loop_gain_db loop_phase_deg
+    setscale run_x
+    wrdata loop_stability_metrics.dat temp_num vdd_num gbw_Hz pm_deg gm_dB gm_mode pass_code
+    set appendwrite
+    destroy $curplot
+  end
+end
+
+echo SUMMARY suite=loop_stability_ac runs=$&run_index fail_count=$&fail_count
+if fail_count > 0
+  quit 1
+else
+  quit 0
+end
+.endc
