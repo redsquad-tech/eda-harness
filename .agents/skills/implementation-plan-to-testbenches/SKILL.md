@@ -1,84 +1,84 @@
 ---
 name: implementation-plan-to-testbenches
-description: Используй этот skill чтобы последовательно реализовать все testbench groups из testbench_implementation_plan.md
+description: Use this skill to sequentially implement all testbench groups from testbench_implementation_plan.md.
 ---
 
 # Skill: Implementation Plan to Testbenches
 
-## Назначение
+## Purpose
 
-Последовательно реализуй все testbench groups из `testbench_implementation_plan.md`.
+Sequentially implement all testbench groups from `testbench_implementation_plan.md`.
 
-За одну итерацию реализуй только одну текущую group, доведи её до рабочего состояния в ngspice, отчитайся пользователю и спроси, продолжать ли следующую group.
+In one iteration, implement only one current group, bring it to a working state in ngspice, report back to the user, and ask whether to continue with the next group.
 
-## Входные данные
+## Inputs
 
-* `verification_plan.md` — DUT contract, requirements, conditions, metrics и pass/fail limits.
-* `testbench_implementation_plan.md` — fixture groups, planned files, CSV outputs и implementation order.
+* `verification_plan.md` — DUT contract, requirements, conditions, metrics, and pass/fail limits.
+* `testbench_implementation_plan.md` — fixture groups, planned files, CSV outputs, and implementation order.
 * DUT netlist for development/run — user-provided runnable SPICE netlist or generated mock netlist selected in the previous stage.
 * Optional model files/includes — use when the selected DUT netlist requires them.
 
-## Выбор текущей group
+## Selecting the Current Group
 
-Определи текущую group по `Implementation Order`.
+Determine the current group from `Implementation Order`.
 
-Если пользователь явно указал group name — реализуй её.
+If the user explicitly specified a group name, implement that group.
 
-Если group не указана, выбери первую group по order, у которой нет успешного набора planned files, ngspice log и metrics CSV.
+If no group is specified, choose the first group in order that does not have a successful set of planned files, ngspice log, and metrics CSV.
 
-Если все groups уже реализованы и проверены, сообщи, что testbench suite complete.
+If all groups are already implemented and verified, report that the testbench suite is complete.
 
-## Что создать за одну итерацию
+## What to Create in One Iteration
 
-Для выбранной group создай или обнови только planned files из `testbench_implementation_plan.md`, обычно:
+For the selected group, create or update only its planned files from `testbench_implementation_plan.md`, usually:
 
 ```text
 tests/<group_name>.py
 tests/<group_name>.sp
 tests/<group_name>.control
 results/<group_name>_metrics.csv
-results/<group_name>_samples.csv / results/<group_name>_waveforms.csv, если запланировано
+results/<group_name>_samples.csv / results/<group_name>_waveforms.csv, if planned
 results/<group_name>.log
 ```
 
-Каждая group имеет отдельный HDL21 Python-файл. Не делай один общий generator для всех groups.
+Each group has its own separate HDL21 Python file. Do not create one shared generator for all groups.
 
-## HDL21 fixture requirement
+## HDL21 Fixture Requirement
 
-`tests/<group_name>.py` должен реально использовать HDL21 для генерации reusable electrical fixture и экспорта `tests/<group_name>.sp`.
+`tests/<group_name>.py` must actually use HDL21 to generate a reusable electrical fixture and export `tests/<group_name>.sp`.
 
-Главное правило: exported `tests/<group_name>.sp` должен быть полноценным testbench fixture, а не thin DUT wrapper.
+Main rule: the exported `tests/<group_name>.sp` must be a complete testbench fixture, not a thin DUT wrapper.
 
-Правила:
+Rules:
 
-* `tests/<group_name>.py` должен генерировать circuit fixture через HDL21 modules/instances/primitives/helpers.
-* Exported `tests/<group_name>.sp` должен содержать DUT instance и электрическую обвязку, нужную для этой group: supply/reference/control sources, loads, capacitors, feedback connections, stimulus elements, named nodes и probe points, где они применимы.
-* Для OP/DC/static groups fixture обычно должен содержать все static sources, loads, feedback connections и DUT instance.
-* Для TRAN/AC/waveform-like groups fixture должен содержать stimulus/source elements, нужные для анализа, например parameterized PULSE/PWL/AC/DC sources, loads/caps и stable probe nodes.
-* `.control` не должен быть основным местом, где создаётся circuit topology testbench-а. Не переноси supply/reference/control/stimulus sources в `.control` только потому, что так проще.
-* `.control` должен управлять уже созданным fixture: include/source files, `alterparam`/`alter`, `reset`, analysis commands, measurements, derived metrics, pass/fail, `RESULT`/`FAIL`/`SUMMARY` и CSV/waveform exports.
-* SPICE fixture экспортируй через HDL21 netlisting/export flow.
-* Не заменяй HDL21 генерацию полной ручной генерацией SPICE-текста.
-* Не используй HDL21 только как декоративную декларацию port list поверх handwritten fixture.
-* Generated SPICE не редактируй вручную.
+* `tests/<group_name>.py` must generate the circuit fixture through HDL21 modules/instances/primitives/helpers.
+* The exported `tests/<group_name>.sp` must contain the DUT instance and the electrical setup required for this group: supply/reference/control sources, loads, capacitors, feedback connections, stimulus elements, named nodes, and probe points where applicable.
+* For OP/DC/static groups, the fixture should usually contain all static sources, loads, feedback connections, and the DUT instance.
+* For TRAN/AC/waveform-like groups, the fixture must contain the stimulus/source elements required for the analysis, for example parameterized PULSE/PWL/AC/DC sources, loads/caps, and stable probe nodes.
+* `.control` must not be the primary place where the testbench circuit topology is created. Do not move supply/reference/control/stimulus sources into `.control` just because it is easier.
+* `.control` must control the already-created fixture: include/source files, `alterparam`/`alter`, `reset`, analysis commands, measurements, derived metrics, pass/fail, `RESULT`/`FAIL`/`SUMMARY`, and CSV/waveform exports.
+* Export the SPICE fixture through the HDL21 netlisting/export flow.
+* Do not replace HDL21 generation with full handwritten SPICE text generation.
+* Do not use HDL21 only as a decorative port-list declaration on top of a handwritten fixture.
+* Do not edit generated SPICE manually.
 
 Raw-SPICE exception:
 
-* Если нужный simulator-specific element плохо выражается чистыми HDL21 primitives, например PULSE/PWL source, behavioral helper, special probe/helper element, Python generator может добавить небольшой documented raw-SPICE fragment в generated `tests/<group_name>.sp`.
-* Такой raw-SPICE fragment должен быть минимальным, локальным для fixture и добавляться из `tests/<group_name>.py` при генерации `.sp`.
-* Итоговый `tests/<group_name>.sp` всё равно должен содержать полный reusable fixture со stimulus/source elements.
-* Не используй raw-SPICE fragments в `.control` как способ описать основную circuit topology.
+* If a required simulator-specific element is not expressed well by pure HDL21 primitives, for example a PULSE/PWL source, behavioral helper, or special probe/helper element, the Python generator may add a small documented raw-SPICE fragment to the generated `tests/<group_name>.sp`.
+* This raw-SPICE fragment must be minimal, local to the fixture, and added by `tests/<group_name>.py` when generating `.sp`.
+* The final `tests/<group_name>.sp` must still contain a complete reusable fixture with stimulus/source elements.
+* Do not use raw-SPICE fragments in `.control` as a way to describe the main circuit topology.
 
-Перед завершением fixture проверь:
+Before finishing the fixture, check that:
 
-* можно понять electrical setup group-а, открыв `tests/<group_name>.sp`, без чтения measurement loops в `.control`;
-* `.sp` содержит sources/stimulus/load/probe elements, если они нужны group-е;
-* `.control` не содержит основной набор V/I source declarations, которые должны быть частью reusable fixture;
-* `.control` меняет параметры существующих fixture elements, а не создаёт fixture topology заново.
+* the group electrical setup can be understood by opening `tests/<group_name>.sp`, without reading measurement loops in `.control`;
+* `.sp` contains sources/stimulus/load/probe elements if the group needs them;
+* `.control` does not contain the main set of V/I source declarations that should be part of the reusable fixture;
+* `.control` changes parameters of existing fixture elements instead of recreating fixture topology.
 
-## Ngspice control requirement
+## Ngspice Control Requirement
 
-`tests/<group_name>.control` содержит simulator-side логику:
+`tests/<group_name>.control` contains simulator-side logic:
 
 * include/source generated SPICE fixture, selected DUT netlist, and required model/includes;
 * run matrix, loops, `alterparam`/`alter`, `reset`;
@@ -88,148 +88,148 @@ Raw-SPICE exception:
 * `RESULT` / `FAIL` / `SUMMARY` lines;
 * writing metrics CSV and planned samples/waveform CSV.
 
-Python не должен считать physical metrics и pass/fail.
+Python must not compute physical metrics or pass/fail.
 
-Для metrics CSV можно использовать simulator-side text output. Для waveform/sample data предпочитай `wrdata` или другой simulator-native export.
+For metrics CSV, simulator-side text output may be used. For waveform/sample data, prefer `wrdata` or another simulator-native export.
 
-Не делай отдельные SPICE decks на каждый run/corner/condition.
+Do not create separate SPICE decks for each run/corner/condition.
 
-## Run matrix and coverage rules
+## Run Matrix and Coverage Rules
 
-Run matrix должна точно соответствовать coverage для текущей group из `testbench_implementation_plan.md` и соответствующих строк `Acceptance Test Matrix` в `verification_plan.md`.
+The run matrix must exactly match the coverage for the current group from `testbench_implementation_plan.md` and the corresponding rows in the `Acceptance Test Matrix` in `verification_plan.md`.
 
-Правила:
+Rules:
 
-* сначала определи concrete verification-plan items, которые покрывает текущая group;
-* для каждого item бери его `Test Condition / Stimulus`, `Condition Coverage`, measurement method и acceptance criteria из `verification_plan.md`;
-* `Operating Conditions` и `Presets` из `verification_plan.md` используй как источник значений для тех presets/runs, которые указаны в test matrix;
-* не добавляй coverage сверх указанного в test matrix;
-* не удаляй coverage, если он явно указан в test matrix, даже если он кажется избыточным для mock DUT;
-* если verification plan задаёт nominal-only run, делай nominal-only run;
-* если verification plan задаёт sweep по одной группе условий, меняй только эту группу, остальные условия оставляй nominal/fixed;
-* если verification plan задаёт full-combination coverage, делай full combination;
-* если implementation plan и verification plan расходятся по coverage, используй verification plan как источник истины и укажи assumption/blocker;
-* expected run count должен быть рассчитан до написания `.control` и должен совпасть с `SUMMARY runs=<n>`.
+* first identify the concrete verification-plan items covered by the current group;
+* for each item, use its `Test Condition / Stimulus`, `Condition Coverage`, measurement method, and acceptance criteria from `verification_plan.md`;
+* use `Operating Conditions` and `Presets` from `verification_plan.md` as the source of values for the presets/runs specified in the test matrix;
+* do not add coverage beyond what is specified in the test matrix;
+* do not remove coverage if it is explicitly specified in the test matrix, even if it seems redundant for the mock DUT;
+* if the verification plan specifies a nominal-only run, run nominal only;
+* if the verification plan specifies a sweep over one group of conditions, change only that group and keep all other conditions nominal/fixed;
+* if the verification plan specifies full-combination coverage, run the full combination;
+* if the implementation plan and verification plan disagree on coverage, use the verification plan as the source of truth and state an assumption/blocker;
+* expected run count must be calculated before writing `.control` and must match `SUMMARY runs=<n>`.
 
-## Requirement-specific setup rules
+## Requirement-Specific Setup Rules
 
-Fixture group может объединять несколько requirements, но это не означает, что они измеряются в одном и том же simulator run.
+A fixture group may combine several requirements, but this does not mean they are measured in the same simulator run.
 
-Перед написанием `.control` составь краткую внутреннюю run table для текущей group:
+Before writing `.control`, create a brief internal run table for the current group:
 
 ```text
 requirement -> run condition -> measured metric -> source/probe -> limits
 ```
 
-Правила:
+Rules:
 
-* каждый requirement измеряй только при его собственном `Test Condition / Stimulus` из `verification_plan.md`;
-* если два requirements имеют разные fixed bias values, supply values, mode-control values, load values, stimulus или measurement window, они должны быть разными runs/cases внутри одной group;
-* общий run можно использовать только если все driven conditions для этих requirements действительно одинаковые;
-* нельзя измерять metric для requirement в run-е, который был настроен под другой requirement;
-* если в одном OP/TRAN/AC run-е печатаются несколько RESULT rows, каждый RESULT должен соответствовать условиям именно своего requirement;
-* `parameters="..."` в RESULT/CSV должен перечислять все requirement-relevant driven values, чтобы было видно, что условие измерения совпало с verification plan;
-* если для двух requirements нужен один и тот же fixture, но разные bias cases, используй один fixture и несколько cases/loops в `.control`.
+* measure each requirement only under its own `Test Condition / Stimulus` from `verification_plan.md`;
+* if two requirements have different fixed bias values, supply values, mode-control values, load values, stimulus, or measurement window, they must be different runs/cases inside one group;
+* a shared run may be used only if all driven conditions for those requirements are truly identical;
+* do not measure a metric for one requirement in a run configured for another requirement;
+* if one OP/TRAN/AC run prints several RESULT rows, each RESULT must correspond to the conditions of its own requirement;
+* `parameters="..."` in RESULT/CSV must list all requirement-relevant driven values so it is clear that the measurement condition matches the verification plan;
+* if two requirements need the same fixture but different bias cases, use one fixture and several cases/loops in `.control`.
 
-Перед финальным запуском текущей group проверь:
+Before the final run of the current group, check:
 
-* список фактических `RESULT` rows;
-* список параметров в каждом run;
-* соответствие фактических runs coverage из verification plan;
-* соответствие каждого RESULT своему requirement-specific condition;
-* совпадение `SUMMARY runs=<n>` с expected run count.
+* the list of actual `RESULT` rows;
+* the list of parameters in each run;
+* actual run coverage against the verification plan;
+* whether each RESULT matches its requirement-specific condition;
+* whether `SUMMARY runs=<n>` matches the expected run count.
 
-## Control-file quality rules
+## Control-File Quality Rules
 
-Control-файл должен быть компактным, читаемым и поддерживаемым.
+The control file must be compact, readable, and maintainable.
 
-Правила:
+Rules:
 
-* если у group больше одного однотипного run, используй `foreach`/loops;
-* не копируй большие одинаковые блоки для каждого run, если отличается только параметр;
-* одинаковые `alter/reset/analysis/measure/RESULT/FAIL/CSV` patterns должны быть реализованы внутри loop, насколько позволяет ngspice control syntax;
-* для разных requirement cases с похожим setup используй общий шаблон и короткие loops/cases, а не длинную копипасту;
-* если measurement formula реально отличается, можно разделить на несколько коротких блоков;
-* CSV header создавай один раз;
-* RESULT/FAIL/log lines и CSV rows должны иметь одинаковый набор полей во всех runs одной group;
-* не оставляй dead code, debug-only echoes, временные comments, unused variables или старые альтернативные измерения;
-* если loop невозможен из-за ограничения ngspice syntax, явно напиши причину в комментарии control-файла.
+* if the group has more than one similar run, use `foreach`/loops;
+* do not copy large identical blocks for each run if only a parameter differs;
+* identical `alter/reset/analysis/measure/RESULT/FAIL/CSV` patterns must be implemented inside a loop as much as ngspice control syntax allows;
+* for different requirement cases with similar setup, use a shared template and short loops/cases, not long copy-paste blocks;
+* if the measurement formula truly differs, it may be split into several short blocks;
+* create the CSV header only once;
+* RESULT/FAIL/log lines and CSV rows must have the same field set across all runs in one group;
+* do not leave dead code, debug-only echoes, temporary comments, unused variables, or old alternative measurements;
+* if a loop is impossible because of ngspice syntax limitations, explicitly state the reason in a comment in the control file.
 
-Shell-команды внутри `.control` не должны быть основной логикой.
+Shell commands inside `.control` must not be the main logic.
 
-Допустимо:
+Allowed:
 
-* простая инициализация/очистка output CSV;
-* простая запись строки в CSV, если это стабильнее для ngspice.
+* simple initialization/cleanup of output CSV;
+* simple writing of a CSV row, if this is more stable for ngspice.
 
-Нельзя:
+Not allowed:
 
-* считать physical metrics в shell;
-* делать pass/fail checks в shell;
-* создавать сложную файловую архитектуру из `.control`;
-* использовать shell как замену ngspice measurements.
+* computing physical metrics in shell;
+* doing pass/fail checks in shell;
+* creating complex file architecture from `.control`;
+* using shell as a replacement for ngspice measurements.
 
-## CSV and waveform output rules
+## CSV and Waveform Output Rules
 
-Metrics CSV, samples CSV и waveform CSV должны быть пригодны для автоматического чтения report/analysis pipeline.
+Metrics CSV, samples CSV, and waveform CSV must be suitable for automatic reading by the report/analysis pipeline.
 
-Правила:
+Rules:
 
-* каждый planned CSV должен быть настоящим comma-separated CSV с consistent delimiter `,`;
-* header и data rows должны использовать один и тот же delimiter;
-* не смешивай comma-separated header с whitespace-separated data;
-* если ngspice `wrdata` пишет whitespace-separated output, либо настрой/построй экспорт так, чтобы итоговый planned файл был корректным CSV, либо используй `.control` text output для записи comma-separated rows;
-* waveform/sample CSV должен содержать `run_id` или другой идентификатор run/case, если в один файл попадают данные из нескольких runs;
-* если waveform/sample файл содержит данные разных signal modes или swept supplies, добавь колонку `run_id`/`case`/`sweep_target`, чтобы строки можно было однозначно отнести к run condition;
-* не аппендь waveform samples из разных runs в один файл без идентификатора run-а;
-* если полный waveform слишком большой, сохраняй selected samples/probes или отдельные компактные waveform CSV для representative runs;
-* metrics CSV должен иметь schema из `testbench_implementation_plan.md`;
-* units должны быть единообразны между log RESULT lines и CSV rows.
+* every planned CSV must be a real comma-separated CSV with consistent delimiter `,`;
+* header and data rows must use the same delimiter;
+* do not mix a comma-separated header with whitespace-separated data;
+* if ngspice `wrdata` writes whitespace-separated output, either configure/build the export so the final planned file is a valid CSV, or use `.control` text output to write comma-separated rows;
+* waveform/sample CSV must contain `run_id` or another run/case identifier if one file contains data from several runs;
+* if the waveform/sample file contains data from different signal modes or swept supplies, add a `run_id`/`case`/`sweep_target` column so rows can be unambiguously mapped to the run condition;
+* do not append waveform samples from different runs into one file without a run identifier;
+* if a full waveform is too large, save selected samples/probes or separate compact waveform CSV files for representative runs;
+* metrics CSV must use the schema from `testbench_implementation_plan.md`;
+* units must be consistent between log RESULT lines and CSV rows.
 
-## Правила реализации
+## Implementation Rules
 
-* Следуй `verification_plan.md` и `testbench_implementation_plan.md`.
-* Не меняй group names, planned paths и CSV schema без явной причины.
-* Используй только public DUT pins из DUT contract.
-* Не используй internal DUT nodes как observability points.
-* Не ослабляй acceptance limits ради прохождения.
-* Разрабатывай и проверяй на selected runnable DUT netlist from the previous stage. Если был создан mock DUT, используй mock. Если пользователь предоставил runnable real SPICE netlist с нужным public contract, используй его напрямую.
-* Output directories должны существовать до записи файлов. Создай их в HDL21 Python source или pre-run step; не делай shell-команды внутри `.control` основной частью архитектуры.
+* Follow `verification_plan.md` and `testbench_implementation_plan.md`.
+* Do not change group names, planned paths, or CSV schema without a clear reason.
+* Use only public DUT pins from the DUT contract.
+* Do not use internal DUT nodes as observability points.
+* Do not weaken acceptance limits to make the test pass.
+* Develop and verify against the selected runnable DUT netlist from the previous stage. If a mock DUT was created, use the mock. If the user provided a runnable real SPICE netlist with the required public contract, use it directly.
+* Output directories must exist before files are written. Create them in the HDL21 Python source or a pre-run step; do not make shell commands inside `.control` the main architecture.
 
-## Ngspice проверка
+## Ngspice Verification
 
-После создания файлов запусти:
+After creating the files, run:
 
 ```bash
 python tests/<group_name>.py
 ngspice -b -o results/<group_name>.log tests/<group_name>.control
 ```
 
-Если в implementation plan заданы другие paths, используй их.
+If the implementation plan specifies other paths, use those paths.
 
-Исправляй итеративно, пока для текущей group не выполнено:
+Iteratively fix the implementation until the current group satisfies all of the following:
 
-* HDL21 source запускается без ошибок;
-* SPICE fixture сгенерирован через HDL21 flow;
-* exported `.sp` является полноценным reusable fixture, а не thin DUT wrapper;
-* fixture topology находится в `tests/<group_name>.sp`, а не в `.control`;
-* ngspice завершается без fatal parse/runtime errors;
-* `.control` выполняет нужный analysis;
-* log содержит `RESULT` / `FAIL` / `SUMMARY`;
-* metrics CSV создан, не пустой и соответствует schema;
-* samples/waveform CSV создан, если он запланирован;
-* planned CSV files имеют корректный CSV формат с consistent delimiter;
-* waveform/sample CSV содержит run identifier, если в нём есть данные более чем одного run-а;
-* DUT/mock run даёт осмысленные измерения для всех metrics текущей group;
-* фактическое число runs соответствует coverage из verification plan;
-* каждый RESULT row измерен при requirement-specific condition из verification plan;
-* control-файл использует loops для однотипных повторяющихся runs или содержит комментарий, почему loop невозможен.
+* HDL21 source runs without errors;
+* SPICE fixture is generated through the HDL21 flow;
+* exported `.sp` is a complete reusable fixture, not a thin DUT wrapper;
+* fixture topology is in `tests/<group_name>.sp`, not in `.control`;
+* ngspice finishes without fatal parse/runtime errors;
+* `.control` runs the required analysis;
+* log contains `RESULT` / `FAIL` / `SUMMARY`;
+* metrics CSV is created, non-empty, and matches the schema;
+* samples/waveform CSV is created if planned;
+* planned CSV files have valid CSV format with consistent delimiter;
+* waveform/sample CSV contains a run identifier if it includes data from more than one run;
+* DUT/mock run gives meaningful measurements for all metrics in the current group;
+* actual run count matches coverage from the verification plan;
+* each RESULT row is measured under the requirement-specific condition from the verification plan;
+* control file uses loops for repeated similar runs or contains a comment explaining why a loop is impossible.
 
-Если ngspice, HDL21, DUT/mock behavior или simulator syntax блокируют проверку, остановись и явно укажи blocker.
+If ngspice, HDL21, DUT/mock behavior, or simulator syntax blocks verification, stop and clearly state the blocker.
 
-## Output contract
+## Output Contract
 
-Каждый `.control` должен печатать machine-readable lines:
+Each `.control` must print machine-readable lines:
 
 ```text
 RESULT test=<group_name> requirement=<requirement> parameters="<key=value; ...>" metric=<metric> value=<value> unit=<unit> pass=<0_or_1> limit="<limit>"
@@ -237,39 +237,39 @@ FAIL test=<group_name> reason=<reason> parameters="<key=value; ...>" metric=<met
 SUMMARY test=<group_name> runs=<n> fail_count=<n>
 ```
 
-Metrics CSV должен соответствовать schema из `testbench_implementation_plan.md`.
+Metrics CSV must match the schema from `testbench_implementation_plan.md`.
 
-Не оставляй пустые, NaN или missing metrics без явного blocker.
+Do not leave empty, NaN, or missing metrics without an explicit blocker.
 
-## Очистка
+## Cleanup
 
-После успешной проверки текущей group удали временный мусор:
+After successful verification of the current group, delete temporary clutter:
 
 * temporary decks;
 * failed-attempt files;
 * backup files;
 * duplicate logs;
 * `__pycache__`;
-* лишние raw/binary файлы, если они не являются planned outputs.
+* unnecessary raw/binary files unless they are planned outputs.
 
-Оставь planned source files, generated SPICE fixture, control file, CSV outputs, useful log и нужные samples/waveforms.
+Keep planned source files, generated SPICE fixture, control file, CSV outputs, useful log, and required samples/waveforms.
 
-## Финальный ответ после каждой group
+## Final Response After Each Group
 
-Ответь кратко:
+Respond briefly with:
 
-* какая group реализована;
-* какие файлы созданы/обновлены;
-* какая ngspice command запускалась;
-* какие CSV/log outputs получены;
-* expected run count и фактическое число runs;
+* which group was implemented;
+* which files were created/updated;
+* which ngspice command was run;
+* which CSV/log outputs were produced;
+* expected run count and actual run count;
 * DUT/mock pass/fail summary;
-* подтверждение, что coverage соответствует verification plan;
-* подтверждение, что каждый RESULT соответствует requirement-specific condition, или список assumptions/blockers;
-* подтверждение, что exported `.sp` является полноценным fixture, а не thin wrapper;
-* подтверждение, что planned CSV/waveform files имеют корректный CSV формат;
-* blockers/limitations, если есть;
-* какая group следующая;
-* спроси пользователя, продолжать ли следующую group.
+* confirmation that coverage matches the verification plan;
+* confirmation that every RESULT matches the requirement-specific condition, or a list of assumptions/blockers;
+* confirmation that the exported `.sp` is a complete fixture, not a thin wrapper;
+* confirmation that planned CSV/waveform files have valid CSV format;
+* blockers/limitations, if any;
+* next group;
+* ask the user whether to continue with the next group.
 
-Не переходи к следующей group без подтверждения пользователя.
+Do not move to the next group without user confirmation.

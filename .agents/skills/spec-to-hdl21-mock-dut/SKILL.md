@@ -1,151 +1,150 @@
 ---
 name: spec-to-hdl21-mock-dut
-description: Используй этот skill чтобы создать HDL21 mock DUT и сгенерированный SPICE mock netlist по specification, verification_plan.md и optional SPICE/HDL21 DUT netlist.
+description: Use this skill to create an HDL21 mock DUT and generated SPICE mock netlist from a specification, verification_plan.md, and an optional SPICE/HDL21 DUT netlist.
 ---
 
 # Skill: Spec to HDL21 Mock DUT
 
-## Назначение
+## Purpose
 
-Создай mock DUT для разработки и sanity-check testbench-ей.
+Create a mock DUT for testbench development and sanity-checking.
 
-Mock DUT не является реальной реализацией устройства. Он должен совпадать с публичным DUT contract из `verification_plan.md` и в упрощённом виде воспроизводить внешнее поведение, нужное для измерений из Acceptance Test Matrix.
+The mock DUT is not a real device implementation. It must match the public DUT contract from `verification_plan.md` and reproduce the external behavior needed for the measurements in the Acceptance Test Matrix in a simplified way.
 
-## Входные данные
+## Inputs
 
 * Specification.
 * `verification_plan.md`.
-* Optional DUT netlist: SPICE или HDL21, только для уточнения top name, public ports и pin order.
+* Optional DUT netlist: SPICE or HDL21, only to clarify the top name, public ports, and pin order.
 
-## Выход
+## Output
 
-Создай или обнови:
+Create or update:
 
 ```text
 mock_device.py
 mock_device.sp
 ```
 
-`mock_device.sp` должен генерироваться из `mock_device.py`. Generated SPICE не редактируй вручную.
+`mock_device.sp` must be generated from `mock_device.py`. Do not edit generated SPICE manually.
 
-## Главные правила
+## Main Rules
 
-* DUT contract важнее внутренней реализации mock-а.
-* Generated SPICE должен содержать `.subckt`/top wrapper с тем же именем, public pins и pin order, которые ожидают testbench-и.
-* Если specification, verification plan и optional netlist расходятся, используй contract из `verification_plan.md`.
-* Не используй internal nodes реального DUT как public interface mock-а.
-* Не подключай PDK/foundry models.
-* Mock должен быть deterministic, быстрым и simulator-friendly.
-* Значения mock-а должны находиться внутри acceptance limits с разумным запасом, не на границе.
+* The DUT contract is more important than the internal mock implementation.
+* Generated SPICE must contain a `.subckt`/top wrapper with the same name, public pins, and pin order expected by the testbenches.
+* If the specification, verification plan, and optional netlist disagree, use the contract from `verification_plan.md`.
+* Do not use internal nodes of the real DUT as the public interface of the mock.
+* Do not include PDK/foundry models.
+* The mock must be deterministic, fast, and simulator-friendly.
+* Mock values must be inside acceptance limits with reasonable margin, not on the boundary.
 
-## Требование к HDL21
+## HDL21 Requirement
 
-`mock_device.py` должен реально использовать HDL21 для описания схемы и экспорта SPICE.
+`mock_device.py` must actually use HDL21 to describe the circuit and export SPICE.
 
-Правила:
+Rules:
 
-* public ports/top wrapper описывай как HDL21 module;
-* обычные элементы mock-а описывай через HDL21 instances/primitives/helpers;
-* SPICE экспортируй через HDL21 netlisting/export flow;
-* не заменяй HDL21 генерацию полной ручной генерацией SPICE-текста;
-* не используй HDL21 только как декларацию port list поверх полностью вручную написанного SPICE;
-* если нужное behavioral поведение не выражается нормально средствами HDL21, можно использовать небольшой raw-SPICE behavioral helper;
-* Если используется raw-SPICE behavioral helper, public top wrapper всё равно должен генерироваться через HDL21. Raw helper может быть только internal subckt/model/include, подключённый из HDL21-generated wrapper;
-* raw-SPICE helper должен быть изолирован, документирован и использоваться только для simulator-specific behavioral core;
-* top wrapper, public contract и вся выражаемая через HDL21 обвязка всё равно должны генерироваться через HDL21.
+* describe public ports/top wrapper as an HDL21 module;
+* describe ordinary mock elements using HDL21 instances/primitives/helpers;
+* export SPICE through the HDL21 netlisting/export flow;
+* do not replace HDL21 generation with full handwritten SPICE text generation;
+* do not use HDL21 only as a port-list declaration on top of fully handwritten SPICE;
+* if the required behavioral behavior cannot be expressed cleanly with HDL21, a small raw-SPICE behavioral helper may be used;
+* if a raw-SPICE behavioral helper is used, the public top wrapper must still be generated through HDL21. The raw helper may only be an internal subckt/model/include connected from the HDL21-generated wrapper;
+* the raw-SPICE helper must be isolated, documented, and used only for the simulator-specific behavioral core;
+* the top wrapper, public contract, and all wrapper circuitry expressible in HDL21 must still be generated through HDL21.
 
+## Mock DUT Behavior
 
-## Поведение mock DUT
+Read the `Acceptance Test Matrix` from `verification_plan.md` and implement the minimum external behavior needed for all planned checks.
 
-Прочитай `Acceptance Test Matrix` из `verification_plan.md` и реализуй минимальное внешнее поведение, нужное для всех planned checks.
+For each test matrix row, check:
 
-Для каждой строки test matrix проверь:
+* which public pins will be driven;
+* which public outputs or supply currents will be measured;
+* which modes, sweeps, ramps, OP/DC/TRAN/AC/statistical runs are needed;
+* which metrics must be measurable.
 
-* какие public pins будут driven;
-* какие public outputs или supply currents будут измеряться;
-* какие режимы, sweep-и, ramp-ы, OP/DC/TRAN/AC/statistical runs нужны;
-* какие метрики должны быть измеримы.
+If several metrics are extracted from the same waveform/analysis, the mock must support them consistently. For example, rising/falling thresholds and hysteresis must come from one hysteretic response, and transient drop/overshoot/average drop must come from one transient response.
 
-Если несколько метрик извлекаются из одного waveform/analysis, mock должен поддерживать их согласованно. Например, rising/falling threshold и hysteresis должны получаться из одной hysteretic response, а transient drop/overshoot/average drop — из одного transient response.
+## Mock Parameters
 
-## Параметры mock-а
-
-Вынеси основные constants в начало `mock_device.py`:
+Move the main constants to the beginning of `mock_device.py`:
 
 * nominal output/reference/current values;
 * thresholds and hysteresis values;
 * current consumption values;
 * delay/time-constant/settling parameters;
-* AC/PSRR/stability surrogate parameters, если такие проверки есть;
-* statistical surrogate parameters, если verification plan требует statistical checks.
+* AC/PSRR/stability surrogate parameters, if such checks exist;
+* statistical surrogate parameters, if the verification plan requires statistical checks.
 
-## Coverage awareness
+## Coverage Awareness
 
-Mock должен корректно работать во всех conditions/runs, перечисленных в `verification_plan.md`.
+The mock must work correctly across all conditions/runs listed in `verification_plan.md`.
 
-* Если sweep-ится supply/reference/control pin, mock должен реагировать на этот public pin или сохранять валидное измеримое поведение во всём sweep диапазоне.
-* Если есть mode control, bypass, enable, reset или test mode, mock должен явно реализовать эту public-pin логику.
-* Если есть supply-current checks, mock должен создавать измеримый ток через соответствующие supply pins с правильной величиной и стабильным sign convention.
-* Если есть AC tests, mock должен иметь AC-observable path, достаточный для извлечения метрики.
-* Если есть statistical/Monte Carlo checks, mock должен позволять pipeline запускаться, но не должен притворяться реальной statistical validation.
+* If a supply/reference/control pin is swept, the mock must respond to that public pin or preserve valid measurable behavior across the full sweep range.
+* If there is a mode control, bypass, enable, reset, or test mode, the mock must explicitly implement this public-pin logic.
+* If there are supply-current checks, the mock must create measurable current through the corresponding supply pins with the correct magnitude and stable sign convention.
+* If there are AC tests, the mock must have an AC-observable path sufficient for metric extraction.
+* If there are statistical/Monte Carlo checks, the mock must allow the pipeline to run, but must not pretend to validate real device statistics.
 
-## Ngspice smoke check
+## Ngspice Smoke Check
 
-Создай временный smoke deck:
+Create a temporary smoke deck:
 
 ```text
 mock_device_smoke.sp
 ```
 
-Smoke deck нужен только для проверки, что `mock_device.sp` парсится, инстанцируется и запускается в ngspice.
+The smoke deck is only used to check that `mock_device.sp` parses, instantiates, and runs in ngspice.
 
-Smoke deck должен:
+The smoke deck must:
 
 * include `mock_device.sp`;
-* instantiate mock DUT with exact public DUT contract and pin order;
+* instantiate the mock DUT with the exact public DUT contract and pin order;
 * drive all supply, ground, analog input, digital/control, reference, bias, enable/reset pins to safe nominal values from `verification_plan.md`;
-* connect required public feedback pins according to nominal operating setup, если такие pins есть;
+* connect required public feedback pins according to the nominal operating setup, if such pins exist;
 * add simple loads or high-value resistors where needed to avoid floating nodes;
 * run at least `.op` and a short `.tran`.
 
-Запусти:
+Run:
 
 ```bash
 ngspice -b -o mock_device_smoke.log mock_device_smoke.sp
 ```
 
-Если есть ошибки, исправляй `mock_device.py`, заново генерируй `mock_device.sp`, снова запускай smoke check и повторяй до успешного запуска.
+If there are errors, fix `mock_device.py`, regenerate `mock_device.sp`, rerun the smoke check, and repeat until it succeeds.
 
-После успешного smoke check удали временные файлы:
+After a successful smoke check, delete the temporary files:
 
 ```text
 mock_device_smoke.sp
 mock_device_smoke.log
 ```
 
-Если smoke check не проходит из-за blocker-а, оставь log для диагностики и явно сообщи blocker.
+If the smoke check fails because of a blocker, keep the log for diagnostics and clearly report the blocker.
 
-## Финальный чеклист
+## Final Checklist
 
-Перед завершением проверь:
+Before finishing, verify that:
 
-* `mock_device.py` реально использует HDL21 generation, а не ручную генерацию всего SPICE netlist;
-* generated SPICE содержит ожидаемый `.subckt`/top wrapper и pin order;
-* `mock_device.sp` сгенерирован из `mock_device.py`;
-* planned checks из Acceptance Test Matrix имеют поддержанное mock behavior;
-* measured outputs/currents будут измеримыми там, где это нужно;
-* mock не требует PDK/foundry includes;
-* нет обращения к internal DUT nodes;
-* smoke check в ngspice прошёл;
-* временные smoke files удалены после успешной проверки.
+* `mock_device.py` actually uses HDL21 generation and is not manually generating the entire SPICE netlist;
+* generated SPICE contains the expected `.subckt`/top wrapper and pin order;
+* `mock_device.sp` is generated from `mock_device.py`;
+* planned checks from the Acceptance Test Matrix have supported mock behavior;
+* measured outputs/currents will be measurable where needed;
+* the mock does not require PDK/foundry includes;
+* no internal DUT nodes are used;
+* the ngspice smoke check passed;
+* temporary smoke files were deleted after a successful check.
 
-## Финальный ответ пользователю
+## Final Response to the User
 
-Ответь кратко:
+Respond briefly with:
 
-* какие файлы созданы/обновлены;
-* какой DUT contract реализован;
-* какие planned checks поддержаны mock behavior;
-* удалось ли сгенерировать SPICE через HDL21 flow;
-* прошёл ли ngspice smoke check;
-* какие limitations/blockers остались, если есть.
+* which files were created/updated;
+* which DUT contract was implemented;
+* which planned checks are supported by the mock behavior;
+* whether SPICE was generated through the HDL21 flow;
+* whether the ngspice smoke check passed;
+* remaining limitations/blockers, if any.

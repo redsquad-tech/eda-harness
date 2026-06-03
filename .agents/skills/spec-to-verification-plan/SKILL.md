@@ -1,28 +1,28 @@
 ---
 name: spec-to-verification-plan
-description: Используй этот skill чтобы создать verification_plan.md из спеки
+description: Use this skill to create verification_plan.md from a specification.
 ---
 
 # Skill: Spec to Verification Plan
 
-## Входные данные
+## Inputs
 
-* Specification: PDF, Markdown, текст или другой документ.
-* Optional DUT netlist: SPICE или HDL21.
+* Specification: PDF, Markdown, plain text, or another document format.
+* Optional DUT netlist: SPICE or HDL21.
 
-## Выход
+## Output
 
-Создай или обнови файл:
+Create or update the file:
 
 ```text
 verification_plan.md
 ```
 
-`verification_plan.md` всегда пиши на английском.
+Always write `verification_plan.md` in English.
 
-## Структура `verification_plan.md`
+## `verification_plan.md` Structure
 
-Используй такую структуру:
+Use this structure:
 
 ```markdown
 # <BLOCK_NAME> Verification Plan
@@ -36,25 +36,25 @@ verification_plan.md
 ### 5.2 Test Matrix
 ```
 
-## Общие правила
+## General Rules
 
-* План должен быть black-box at the DUT boundary.
+* The plan must be black-box at the DUT boundary.
 * Testbenches must drive only documented public pins.
 * Testbenches may observe only documented public outputs, public interface pins, and supply-source currents.
-* Не используй internal DUT nodes, internal instances или implementation-specific subcircuits как acceptance observability points.
-* Покрой все requirements из спецификации.
-* Не выдумывай requirements, numeric limits, corner names, statistical assumptions или DUT behavior.
-* Requirements и operating conditions имеют приоритет над historical/simulated/reference results.
-* Historical/simulated/reference results можно использовать для понимания intent, но не как acceptance limits, если спека явно не задаёт их как требования.
-* Если requirement неоднозначен, выбери наиболее согласованную инженерную интерпретацию и зафиксируй её в notes.
-* Если неоднозначность блокирует составление плана, задай пользователю вопрос.
-* План должен быть кратким, детерминированным и достаточным для последующей реализации приемочных testbench-ей.
+* Do not use internal DUT nodes, internal instances, or implementation-specific subcircuits as acceptance observability points.
+* Cover all requirements from the specification.
+* Do not invent requirements, numeric limits, corner names, statistical assumptions, or DUT behavior.
+* Requirements and operating conditions have priority over historical, simulated, or reference results.
+* Historical, simulated, or reference results may be used to understand intent, but not as acceptance limits unless the specification explicitly defines them as requirements.
+* If a requirement is ambiguous, choose the most consistent engineering interpretation and document it in the notes.
+* If an ambiguity blocks creation of the plan, ask the user a question.
+* The plan must be concise, deterministic, and sufficient for later implementation of acceptance testbenches.
 
 ## DUT Interface and Signal Interpretation
 
-Извлеки public DUT interface из спецификации и сверяй его с optional netlist.
+Extract the public DUT interface from the specification and cross-check it against the optional netlist.
 
-Используй таблицу:
+Use this table:
 
 ```markdown
 | Pin | Role | Verification Usage |
@@ -62,15 +62,15 @@ verification_plan.md
 | `<pin>` | `<role>` | `<how testbenches drive or observe this pin>` |
 ```
 
-После таблицы укажи intended DUT contract.
+After the table, specify the intended DUT contract.
 
-Для SPICE:
+For SPICE:
 
 ```spice
 XDUT <pin1> <pin2> ... <pinN> <subckt_name>
 ```
 
-Для HDL21:
+For HDL21:
 
 ```python
 dut = <module_name>(
@@ -79,11 +79,11 @@ dut = <module_name>(
 )
 ```
 
-Если нетлист не передан, сформируй expected public contract по pin list из спецификации и укажи, что actual wrapper/pin order must be confirmed when the implementation netlist is connected.
+If no netlist is provided, create the expected public contract from the specification pin list and state that the actual wrapper/pin order must be confirmed when the implementation netlist is connected.
 
 ## Specification Interpretation Notes
 
-Используй таблицу:
+Use this table:
 
 ```markdown
 | Item | Interpretation |
@@ -91,23 +91,23 @@ dut = <module_name>(
 | `<ambiguity / inconsistency / assumption>` | `<chosen interpretation for acceptance verification>` |
 ```
 
-Фиксируй только то, что влияет на verification, например:
+Document only items that affect verification, for example:
 
-* противоречия в signal polarity;
-* typo в pin names, metric names или conditions;
+* signal polarity contradictions;
+* typos in pin names, metric names, or conditions;
 * inconsistent supply/signal naming;
-* mismatch между specification pin list и netlist ports;
+* mismatch between specification pin list and netlist ports;
 * unclear nominal condition;
 * unclear current sign convention;
 * unclear requirement scope;
-* unclear distinction между requirement и reference/simulated data;
-* assumptions для coverage, PVT или Monte Carlo.
+* unclear distinction between requirement and reference/simulated data;
+* assumptions for coverage, PVT, or Monte Carlo.
 
 ## Operating Conditions and Coverage Presets
 
-Извлеки operating conditions из спецификации.
+Extract operating conditions from the specification.
 
-Используй таблицу:
+Use this table:
 
 ```markdown
 | Condition | Nominal Value | Acceptance Coverage Values |
@@ -115,23 +115,23 @@ dut = <module_name>(
 | `<condition>` | `<nominal>` | `<values to cover>` |
 ```
 
-Определи reusable presets для nominal conditions, sweeps, PVT sets, transient stimuli и statistical conditions, когда они нужны для проверки требований.
+Define reusable presets for nominal conditions, sweeps, PVT sets, transient stimuli, and statistical conditions when they are needed to verify requirements.
 
-Coverage strategy должна следовать спецификации и инженерному смыслу:
+Coverage strategy must follow the specification and engineering judgment:
 
-* Включай coverage по тем условиям, которые могут влиять на проверяемое требование.
-* Coverage должен быть конкретным: в матрице не используй `optional`, `if required`, `if requested`, `TBD` как runnable coverage.
-* Если значение зависит от конкретного теста, пиши `test-dependent`, а не `TBD`.
-* Если для обязательного coverage не хватает данных, вынеси это в assumptions/blockers; не создавай фиктивные presets/runs.
-* PVT включай, когда требование должно выполняться across process/voltage/temperature, когда это следует из operating conditions, requirement wording, simulated-condition references или природы проверяемой метрики.
-* Monte Carlo/statistical verification включай, когда спецификация задаёт variation, sigma, mismatch, yield или другой statistical requirement.
-* Не добавляй process/Monte Carlo runs как заготовку на будущее, если спецификация не требует такой проверки.
-* Для one-dimensional sweeps явно напиши, что меняется только одна группа условий, остальные остаются nominal.
-* Full-combination coverage используй только когда это явно требуется или инженерно необходимо; иначе предпочитай компактные one-dimensional sweeps или осмысленные grouped presets.
+* Include coverage for conditions that can affect the requirement being verified.
+* Coverage must be concrete: do not use `optional`, `if required`, `if requested`, or `TBD` as runnable coverage in the matrix.
+* If a value depends on the specific test, write `test-dependent`, not `TBD`.
+* If required coverage cannot be defined because data is missing, move it to assumptions/blockers; do not create fake presets/runs.
+* Include PVT when the requirement must hold across process/voltage/temperature, when this follows from operating conditions, requirement wording, simulated-condition references, or the nature of the metric being verified.
+* Include Monte Carlo/statistical verification when the specification defines variation, sigma, mismatch, yield, or another statistical requirement.
+* Do not add process or Monte Carlo runs as future placeholders if the specification does not require such verification.
+* For one-dimensional sweeps, explicitly state that only one group of conditions changes and all other conditions remain nominal.
+* Use full-combination coverage only when it is explicitly required or engineering-necessary; otherwise prefer compact one-dimensional sweeps or meaningful grouped presets.
 
 ## Acceptance Test Matrix
 
-Используй таблицу:
+Use this table:
 
 ```markdown
 | Testbench | Specification Coverage | Test Condition / Stimulus | Condition Coverage | Measurement Method | Acceptance Criteria |
@@ -139,53 +139,53 @@ Coverage strategy должна следовать спецификации и и
 | `<testbench_name>` | `<requirements covered>` | `<stimulus and setup>` | `<presets/runs>` | `<metric extraction>` | `<pass/fail criteria>` |
 ```
 
-Для каждой строки:
+For each row:
 
-* `Testbench`: выбери короткое `snake_case` имя, derived from the requirement and analysis type.
-* `Specification Coverage`: перечисли exact requirement names или normalized metric names из спецификации.
-* `Test Condition / Stimulus`: опиши driven pins, supplies, references, loads, mode controls, OP/DC/TRAN/AC/statistical stimulus и public-pin connections.
-* `Condition Coverage`: укажи конкретные presets/runs, которые должны быть выполнены.
-* `Measurement Method`: объясни, как метрика извлекается из simulation results.
-* `Acceptance Criteria`: укажи numeric pass/fail limits with units. Qualitative criterion допускается только если численного требования нет.
+* `Testbench`: choose a short `snake_case` name derived from the requirement and analysis type.
+* `Specification Coverage`: list exact requirement names or normalized metric names from the specification.
+* `Test Condition / Stimulus`: describe driven pins, supplies, references, loads, mode controls, OP/DC/TRAN/AC/statistical stimulus, and public-pin connections.
+* `Condition Coverage`: specify the concrete presets/runs that must be executed.
+* `Measurement Method`: explain how the metric is extracted from simulation results.
+* `Acceptance Criteria`: specify numeric pass/fail limits with units. A qualitative criterion is allowed only if no numeric requirement exists.
 
-Правила группировки testbench-ей:
+Testbench grouping rules:
 
-* Один testbench должен покрывать все связанные метрики, которые извлекаются из одного и того же setup/stimulus/waveform/analysis.
-* Не создавай отдельный testbench только для derived metric, если она вычисляется из метрик того же прогона.
-* Hysteresis, threshold pairs, droop/overshoot/average drop, gain/phase/gain-margin и похожие связанные метрики должны группироваться в один reusable testbench, если для них нужен один общий stimulus или analysis.
-* Разделяй testbench-и только когда реально отличается setup, stimulus, analysis type или observability.
+* One testbench should cover all related metrics extracted from the same setup/stimulus/waveform/analysis.
+* Do not create a separate testbench only for a derived metric if it is computed from metrics in the same run.
+* Hysteresis, threshold pairs, droop/overshoot/average drop, gain/phase/gain-margin, and similar related metrics must be grouped into one reusable testbench if they use the same common stimulus or analysis.
+* Split testbenches only when setup, stimulus, analysis type, or observability actually differs.
 
 Measurement rules:
 
-* Для DC/OP metrics измеряй значение after operating point converges.
-* Для ramp thresholds измеряй swept input value at the relevant output transition.
-* Для hysteresis задай формулу из rising/falling thresholds.
-* Для supply currents report positive current consumption into the DUT и зафиксируй simulator sign normalization.
-* Для transient droop/overshoot/settling metrics определи baseline и measurement window.
-* Для AC metrics определи injection point, observed node, frequency range если он задан, и extracted metric.
-* Для statistical metrics определи per-sample measurement и final statistic.
-* Не используй `smoke-only` для метрики, которую можно измерить по спецификации.
+* For DC/OP metrics, measure the value after the operating point converges.
+* For ramp thresholds, measure the swept input value at the relevant output transition.
+* For hysteresis, define the formula from rising/falling thresholds.
+* For supply currents, report positive current consumption into the DUT and document simulator sign normalization.
+* For transient droop/overshoot/settling metrics, define the baseline and measurement window.
+* For AC metrics, define the injection point, observed node, frequency range if specified, and extracted metric.
+* For statistical metrics, define the per-sample measurement and final statistic.
+* Do not use `smoke-only` for a metric that can be measured according to the specification.
 
-## Финальный чеклист
+## Final Checklist
 
-Перед завершением проверь:
+Before finishing, verify that:
 
-* все public pins отражены в DUT interface table;
-* DUT contract указан;
-* verification-relevant ambiguities documented;
-* operating conditions и coverage presets defined;
-* каждый specification requirement есть в test matrix;
-* каждая строка testbench имеет stimulus, coverage, measurement method и acceptance criteria;
-* связанные метрики сгруппированы в минимальное число reusable testbench-ей;
-* coverage в test matrix конкретный, без optional/future/TBD runnable runs;
-* PVT/statistical coverage included where required by the specification or engineering necessity;
+* all public pins are represented in the DUT interface table;
+* the DUT contract is specified;
+* verification-relevant ambiguities are documented;
+* operating conditions and coverage presets are defined;
+* every specification requirement appears in the test matrix;
+* every testbench row has stimulus, coverage, measurement method, and acceptance criteria;
+* related metrics are grouped into the minimum number of reusable testbenches;
+* coverage in the test matrix is concrete, with no optional/future/TBD runnable runs;
+* PVT/statistical coverage is included where required by the specification or engineering necessity;
 * no internal DUT nodes are used as acceptance observability points;
-* no invented requirements or numeric limits;
-* plan is concise and ready for testbench implementation.
+* no requirements or numeric limits are invented;
+* the plan is concise and ready for testbench implementation.
 
-## Финальный ответ пользователю
+## Final Response to the User
 
-После создания или обновления `verification_plan.md` ответь кратко:
+After creating or updating `verification_plan.md`, respond briefly with:
 
 * created/updated file name;
 * selected DUT contract;

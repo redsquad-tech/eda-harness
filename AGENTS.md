@@ -1,43 +1,43 @@
 # Agent Instructions
 
-Твоя задача — генерировать acceptance testbench-и по спецификации блока/схемы.
+Your task is to generate acceptance testbenches from a block/circuit specification.
 
-Когда пользователь просит сделать testbench-и по спецификации, сначала кратко опиши план работ и дождись подтверждения. Не упоминай названия скиллов в плане.
+When the user asks you to create testbenches from a specification, first briefly describe the work plan and wait for confirmation. Do not mention skill names in the user-facing plan.
 
-Работай по этапам:
+Work in stages:
 
-1. Создай `verification_plan.md`
-   Используй skill `spec-to-verification-plan`.
+1. Create `verification_plan.md`
+   Use the `spec-to-verification-plan` skill.
 
-2. Подготовь DUT для разработки testbench-ей
-   Если пользователь уже дал runnable SPICE/ngspice netlist с нужным public `.subckt` и pin order — используй этот netlist напрямую. Не создавай HDL21 DUT и не создавай mock.
-   Если пользователь уже дал подходящий HDL21 DUT/mock и/или SPICE netlist — используй их.
-   Если runnable DUT/mock нет — создай mock DUT через skill `spec-to-hdl21-mock-dut`.
+2. Prepare the DUT for testbench development
+   If the user already provided a runnable SPICE/ngspice netlist with the required public `.subckt` and pin order, use that netlist directly. Do not create an HDL21 DUT and do not create a mock.
+   If the user already provided a suitable HDL21 DUT/mock and/or SPICE netlist, use it.
+   If no runnable DUT/mock is available, create a mock DUT using the `spec-to-hdl21-mock-dut` skill.
 
-3. Создай `testbench_implementation_plan.md`
-   Используй skill `verification-plan-to-implementation-plan`.
-   План должен задать минимальный набор testbench groups, будущие файлы, stable output paths и порядок реализации.
+3. Create `testbench_implementation_plan.md`
+   Use the `verification-plan-to-implementation-plan` skill.
+   The plan must define the minimum set of testbench groups, future files, stable output paths, and implementation order.
 
-4. Реализуй testbench groups последовательно
-   Используй skill `implementation-plan-to-testbenches`.
-   Делай одну group за итерацию: HDL21 fixture → exported SPICE → `.control` → ngspice run → CSV/log outputs → cleanup.
-   После каждой group отчитайся и спроси пользователя, продолжать ли следующую.
+4. Implement testbench groups sequentially
+   Use the `implementation-plan-to-testbenches` skill.
+   Implement one group per iteration: HDL21 fixture → exported SPICE → `.control` → ngspice run → CSV/log outputs → cleanup.
+   After each group, report the result and ask the user whether to continue with the next group.
 
-5. После завершения всех testbench groups создай отчет
-   Используй skill `test2report`.
-   Сгенерируй `test_report.md` и `test_report.pdf`.
+5. Create the report after all testbench groups are complete
+   Use the `test2report` skill.
+   Generate `test_report.md` and `test_report.pdf`.
 
-После каждого этапа остановись, кратко отчитайся о результате и спроси пользователя, продолжать ли следующий этап. Не переходи к следующему skill/этапу без подтверждения пользователя.
+After each stage, stop, briefly report the result, and ask the user whether to continue to the next stage. Do not move to the next skill/stage without user confirmation.
 
-Общие правила:
+General rules:
 
-* HDL21 используется для генерации circuit fixtures; не подменяй его handwritten SPICE templates.
-* DUT не обязан быть написан на HDL21, если пользователь уже дал runnable SPICE/ngspice netlist с правильным public contract.
-* Если есть подходящий пользовательский runnable DUT netlist — используй его. Mock DUT создавай только если runnable DUT/mock отсутствует.
-* `.control` files отвечают за include выбранного DUT netlist/model files, sweeps, measurements, pass/fail, `RESULT`/`FAIL`/`SUMMARY` и CSV outputs.
-* Python не должен считать physical metrics или pass/fail.
-* Используй только public DUT pins.
-* Не используй internal DUT nodes как acceptance observability points.
-* Не ослабляй limits из спецификации.
-* Держи структуру файлов минимальной и stable для downstream report generation.
-* Если входные документы или netlist противоречат друг другу, зафиксируй assumption/blocker и не угадывай молча.
+* HDL21 is used to generate circuit fixtures; do not replace it with handwritten SPICE templates.
+* The DUT does not need to be written in HDL21 if the user already provided a runnable SPICE/ngspice netlist with the correct public contract.
+* If a suitable user-provided runnable DUT netlist exists, use it. Create a mock DUT only if no runnable DUT/mock is available.
+* `.control` files are responsible for including the selected DUT netlist/model files, sweeps, measurements, pass/fail, `RESULT`/`FAIL`/`SUMMARY`, and CSV outputs.
+* Python must not compute physical metrics or pass/fail.
+* Use only public DUT pins.
+* Do not use internal DUT nodes as acceptance observability points.
+* Do not weaken limits from the specification.
+* Keep the file structure minimal and stable for downstream report generation.
+* If input documents or the netlist contradict each other, document the assumption/blocker and do not guess silently.
