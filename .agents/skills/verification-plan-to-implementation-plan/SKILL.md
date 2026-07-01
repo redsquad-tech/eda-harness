@@ -81,10 +81,15 @@ Rules:
 * Do not plan separate SPICE decks for each corner/run/condition.
 * Sweep/run logic must live in `.control` using simulator-side loops, `alterparam`, `reset`, and analysis commands.
 * The Python file is used to generate the circuit fixture, not to compute physical metrics.
+* Preserve PVT/corner coverage from `verification_plan.md` as verification intent and downstream Cadence/Spectre export coverage.
+* For mock/development ngspice runs, do not require `$LIB_PATH`, PDK/foundry model files, or active process-corner model includes.
+* For mock/development ngspice runs, do not plan real process-corner sweeps; keep process corners for Cadence/Spectre export using `$LIB_PATH` and corner identifiers `tt`, `ff`, `ss`, `fs`, `sf`.
+* Public-pin voltage/reference/control/stimulus sweeps and simulator temperature sweeps should remain planned where meaningful.
+* Plan a commented TODO in the future `.control` or fixture for final process-model hookup through `$LIB_PATH`.
 * If the group does not require waveform/sample export, write `none` in the last column.
 * If the group has analysis type `TRAN`, `AC`, `noise`, `stability`, `PSRR`, transient response, frequency response, or another waveform-like/probe-based analysis, always plan the waveform/probe artifact: `results/<group_name>_waveforms.csv`.
 * `results/<group_name>_samples.csv` may only be an additional artifact for compact sample/crossing/sweep/debug points. Do not use samples CSV as a replacement for waveform/probe CSV for TRAN/AC/waveform-like groups.
-* If the group requires both compact sample points and waveform/probe evidence, list both files using `<br>` or `;`, for example `results/<group_name>_samples.csv; results/<group_name>_waveforms.csv`.
+* If the group requires both compact sample points and waveform/probe evidence, list both files separated by `;`, for example `results/<group_name>_samples.csv; results/<group_name>_waveforms.csv`.
 * If a waveform/probe CSV cannot be saved for a TRAN/AC/waveform-like group, state this as a blocker. Do not plan only samples CSV instead of waveform CSV.
 * Waveform/probe artifacts must be planned as normal outputs of the corresponding testbench group, so the next implementation step creates them together with metrics/log outputs.
 
@@ -134,10 +139,12 @@ For each iteration, the next skill must implement only one group and must not ch
 Briefly state only items that may block implementation:
 
 * unknown DUT subckt/module contract;
-* missing model/corner names;
+* missing non-PVT model information required for a real ngspice DUT;
 * simulator feature limitations;
 * unclear required waveform/sample export;
 * ambiguous requirements that were not resolved in `verification_plan.md`.
+
+For mock/development ngspice runs, missing local PDK files or missing `$LIB_PATH` is not a blocker. Preserve the Cadence/Spectre model convention from `verification_plan.md`: model root `$LIB_PATH` and corner identifiers `tt`, `ff`, `ss`, `fs`, `sf`.
 
 If the group is TRAN/AC/waveform-like but it is unclear which signals to save, do not leave this silent: plan `results/<group_name>_waveforms.csv` with the main public/probe signals or state a blocker.
 
@@ -151,8 +158,11 @@ Before finishing, verify that:
 * no per-run SPICE decks are planned;
 * measurements/pass-fail are planned in `.control`;
 * CSV outputs have stable paths;
+* PVT/corner intent from `verification_plan.md` is preserved for Cadence/Spectre export;
+* mock/development ngspice planning does not require `$LIB_PATH`, PDK/foundry models, or real process-corner sweeps;
 * TRAN/AC/waveform-like groups have planned waveform/probe CSV; if it cannot be created, this is listed as a blocker;
 * sample/waveform CSVs are not mixed with metrics CSV;
+* multiple sample/waveform outputs in one table cell are separated with `;`;
 * implementation order is specified;
 * assumptions/blockers are brief.
 
@@ -164,4 +174,5 @@ Respond briefly with:
 * how many fixture groups were defined;
 * which future files and CSV outputs are planned;
 * which groups plan waveform/sample artifacts;
+* how PVT/process-corner intent is preserved for Cadence/Spectre export;
 * whether there are assumptions/blockers.

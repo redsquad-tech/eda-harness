@@ -43,7 +43,7 @@ Use this structure:
 * Testbenches may observe only documented public outputs, public interface pins, and supply-source currents.
 * Do not use internal DUT nodes, internal instances, or implementation-specific subcircuits as acceptance observability points.
 * Cover all requirements from the specification.
-* Do not invent requirements, numeric limits, corner names, statistical assumptions, or DUT behavior.
+* Do not invent requirements, numeric limits, statistical assumptions, DUT behavior, project-specific PDK model files, or proprietary model-section names. Default logical PVT/corner presets may be created only by the policy below.
 * Requirements and operating conditions have priority over historical, simulated, or reference results.
 * Historical, simulated, or reference results may be used to understand intent, but not as acceptance limits unless the specification explicitly defines them as requirements.
 * If a requirement is ambiguous, choose the most consistent engineering interpretation and document it in the notes.
@@ -101,11 +101,13 @@ Document only items that affect verification, for example:
 * unclear current sign convention;
 * unclear requirement scope;
 * unclear distinction between requirement and reference/simulated data;
-* assumptions for coverage, PVT, or Monte Carlo.
+* default PVT/corner coverage assumptions;
+* default Cadence/Spectre model convention using `$LIB_PATH` and corner identifiers `tt`, `ff`, `ss`, `fs`, `sf`;
+* assumptions for Monte Carlo or statistical coverage when explicitly required.
 
 ## Operating Conditions and Coverage Presets
 
-Extract operating conditions from the specification.
+Extract explicit operating conditions from the specification first.
 
 Use this table:
 
@@ -117,17 +119,33 @@ Use this table:
 
 Define reusable presets for nominal conditions, sweeps, PVT sets, transient stimuli, and statistical conditions when they are needed to verify requirements.
 
-Coverage strategy must follow the specification and engineering judgment:
+Coverage strategy must follow the specification, the default PVT/corner policy, and engineering judgment:
 
 * Include coverage for conditions that can affect the requirement being verified.
 * Coverage must be concrete: do not use `optional`, `if required`, `if requested`, or `TBD` as runnable coverage in the matrix.
 * If a value depends on the specific test, write `test-dependent`, not `TBD`.
-* If required coverage cannot be defined because data is missing, move it to assumptions/blockers; do not create fake presets/runs.
-* Include PVT when the requirement must hold across process/voltage/temperature, when this follows from operating conditions, requirement wording, simulated-condition references, or the nature of the metric being verified.
-* Include Monte Carlo/statistical verification when the specification defines variation, sigma, mismatch, yield, or another statistical requirement.
-* Do not add process or Monte Carlo runs as future placeholders if the specification does not require such verification.
-* For one-dimensional sweeps, explicitly state that only one group of conditions changes and all other conditions remain nominal.
-* Use full-combination coverage only when it is explicitly required or engineering-necessary; otherwise prefer compact one-dimensional sweeps or meaningful grouped presets.
+* If required non-PVT numeric coverage cannot be defined because data is missing, move it to assumptions/blockers; do not create fake runnable values.
+* Apply PVT coverage to analog/performance requirements, DC/OP currents, thresholds, timing, AC metrics, transient metrics, regulation, startup, and mode behavior where operating conditions can affect pass/fail.
+* Do not apply PVT expansion where it is not physically or logically meaningful; document the reason in notes or condition coverage.
+* Use full-combination coverage for PVT according to the policy below. For non-PVT sweeps, use full combinations only when explicitly required or engineering-necessary.
+* Include Monte Carlo/statistical verification only when the specification defines variation, sigma, mismatch, yield, or another statistical requirement.
+* Do not add Monte Carlo runs as future placeholders if the specification does not require statistical verification. Process corners must follow the PVT/corner policy below.
+* For one-dimensional non-PVT sweeps, explicitly state that only one group of conditions changes and all other conditions remain nominal.
+
+Default PVT/corner policy:
+
+* If the specification defines PVT conditions, process corners, voltage values, temperature values, or named model sections, use the specification-defined coverage for those dimensions.
+* If the specification defines only part of PVT/corner coverage, use the specification-defined dimensions and apply default coverage to the missing PVT dimensions.
+* If the specification does not define PVT/corner coverage, create default PVT coverage for every test where PVT variation is applicable and meaningful.
+* Default process corners are the required logical five-corner set: `tt`, `ff`, `ss`, `fs`, `sf`.
+* Default Cadence/Spectre model convention is model root `$LIB_PATH` with corner identifiers/model names `tt`, `ff`, `ss`, `fs`, `sf`.
+* Local access to PDK model files is not required for `verification_plan.md`. Do not mark missing local model files as a blocker at this stage.
+* Logical process coverage must not be conditional on local model access. Keep the default corner identifiers in the plan; do not remove, weaken, or silently skip process coverage.
+* Default supply-voltage coverage is low/nominal/high. Use specified operating min/nom/max values when available. If only a range is specified, use min/mid/max. If only nominal supply is specified, use `0.9 * Vnom`, `Vnom`, and `1.1 * Vnom`. If no supply value is available, document a blocker instead of inventing a voltage.
+* Default temperature coverage is cold/nominal/hot. Use specified temperature min/nom/max values when available. If only a range is specified, use min/nominal-within-range/max. If no temperature values are specified, use `-40 °C`, `27 °C`, and `125 °C`.
+* For multiple supplies, vary relevant supplies coherently as low/nominal/high unless the specification requires independent supply combinations.
+* PVT coverage means the full combination of applicable process, supply-voltage, temperature, and specification-defined PVT dimensions for that test.
+* Do not invent project-specific model paths beyond the `$LIB_PATH` convention or proprietary model-section names beyond the default/spec-defined corner identifiers.
 
 ## Acceptance Test Matrix
 
@@ -144,7 +162,7 @@ For each row:
 * `Testbench`: choose a short `snake_case` name derived from the requirement and analysis type.
 * `Specification Coverage`: list exact requirement names or normalized metric names from the specification.
 * `Test Condition / Stimulus`: describe driven pins, supplies, references, loads, mode controls, OP/DC/TRAN/AC/statistical stimulus, and public-pin connections.
-* `Condition Coverage`: specify the concrete presets/runs that must be executed.
+* `Condition Coverage`: specify concrete presets/runs. For PVT rows, explicitly state the full combination of dimensions and classify coverage as `explicit_spec_pvt`, `mixed_spec_default_pvt`, or `default_pvt`. Use `nominal_only_with_reason` only when PVT is not meaningful, and `statistical_by_spec` only for specification-defined statistical coverage.
 * `Measurement Method`: explain how the metric is extracted from simulation results.
 * `Acceptance Criteria`: specify numeric pass/fail limits with units. A qualitative criterion is allowed only if no numeric requirement exists.
 
@@ -178,7 +196,13 @@ Before finishing, verify that:
 * every testbench row has stimulus, coverage, measurement method, and acceptance criteria;
 * related metrics are grouped into the minimum number of reusable testbenches;
 * coverage in the test matrix is concrete, with no optional/future/TBD runnable runs;
-* PVT/statistical coverage is included where required by the specification or engineering necessity;
+* PVT/corner coverage follows the specification when defined, otherwise the default PVT/corner policy is applied where meaningful;
+* PVT rows explicitly state the full combination of applicable dimensions;
+* default process corners use identifiers `tt`, `ff`, `ss`, `fs`, `sf` and model root `$LIB_PATH` for later Cadence/Spectre export;
+* missing local PDK model files are not treated as a blocker for the verification plan;
+* nominal-only rows have a clear reason;
+* statistical coverage is included only when required by the specification;
+* no fake project-specific PDK paths or proprietary model sections are invented;
 * no internal DUT nodes are used as acceptance observability points;
 * no requirements or numeric limits are invented;
 * the plan is concise and ready for testbench implementation.
@@ -190,5 +214,6 @@ After creating or updating `verification_plan.md`, respond briefly with:
 * created/updated file name;
 * selected DUT contract;
 * main requirement groups covered;
-* PVT/Monte Carlo decisions and why;
+* PVT/corner decisions and model convention;
+* Monte Carlo/statistical decision and why;
 * blockers or assumptions, if any.

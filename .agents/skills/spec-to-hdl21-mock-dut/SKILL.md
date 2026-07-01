@@ -35,6 +35,7 @@ mock_device.sp
 * If the specification, verification plan, and optional netlist disagree, use the contract from `verification_plan.md`.
 * Do not use internal nodes of the real DUT as the public interface of the mock.
 * Do not include PDK/foundry models.
+* Do not require `$LIB_PATH` or any process model files for mock generation or the mock smoke check.
 * The mock must be deterministic, fast, and simulator-friendly.
 * Mock values must be inside acceptance limits with reasonable margin, not on the boundary.
 
@@ -80,9 +81,11 @@ Move the main constants to the beginning of `mock_device.py`:
 
 ## Coverage Awareness
 
-The mock must work correctly across all conditions/runs listed in `verification_plan.md`.
+The mock must work correctly across public-pin conditions/runs listed in `verification_plan.md`.
 
 * If a supply/reference/control pin is swept, the mock must respond to that public pin or preserve valid measurable behavior across the full sweep range.
+* If temperature is swept, the mock must remain runnable and measurable across the temperature range, but it does not need to model real temperature physics.
+* If process corners are listed, treat them as downstream Cadence/Spectre coverage intent only. The mock must not include process models, require `$LIB_PATH`, or pretend to model process-corner effects.
 * If there is a mode control, bypass, enable, reset, or test mode, the mock must explicitly implement this public-pin logic.
 * If there are supply-current checks, the mock must create measurable current through the corresponding supply pins with the correct magnitude and stable sign convention.
 * If there are AC tests, the mock must have an AC-observable path sufficient for metric extraction.
@@ -101,6 +104,7 @@ The smoke deck is only used to check that `mock_device.sp` parses, instantiates,
 The smoke deck must:
 
 * include `mock_device.sp`;
+* not include PDK/foundry models or `$LIB_PATH`;
 * instantiate the mock DUT with the exact public DUT contract and pin order;
 * drive all supply, ground, analog input, digital/control, reference, bias, enable/reset pins to safe nominal values from `verification_plan.md`;
 * connect required public feedback pins according to the nominal operating setup, if such pins exist;
@@ -133,6 +137,8 @@ Before finishing, verify that:
 * `mock_device.sp` is generated from `mock_device.py`;
 * planned checks from the Acceptance Test Matrix have supported mock behavior;
 * measured outputs/currents will be measurable where needed;
+* swept public-pin supplies/references/controls are supported or remain measurable over their ranges;
+* process corners do not require PDK models, `$LIB_PATH`, or real corner behavior in the mock;
 * the mock does not require PDK/foundry includes;
 * no internal DUT nodes are used;
 * the ngspice smoke check passed;
@@ -147,4 +153,4 @@ Respond briefly with:
 * which planned checks are supported by the mock behavior;
 * whether SPICE was generated through the HDL21 flow;
 * whether the ngspice smoke check passed;
-* remaining limitations/blockers, if any.
+* remaining limitations/blockers, if any, including that process-corner effects are not modeled by the mock.
