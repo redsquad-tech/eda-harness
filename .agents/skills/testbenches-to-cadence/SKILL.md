@@ -5,19 +5,19 @@ description: Generate a compact Cadence/Virtuoso SKILL export file for one compl
 
 # Testbenches To Cadence
 
-## Цель
+## Goal
 
-Сгенерировать компактный Cadence/Virtuoso `generate.il` для завершенных ngspice testbench groups.
+Generate a compact Cadence/Virtuoso `generate.il` for completed ngspice testbench groups.
 
-Работай по одному group за раз. После генерации одного group кратко отчитайся пользователю и спроси, переходить ли к следующему.
+Work on one group at a time. After generating one group, briefly report back to the user and ask whether to proceed to the next one.
 
-Одна итерация = один group. Не продолжай к следующему group без подтверждения пользователя.
+One iteration = one group. Do not proceed to the next group without the user's confirmation.
 
-Главный принцип: используй `assets/generate.il.template` как каркас, заполняй его под конкретные `tests/<group>.sp`, DUT netlist и test intent, не строя лишний фреймворк вокруг простой задачи.
+Main principle: use `assets/generate.il.template` as the skeleton, filling it in for the specific `tests/<group>.sp`, DUT netlist, and test intent, without building unnecessary framework around a simple task.
 
-## Вход
+## Input
 
-Ожидаемые источники в workspace:
+Expected sources in the workspace:
 
 ```text
 tests/<group>.sp
@@ -27,11 +27,11 @@ testbench_implementation_plan.md
 original Spectre DUT netlist
 ```
 
-Workspace - это директория, где лежат эти файлы. Все Cadence artifacts создавай внутри этого workspace.
+The workspace is the directory containing these files. Create all Cadence artifacts inside this workspace.
 
-## Выход
+## Output
 
-Создавай или обновляй только artifacts текущего group:
+Create or update only the artifacts for the current group:
 
 ```text
 cadence_export/groups/<group>/generate.il
@@ -40,7 +40,7 @@ cadence_export/generated_support/<group>.scs
 cadence_export/<library_name>/
 ```
 
-`generate.il` должен создать Cadence cell views:
+`generate.il` must create Cadence cell views:
 
 ```text
 <library>/<cell>/spectre_<group>
@@ -48,49 +48,49 @@ cadence_export/<library_name>/
 <library>/<cell>/maestro
 ```
 
-Имена по умолчанию:
+Default names:
 
 ```text
-library = <workspace_name>_acceptance_lib или уже принятое project library name
-cell = fixture .SUBCKT name, импортируемый через cdsTextTo5x
+library = <workspace_name>_acceptance_lib or the already accepted project library name
+cell = fixture .SUBCKT name imported through cdsTextTo5x
 test name = <group>
 spectre view = spectre_<group>
 config view = config
 maestro view = maestro
 ```
 
-## Обязательный поток
+## Required Flow
 
-1. Определи workspace.
-2. Выбери один group. Если group явно не указан, выбери первый group из `testbench_implementation_plan.md`, для которого еще нет Cadence export.
-3. Найди source files:
+1. Identify the workspace.
+2. Select one group. If the group is not explicitly specified, select the first group from `testbench_implementation_plan.md` that does not yet have a Cadence export.
+3. Find the source files:
    - `tests/<group>.sp`
    - `tests/<group>.control`
-   - оригинальный Spectre DUT netlist.
-4. Из `tests/<group>.sp` найди fixture `.SUBCKT`, его параметры, источники, нагрузки, DUT instance и наблюдаемые nodes/branches.
-5. Из `.control`, `verification_plan.md` и `testbench_implementation_plan.md` извлеки:
-   - `TB_*` параметры и nominal values;
+   - the original Spectre DUT netlist.
+4. From `tests/<group>.sp`, identify the fixture `.SUBCKT`, its parameters, sources, loads, DUT instance, and observed nodes/branches.
+5. From `.control`, `verification_plan.md`, and `testbench_implementation_plan.md`, extract:
+   - `TB_*` parameters and nominal values;
    - analysis intent: `dc`, `op`, `tran`, `ac`;
    - measurements/outputs;
    - specs/checks;
    - run cases;
    - process corners;
    - temperature cases.
-6. Скопируй `assets/generate.il.template` в `cadence_export/groups/<group>/generate.il`.
-7. Замени placeholders на реальные значения.
-8. Запусти генератор из workspace:
+6. Copy `assets/generate.il.template` to `cadence_export/groups/<group>/generate.il`.
+7. Replace placeholders with real values.
+8. Run the generator from the workspace:
 
 ```bash
 virtuoso -nograph -restore cadence_export/groups/<group>/generate.il
 ```
 
-Если локально работает только другой известный launch mode, например `-nographE`, используй его.
+If only another known local launch mode works, for example `-nographE`, use it.
 
-## Правила generator.il
+## Rules for `generator.il`
 
-Держи `generate.il` коротким и понятным. Не добавляй лишние логи, helper-функции, диагностику, `verify.il` или status files.
+Keep `generate.il` short and understandable. Do not add unnecessary logs, helper functions, diagnostics, `verify.il`, or status files.
 
-Комментарии должны быть над смысловыми блоками:
+Comments should appear above meaningful blocks:
 
 ```text
 Block 1: names and source files
@@ -106,15 +106,15 @@ Block 10: corners matrix
 Block 11: save the Maestro setup
 ```
 
-Можно объединять блоки, если так получается проще и чище. Не меняй структуру шаблона без необходимости; меняй ее только если конкретный testbench иначе не импортируется или не открывается в текущей версии Virtuoso.
+Blocks may be combined if that makes the result simpler and cleaner. Do not change the template structure unless necessary; change it only if a specific testbench otherwise cannot be imported or opened in the current Virtuoso version.
 
 ## DUT Support
 
-Cadence DUT всегда должен быть оригинальный Spectre DUT netlist, а не mock/dev DUT.
+The Cadence DUT must always be the original Spectre DUT netlist, not a mock/dev DUT.
 
-Если оригинальный DUT уже имеет reusable subckt с публичными pins, используй его напрямую через `cadence_dut.scs`.
+If the original DUT already has a reusable subckt with public pins, use it directly through `cadence_dut.scs`.
 
-Если оригинальный DUT является top-level Spectre netlist без нужного public subckt, создай в `cadence_dut.scs` минимальную Spectre-обертку:
+If the original DUT is a top-level Spectre netlist without the required public subckt, create a minimal Spectre wrapper in `cadence_dut.scs`:
 
 ```spectre
 subckt <dut_subckt_name> <public pins>
@@ -122,7 +122,7 @@ subckt <dut_subckt_name> <public pins>
 ends <dut_subckt_name>
 ```
 
-Для flat Spectre/ADE point netlist `cadence_dut.scs` должен быть clean support deck:
+For a flat Spectre/ADE point netlist, `cadence_dut.scs` must be a clean support deck:
 
 ```text
 simulator lang=spectre
@@ -131,7 +131,7 @@ subckt <dut_subckt_name> <public pins>
 ends <dut_subckt_name>
 ```
 
-Не копируй в clean DUT subckt/support deck:
+Do not copy the following into the clean DUT subckt/support deck:
 
 ```text
 ADE/service includes such as ade_e.scs
@@ -142,15 +142,15 @@ info statements
 saveOptions
 ```
 
-PDK/process models должны приходить из Maestro corner Model Files через `$LIB_PATH/<proc>.scs section <proc>`, а не из `cadence_dut.scs`.
+PDK/process models must come from Maestro corner Model Files through `$LIB_PATH/<proc>.scs section <proc>`, not from `cadence_dut.scs`.
 
-При копировании строк, прочитанных через SKILL `gets`, пиши их без добавочного newline:
+When copying lines read through SKILL `gets`, write them without an additional newline:
 
 ```lisp
 fprintf(out "%s" line)
 ```
 
-Не используй:
+Do not use:
 
 ```lisp
 fprintf(out "%s\n" line)
@@ -164,7 +164,7 @@ Generated wrapper:
 cadence_export/generated_support/<group>.scs
 ```
 
-Форма wrapper:
+Wrapper form:
 
 ```spectre
 simulator lang=spectre
@@ -175,11 +175,11 @@ simulator lang=spice
 simulator lang=spectre
 ```
 
-Встраивай содержимое `tests/<group>.sp` в wrapper через чтение файла и `fprintf(out "%s" line)`. Так `tests/<group>.sp` остается source of truth, но `.SUBCKT` становится видимым для `cdsTextTo5x`.
+Embed the contents of `tests/<group>.sp` in the wrapper by reading the file and using `fprintf(out "%s" line)`. This keeps `tests/<group>.sp` as the source of truth while making the `.SUBCKT` visible to `cdsTextTo5x`.
 
-Preferred path: сначала попробуй импорт с clean `cadence_dut.scs` включенным в wrapper, как показано выше. Это сохраняет простую схему: fixture и DUT support видны imported Spectre view, а process models остаются corner-level Model Files.
+Preferred path: first try importing with the clean `cadence_dut.scs` included in the wrapper, as shown above. This preserves a simple structure: the fixture and DUT support are visible in the imported Spectre view, while process models remain corner-level Model Files.
 
-Fallback path: если `cdsTextTo5x` падает именно из-за включения DUT support, не пересобирай fixture вручную и не клади DUT в Model Files. Оставь wrapper fixture-only:
+Fallback path: if `cdsTextTo5x` fails specifically because of the DUT support include, do not rebuild the fixture manually and do not place the DUT in Model Files. Leave the wrapper fixture-only:
 
 ```spectre
 simulator lang=spectre
@@ -188,7 +188,7 @@ simulator lang=spice
 simulator lang=spectre
 ```
 
-и подключи `cadence_dut.scs` как Maestro test-level Definition File:
+and attach `cadence_dut.scs` as a Maestro test-level Definition File:
 
 ```lisp
 maeSetEnvOption(
@@ -198,9 +198,9 @@ maeSetEnvOption(
 )
 ```
 
-Так `cadence_dut.scs` попадет в generated simulator input как обычный include, но не станет corner Model File.
+This way, `cadence_dut.scs` will appear in the generated simulator input as a regular include, but it will not become a corner Model File.
 
-Не включай в Cadence wrapper:
+Do not include the following in the Cadence wrapper:
 
 ```text
 mock_device.sp
@@ -214,9 +214,9 @@ quit
 
 ## Maestro Setup
 
-Создавай один Maestro test на fixture group, если analysis/setup действительно один.
+Create one Maestro test per fixture group if the analysis/setup is truly single.
 
-Перед пересозданием generated Maestro view удаляй старую generated view, чтобы повторный запуск не копил duplicate tests/outputs:
+Before recreating the generated Maestro view, delete the old generated view so repeated runs do not accumulate duplicate tests/outputs:
 
 ```lisp
 when(ddGetObj(lib cell maestroView)
@@ -224,7 +224,7 @@ when(ddGetObj(lib cell maestroView)
 )
 ```
 
-Создавай в Maestro:
+Create the following in Maestro:
 
 ```text
 TB_* design variables at test level
@@ -234,13 +234,13 @@ specs/checks once per metric
 corners for run cases and PVT matrix
 ```
 
-Не создавай отдельные tests для process, temperature, supply/reference/ramp/case matrix. Эти измерения должны быть corners.
+Do not create separate tests for the process, temperature, supply/reference/ramp/case matrix. These measurements must be corners.
 
 ## Analysis Setup
 
-Переноси analysis intent из `tests/<group>.control`, `verification_plan.md` и `testbench_implementation_plan.md` в Maestro analysis fields. Не достаточно просто создать `TB_*` variables, если сам analysis их не использует.
+Transfer analysis intent from `tests/<group>.control`, `verification_plan.md`, and `testbench_implementation_plan.md` into Maestro analysis fields. It is not enough to simply create `TB_*` variables if the analysis itself does not use them.
 
-Для transient groups задавай stop/max step через `maeSetAnalysis` `?options`, т.к. `maeSetAnalysis` принимает analysis fields через `options`, а не отдельные keyword-аргументы:
+For transient groups, set stop/max step through `maeSetAnalysis` `?options`, because `maeSetAnalysis` accepts analysis fields through `options`, not as separate keyword arguments:
 
 ```lisp
 maeSetAnalysis(
@@ -254,9 +254,9 @@ maeSetAnalysis(
 )
 ```
 
-`<stop_time_expr>` и `<max_step_expr>` должны быть выведены из исходного ngspice transient intent. Если stop/step меняются по cases, задай их через corner-level `TB_*` variables и используй эти variables в analysis options.
+`<stop_time_expr>` and `<max_step_expr>` must be derived from the original ngspice transient intent. If stop/step vary by case, define them through corner-level `TB_*` variables and use those variables in the analysis options.
 
-Пример формы:
+Example form:
 
 ```lisp
 maeSetVar("TB_TRAN_STOP" "<nominal_stop>" ?typeName "test" ?typeValue list(testName) ?session sess)
@@ -272,11 +272,11 @@ maeSetAnalysis(
 )
 ```
 
-Если fixture already has meaningful timing variables, можно использовать их напрямую вместо добавления новых generic names, например expression over existing `TB_*` variables. Главное, чтобы сохраненный Maestro state и generated simulator input имели non-empty transient stop/maxstep intent.
+If the fixture already has meaningful timing variables, they may be used directly instead of adding new generic names, for example as an expression over existing `TB_*` variables. The key requirement is that the saved Maestro state and generated simulator input contain non-empty transient stop/maxstep intent.
 
 ## Corners
 
-Собирай corner matrix один раз в список `corners`, затем используй этот список для:
+Build the corner matrix once as a `corners` list, then use this list for:
 
 ```text
 maeSetCorner
@@ -285,7 +285,7 @@ AXL native temperature
 AXL model files
 ```
 
-Process model setup делай через model object:
+Set up process models through a model object:
 
 ```lisp
 model = axlPutModel(cornerHandle proc)
@@ -295,103 +295,103 @@ axlSetModelTest(model testName)
 axlSetEnabled(model t)
 ```
 
-Не проверяй локальное существование `$LIB_PATH/<proc>.scs`. Это symbolic model reference для Cadence/Spectre окружения.
+Do not check whether `$LIB_PATH/<proc>.scs` exists locally. This is a symbolic model reference for the Cadence/Spectre environment.
 
-Не добавляй `cadence_dut.scs` как corner model object. Corner Model Files должны содержать только process model references.
+Do not add `cadence_dut.scs` as a corner model object. Corner Model Files must contain only process model references.
 
-Temperature setup делай как native corner temperature:
+Set temperature as native corner temperature:
 
 ```lisp
 axlPutVar(cornerHandle "temperature" temp)
 ```
 
-Не используй только design variable `temp`, если нужна строка Temperature в Corners Setup и simulator option `temp`.
+Do not rely only on the design variable `temp` if a Temperature row is required in Corners Setup and the simulator option `temp`.
 
 ## Outputs And Paths
 
-Создавай outputs через форму `maeAddOutput`:
+Create outputs using the `maeAddOutput` form:
 
 ```lisp
 maeAddOutput("<name>" testName ?outputType "point" ?expr "<calculator_expr>" ?session sess)
 ```
 
-Если текущая Virtuoso версия не принимает `?outputType "point"`, можно опустить `?outputType`, но сохрани `?expr`.
+If the current Virtuoso version does not accept `?outputType "point"`, you may omit `?outputType`, but keep `?expr`.
 
-Не используй `?outputType "expr"`, пока не проверишь в этой Cadence версии, что output реально сохранился в `active.state` как `outputsCommon/outputList`. Успешный вызов `maeAddOutput` или наличие `maeSetSpec` не доказывает, что output появился в Maestro GUI.
+Do not use `?outputType "expr"` until you have verified in this Cadence version that the output is actually saved in `active.state` as `outputsCommon/outputList`. A successful `maeAddOutput` call or the presence of `maeSetSpec` does not prove that the output appeared in the Maestro GUI.
 
-Output expressions должны ссылаться только на реально достижимые nodes/branches imported Cadence top cell.
+Output expressions must reference only nodes/branches that are actually reachable from the imported Cadence top cell.
 
-Выводи paths из текущего `tests/<group>.sp` и фактического Spectre deck, который создается после `cdsTextTo5x`.
+Derive paths from the current `tests/<group>.sp` and the actual Spectre deck created after `cdsTextTo5x`.
 
-Обязательное правило для наших HDL21/ngspice fixtures:
+Mandatory rule for our HDL21/ngspice fixtures:
 
-1. Найди fixture `.SUBCKT <fixture_name> ... .ENDS`.
-2. Проверь, есть ли после `.ENDS` top-level instance вида:
+1. Find the fixture `.SUBCKT <fixture_name> ... .ENDS`.
+2. Check whether there is a top-level instance after `.ENDS` of the form:
 
 ```spice
 X<top_instance_name> <connections...> <fixture_name>
 ```
 
-3. Если такой instance есть, он является активным simulation top instance. Все output paths к элементам или узлам внутри fixture должны включать его имя:
+3. If such an instance exists, it is the active simulation top instance. All output paths to elements or nodes inside the fixture must include its name:
 
 ```lisp
 <calculator_function>("/<top_instance_name>/<element_or_node_path>")
 ```
 
-4. Не используй укороченные paths вида:
+4. Do not use shortened paths such as:
 
 ```lisp
 <calculator_function>("/<element_or_node_path>")
 ```
 
-если эти elements/nodes находятся внутри fixture `.SUBCKT`, а не на верхнем уровне deck.
+if these elements/nodes are inside the fixture `.SUBCKT`, not at the deck top level.
 
-Общее правило выбора:
-
-```text
-если imported/generated Spectre deck содержит top-level XTB instance:
-  output paths должны включать этот XTB instance
-
-если импортируемый Cadence cell является wrapper/top subckt с fixture instance:
-  output paths должны включать этот fixture instance
-
-если fixture sources/nodes реально находятся на самом верхнем уровне deck:
-  output paths могут начинаться прямо от этих sources/nodes
-```
-
-Для токов через источники используй branch path того источника, который реально существует в fixture. Не хардкодь terminal suffix (`/PLUS`, `/MINUS` или другой): добавляй suffix только если он виден в imported/generated design или нужен локальному ADE calculator для этой ветви.
-
-Для напряжений используй public или fixture-level node path, который реально есть в imported design.
-
-Если есть сомнение, открой generated/imported Spectre view или generated input netlist и выбери путь по фактической иерархии. Если `input.scs` только включает imported `spectre.scs`, открой сам imported `spectre.scs` и смотри, есть ли в нем активный top-level `X... <fixture_name>` instance после `.ENDS`. Не придумывай путь по названию group.
-
-## Что Не Делать
-
-Не делай:
+General selection rule:
 
 ```text
-ручное редактирование maestro.sdb, active.state и подобных Cadence state files
-mock DUT for Cadence
-schematic workaround без просьбы пользователя
-full Spectre simulation без просьбы пользователя
-verify.il
-status files
-fake PASS status
+if the imported/generated Spectre deck contains a top-level XTB instance:
+  output paths must include this XTB instance
+
+if the imported Cadence cell is a wrapper/top subckt with a fixture instance:
+  output paths must include this fixture instance
+
+if fixture sources/nodes are truly at the deck top level:
+  output paths may start directly from these sources/nodes
 ```
 
-## Ресурс
+For currents through sources, use the branch path of the source that actually exists in the fixture. Do not hardcode a terminal suffix (`/PLUS`, `/MINUS`, or another suffix): add a suffix only if it is visible in the imported/generated design or required by the local ADE calculator for that branch.
 
-Основной каркас:
+For voltages, use a public or fixture-level node path that actually exists in the imported design.
+
+When in doubt, open the generated/imported Spectre view or generated input netlist and choose the path based on the actual hierarchy. If `input.scs` only includes the imported `spectre.scs`, open the imported `spectre.scs` itself and check whether it contains an active top-level `X... <fixture_name>` instance after `.ENDS`. Do not invent a path from the group name.
+
+## What Not To Do
+
+Do not do the following:
+
+```text
+manually edit maestro.sdb, active.state, or similar Cadence state files
+create a mock DUT for Cadence
+use a schematic workaround unless requested by the user
+run a full Spectre simulation unless requested by the user
+create verify.il
+create status files
+create fake PASS status
+```
+
+## Resource
+
+Main skeleton:
 
 ```text
 assets/generate.il.template
 ```
 
-Используй его как стартовую точку. Меняй placeholder sections и group-specific intent. Не изобретай альтернативный Cadence flow, если шаблон подходит.
+Use it as the starting point. Modify placeholder sections and group-specific intent. Do not invent an alternative Cadence flow if the template fits.
 
-Если метод из шаблона недоступен в текущей версии Virtuoso, найди ближайший public API-аналог и сохрани ту же архитектуру: Spectre text import, config, one Maestro test, TB_* variables, Maestro analyses/outputs/specs, PVT corners, native temperature, model objects.
+If a method from the template is unavailable in the current Virtuoso version, find the closest public API equivalent and preserve the same architecture: Spectre text import, config, one Maestro test, `TB_*` variables, Maestro analyses/outputs/specs, PVT corners, native temperature, and model objects.
 
-Минимальная проверка после запуска текущего group:
+Minimum check after running the current group:
 
 ```text
 generated_support/<group>.scs embeds tests/<group>.sp verbatim or line-for-line
@@ -405,4 +405,4 @@ mock_device.sp is absent from Cadence export/netlist
 netlist-only input.scs contains cadence_dut.scs and imported fixture view
 ```
 
-После генерации текущего group остановись. Не создавай следующий group в том же ответе.
+After generating the current group, stop. Do not create the next group in the same response.
