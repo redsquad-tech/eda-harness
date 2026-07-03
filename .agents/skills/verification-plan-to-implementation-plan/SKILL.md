@@ -9,7 +9,7 @@ description: Use this skill to create a concise testbench_implementation_plan.md
 
 Create a concise `testbench_implementation_plan.md` for implementing testbenches from `verification_plan.md`.
 
-The implementation plan must define the minimum set of future testbench groups, their names, future files, and stable CSV outputs.
+The implementation plan must define the minimum set of future testbench groups, their names, future files, stable fixture parameters, and stable CSV outputs.
 
 Always write `testbench_implementation_plan.md` in English.
 
@@ -73,19 +73,36 @@ Use this table:
 | `<group_name>` | `tests/<group_name>.py` | `tests/<group_name>.sp` | `tests/<group_name>.control` | `results/<group_name>_metrics.csv` | `<planned sample/waveform outputs or none>` |
 ```
 
+Also include a compact fixture-parameter table:
+
+```markdown
+| Fixture Group | Stable Fixture Parameters | Non-Parameter Run Dimensions |
+|---|---|---|
+| `<group_name>` | `<TB_* parameters>` | `<temperature, process, labels, or none>` |
+```
+
 Rules:
 
 * Each testbench group is implemented by a separate HDL21 Python file.
 * The SPICE fixture is exported to the stable path `tests/<group_name>.sp`.
+* The SPICE fixture owns testbench topology and the public DUT instance only.
+* The SPICE fixture must not include/source the selected DUT/mock netlist, real DUT netlist, `$LIB_PATH`, PDK/foundry model files, process-corner models, or Cadence/Spectre hookup comments.
+* The ngspice `.control` owns selected DUT/mock binding: it must include/source the selected ngspice DUT/mock netlist and the generated SPICE fixture.
 * Run matrix, measurements, derived metrics, and pass/fail checks must be in `tests/<group_name>.control`.
 * Do not plan separate SPICE decks for each corner/run/condition.
 * Sweep/run logic must live in `.control` using simulator-side loops, `alterparam`, `reset`, and analysis commands.
 * The Python file is used to generate the circuit fixture, not to compute physical metrics.
+* Plan stable fixture parameters for public-pin source, stimulus, control, load, and timing values that appear in run matrices or Cadence-export cases, so they can later become Cadence/Maestro design variables.
+* Stable fixture parameter names must use uppercase `TB_*` names, for example `TB_<PIN>`, `TB_<PIN>_DC`, `TB_<STIM>_START`, `TB_<STIM>_STOP`, `TB_<STIM>_TIME`, `TB_TSTEP`, or `TB_TSTOP`.
+* Do not plan lowercase ad-hoc fixture parameter names such as `vdd_value`, `temp_c`, `sweep_target`, or `ramp_direction`.
+* Do not plan simulator temperature as a fixture parameter. Temperature must be represented as simulator temperature in ngspice and as corner-level simulator temperature in Cadence/Maestro.
+* Do not plan process corner, run ID, case name, requirement name, sweep target, or ramp direction as fixture parameters. They are run/corner labels or metadata.
+* If a ramp direction or sweep target affects the waveform, plan numeric `TB_*` parameters for the actual source values and timing; keep direction/target as run metadata.
 * Preserve PVT/corner coverage from `verification_plan.md` as verification intent and downstream Cadence/Spectre export coverage.
 * For mock/development ngspice runs, do not require `$LIB_PATH`, PDK/foundry model files, or active process-corner model includes.
 * For mock/development ngspice runs, do not plan real process-corner sweeps; keep process corners for Cadence/Spectre export using `$LIB_PATH` and corner identifiers `tt`, `ff`, `ss`, `fs`, `sf`.
 * Public-pin voltage/reference/control/stimulus sweeps and simulator temperature sweeps should remain planned where meaningful.
-* Plan a commented TODO in the future `.control` or fixture for final process-model hookup through `$LIB_PATH`.
+* Plan any deferred process-model note only in the future `.control`; do not put `$LIB_PATH` or process-corner TODO comments into generated SPICE fixtures.
 * If the group does not require waveform/sample export, write `none` in the last column.
 * If the group has analysis type `TRAN`, `AC`, `noise`, `stability`, `PSRR`, transient response, frequency response, or another waveform-like/probe-based analysis, always plan the waveform/probe artifact: `results/<group_name>_waveforms.csv`.
 * `results/<group_name>_samples.csv` may only be an additional artifact for compact sample/crossing/sweep/debug points. Do not use samples CSV as a replacement for waveform/probe CSV for TRAN/AC/waveform-like groups.
@@ -146,6 +163,10 @@ Briefly state only items that may block implementation:
 
 For mock/development ngspice runs, missing local PDK files or missing `$LIB_PATH` is not a blocker. Preserve the Cadence/Spectre model convention from `verification_plan.md`: model root `$LIB_PATH` and corner identifiers `tt`, `ff`, `ss`, `fs`, `sf`.
 
+State explicitly that generated SPICE fixtures must stay DUT-implementation independent: selected ngspice DUT/mock includes belong in `.control`, not in `tests/<group_name>.sp`.
+
+State explicitly that simulator temperature is not a fixture parameter; it must be handled as simulator temperature in ngspice and as corner-level simulator temperature in Cadence/Maestro.
+
 If the group is TRAN/AC/waveform-like but it is unclear which signals to save, do not leave this silent: plan `results/<group_name>_waveforms.csv` with the main public/probe signals or state a blocker.
 
 ## Final Checklist
@@ -156,10 +177,15 @@ Before finishing, verify that:
 * groups are not split without reason;
 * each group has future `.py`, `.sp`, `.control`, and CSV paths;
 * no per-run SPICE decks are planned;
+* fixtures are planned as topology plus public DUT instance only, without selected DUT/mock includes;
+* selected ngspice DUT/mock binding is planned in `.control`;
+* swept/corner-controlled source, stimulus, control, load, and timing values are planned as stable uppercase `TB_*` fixture parameters for later Cadence/Maestro reuse;
+* simulator temperature, process corner, run ID, case name, sweep target, and ramp direction are not planned as fixture parameters;
 * measurements/pass-fail are planned in `.control`;
 * CSV outputs have stable paths;
 * PVT/corner intent from `verification_plan.md` is preserved for Cadence/Spectre export;
 * mock/development ngspice planning does not require `$LIB_PATH`, PDK/foundry models, or real process-corner sweeps;
+* deferred process-model notes are planned only in `.control`, not in generated SPICE fixtures;
 * TRAN/AC/waveform-like groups have planned waveform/probe CSV; if it cannot be created, this is listed as a blocker;
 * sample/waveform CSVs are not mixed with metrics CSV;
 * multiple sample/waveform outputs in one table cell are separated with `;`;
@@ -174,5 +200,7 @@ Respond briefly with:
 * how many fixture groups were defined;
 * which future files and CSV outputs are planned;
 * which groups plan waveform/sample artifacts;
+* how fixture/DUT binding is split between `.sp` and `.control`;
+* which `TB_*` fixture parameters are planned and which run dimensions are not fixture parameters;
 * how PVT/process-corner intent is preserved for Cadence/Spectre export;
 * whether there are assumptions/blockers.
