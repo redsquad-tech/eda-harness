@@ -15,8 +15,7 @@ In one iteration, implement only one current group, bring it to a working state 
 
 * `verification_plan.md` — DUT contract, requirements, conditions, metrics, and pass/fail limits.
 * `testbench_implementation_plan.md` — fixture groups, planned files, CSV outputs, and implementation order.
-* DUT netlist for development/run — user-provided runnable SPICE netlist or generated mock netlist selected in the previous stage.
-* Optional model files/includes — use only when the selected real ngspice DUT requires them. Do not require `$LIB_PATH` or PDK/foundry process models for mock/development ngspice runs.
+* `mock_device.sp` — generated mock DUT netlist from the previous stage.
 
 ## Selecting the Current Group
 
@@ -53,8 +52,8 @@ Rules:
 
 * `tests/<group_name>.py` must generate the circuit fixture through HDL21 modules/instances/primitives/helpers.
 * The exported `tests/<group_name>.sp` must contain the DUT instance by public contract and the electrical setup required for this group: supply/reference/control sources, loads, capacitors, feedback connections, stimulus elements, named nodes, and probe points where applicable.
-* The exported fixture must instantiate the DUT, but must not include/source the selected DUT implementation netlist.
-* Do not put `.include`, `.lib`, or `source` statements for `mock_device.sp`, real DUT netlists, selected DUT netlists, `$LIB_PATH`, PDK/foundry models, or process corners into `tests/<group_name>.sp`.
+* The exported fixture must instantiate the DUT, but must not include/source `mock_device.sp` or any DUT implementation netlist.
+* Do not put `.include`, `.lib`, or `source` statements for `mock_device.sp`, `$LIB_PATH`, PDK/foundry models, or process corners into `tests/<group_name>.sp`.
 * For OP/DC/static groups, the fixture should usually contain all static sources, loads, feedback connections, and the DUT instance.
 * For TRAN/AC/waveform-like groups, the fixture must contain the stimulus/source elements required for the analysis, for example parameterized PULSE/PWL/AC/DC sources, loads/caps, and stable probe nodes.
 * `.control` must not be the primary place where the testbench circuit topology is created. Do not move supply/reference/control/stimulus sources into `.control` just because it is easier.
@@ -83,7 +82,7 @@ Raw-SPICE exception:
 
 * If a required simulator-specific element is not expressed well by pure HDL21 primitives, for example a PULSE/PWL source, behavioral helper, special probe/helper element, or fixture parameter declaration, the Python generator may add a small documented raw-SPICE fragment to the generated `tests/<group_name>.sp`.
 * This raw-SPICE fragment must be minimal, local to the fixture, and added by `tests/<group_name>.py` when generating `.sp`.
-* The raw-SPICE fragment must not include/source the selected DUT implementation netlist, mock netlist, real DUT netlist, `$LIB_PATH`, or PDK/foundry models.
+* The raw-SPICE fragment must not include/source `mock_device.sp`, DUT implementation netlists, `$LIB_PATH`, or PDK/foundry models.
 * The final `tests/<group_name>.sp` must still contain a complete reusable fixture with stimulus/source elements.
 * Do not use raw-SPICE fragments in `.control` as a way to describe the main circuit topology.
 
@@ -103,7 +102,7 @@ Before finishing the fixture, check that:
 * `.sp` contains one importable group-level fixture `.SUBCKT` with the complete active testbench topology;
 * no required active topology remains loose outside `.SUBCKT ... .ENDS`, except for one top-level ngspice activation instance;
 * swept and corner-controlled source/stimulus/control values are exposed as stable `TB_*` fixture parameters;
-* `.sp` does not contain selected DUT/mock netlist includes, real DUT netlist includes, `$LIB_PATH`, PDK/foundry model includes, process-corner TODOs, or Cadence/Spectre hookup comments;
+* `.sp` does not contain `mock_device.sp` includes, DUT implementation netlist includes, `$LIB_PATH`, PDK/foundry model includes, process-corner TODOs, or Cadence/Spectre hookup comments;
 * `.control` does not contain the main set of V/I source declarations that should be part of the reusable fixture;
 * `.control` changes fixture parameters instead of recreating fixture topology.
 
@@ -111,11 +110,10 @@ Before finishing the fixture, check that:
 
 `tests/<group_name>.control` contains simulator-side logic:
 
-* include/source the selected ngspice DUT/mock netlist for this stage;
+* include/source `mock_device.sp`;
 * include/source the generated SPICE fixture `tests/<group_name>.sp`;
-* include/source required model/includes only when the selected real ngspice DUT requires them;
-* for mock/development ngspice runs, do not add active `.include` or `.lib` lines for `$LIB_PATH` or process-corner models;
-* for mock/development ngspice runs, add the deferred Cadence/Spectre process-model note only in `tests/<group_name>.control`, as a comment, using `$LIB_PATH` and corner identifiers `tt`, `ff`, `ss`, `fs`, `sf`;
+* do not add active `.include` or `.lib` lines for `$LIB_PATH` or process-corner models;
+* add the deferred Cadence/Spectre process-model note only in `tests/<group_name>.control`, as a comment, using the model convention and corner identifiers from `verification_plan.md`;
 * run matrix, loops, `alterparam`/`alter`, `reset`;
 * set executable run values through named fixture parameters where available, preferably using `alterparam` plus `reset`;
 * analysis commands: OP/DC/TRAN/AC/MC;
@@ -126,13 +124,15 @@ Before finishing the fixture, check that:
 
 Python must not compute physical metrics or pass/fail.
 
+Acceptance metrics must be measured by ngspice from simulated values or `meas` results. Do not replace an acceptance metric with a constant, mock-only shortcut, or assumed pass value. If the generated mock cannot make a metric measurable, emit an explicit unmeasurable result for that metric instead of a passing result; use `pass=0`, `value=unmeasurable`, and a specific metric-dependent reason in the log/CSV.
+
 For metrics CSV, simulator-side text output may be used. For waveform/sample data, prefer `wrdata` or another simulator-native export.
 
 Do not create separate SPICE decks for each run/corner/condition.
 
 ## Run Matrix and Coverage Rules
 
-The executable ngspice run matrix must match the current group coverage from `testbench_implementation_plan.md` and the corresponding rows in the `Acceptance Test Matrix` in `verification_plan.md`, except for deferred process-corner coverage on mock/development ngspice runs.
+The executable ngspice run matrix must match the current group coverage from `testbench_implementation_plan.md` and the corresponding rows in the `Acceptance Test Matrix` in `verification_plan.md`, except for deferred process-corner coverage with the generated mock.
 
 Rules:
 
@@ -142,15 +142,15 @@ Rules:
 * map executable run values to stable fixture parameters when they drive fixture sources, controls, loads, timing, or stimulus;
 * do not add coverage beyond what is specified in the test matrix;
 * do not remove executable public-pin, supply, reference, control, stimulus, or simulator-temperature coverage;
-* for mock/development ngspice runs, exclude process-corner dimensions from the executable ngspice run matrix and preserve them as downstream Cadence/Spectre coverage intent;
-* do not require `$LIB_PATH`, PDK/foundry model files, or active process-corner model includes for mock/development ngspice runs;
-* do not emit per-process-corner `RESULT` or CSV rows in mock/development ngspice unless real process models were actually included and swept;
+* exclude process-corner dimensions from the executable ngspice run matrix and preserve them as downstream Cadence/Spectre coverage intent;
+* do not require `$LIB_PATH`, PDK/foundry model files, or active process-corner model includes for ngspice runs;
+* do not emit per-process-corner `RESULT` or CSV rows in ngspice runs;
 * if the verification plan specifies a nominal-only run, run nominal only;
 * if the verification plan specifies a sweep over one executable group of conditions, change only that group and keep all other executable conditions nominal/fixed;
 * if the verification plan specifies full-combination coverage, run the full combination of executable ngspice dimensions for this stage;
 * if the implementation plan and verification plan disagree on executable coverage, use the verification plan as the source of truth and state an assumption/blocker;
 * expected run count must be calculated before writing `.control` and must match `SUMMARY runs=<n>`;
-* for mock/development ngspice runs, expected run count is calculated after excluding deferred process-corner dimensions.
+* expected run count is calculated after excluding deferred process-corner dimensions.
 
 ## Requirement-Specific Setup Rules
 
@@ -171,7 +171,7 @@ Rules:
 * if one OP/TRAN/AC run prints several RESULT rows, each RESULT must correspond to the conditions of its own requirement;
 * `parameters="..."` in RESULT/CSV must list all requirement-relevant driven values so it is clear that the measurement condition matches the verification plan;
 * include the named fixture parameter values in `parameters="..."` when those parameters control the run condition;
-* for mock/development ngspice runs with deferred process coverage, do not list a specific process corner as an executed parameter;
+* with deferred process coverage, do not list a specific process corner as an executed parameter;
 * if two requirements need the same fixture but different bias cases, use one fixture and several cases/loops in `.control`.
 
 Before the final run of the current group, check:
@@ -198,6 +198,7 @@ Rules:
 * RESULT/FAIL/log lines and CSV rows must have the same field set across all runs in one group;
 * do not leave dead code, debug-only echoes, temporary comments, unused variables, or old alternative measurements;
 * if a loop is impossible because of ngspice syntax limitations, explicitly state the reason in a comment in the control file.
+* do not use constants such as `let metric = 100` as substitutes for acceptance measurements. Constants may be used only for limits, fixed stimulus values, or intermediate math that is not reported as a measured acceptance metric.
 
 Shell commands inside `.control` must not be the main logic.
 
@@ -237,10 +238,10 @@ Rules:
 * Use only public DUT pins from the DUT contract.
 * Do not use internal DUT nodes as observability points.
 * Do not weaken acceptance limits to make the test pass.
-* Develop and verify against the selected runnable DUT netlist from the previous stage. If a mock DUT was created, use the mock. If the user provided a runnable real SPICE netlist with the required public contract, use it directly.
-* The generated fixture owns testbench topology, DUT instantiation, and stable `TB_*` parameter declarations; `tests/<group_name>.control` owns selected ngspice DUT/mock netlist binding and run-time parameter values.
-* For mock/development ngspice runs, do not require real process models; keep process-corner hookup as a commented note in `tests/<group_name>.control` only.
-* Do not place selected DUT/mock includes, real DUT netlist includes, `$LIB_PATH`, process-corner hookup notes, or Cadence/Spectre TODO comments in generated `tests/<group_name>.sp`.
+* Develop and verify against `mock_device.sp` from the previous stage.
+* The generated fixture owns testbench topology, DUT instantiation, and stable `TB_*` parameter declarations; `tests/<group_name>.control` owns `mock_device.sp` binding and run-time parameter values.
+* Do not require real process models for ngspice; keep process-corner hookup as a commented note in `tests/<group_name>.control` only.
+* Do not place `mock_device.sp` includes, DUT implementation netlist includes, `$LIB_PATH`, process-corner hookup notes, or Cadence/Spectre TODO comments in generated `tests/<group_name>.sp`.
 * Output directories must exist before files are written. Create them in the HDL21 Python source or a pre-run step; do not make shell commands inside `.control` the main architecture.
 
 ## Ngspice Verification
@@ -264,24 +265,24 @@ Iteratively fix the implementation until the current group satisfies all of the 
 * exported `.sp` does not leave required active topology loose after `.ENDS`, except for one top-level ngspice activation instance;
 * generated `tests/<group_name>.sp` contains the DUT instance by public contract;
 * generated `tests/<group_name>.sp` exposes swept and corner-controlled source/stimulus/control values as stable `TB_*` fixture parameters with nominal defaults;
-* generated `tests/<group_name>.sp` does not contain selected DUT/mock includes, real DUT netlist includes, `$LIB_PATH`, PDK/foundry model includes, process-corner TODOs, or Cadence/Spectre hookup comments;
-* `tests/<group_name>.control` includes/sources the selected ngspice DUT/mock netlist and generated fixture;
+* generated `tests/<group_name>.sp` does not contain `mock_device.sp` includes, DUT implementation netlist includes, `$LIB_PATH`, PDK/foundry model includes, process-corner TODOs, or Cadence/Spectre hookup comments;
+* `tests/<group_name>.control` includes/sources `mock_device.sp` and generated fixture;
 * ngspice finishes without fatal parse/runtime errors;
 * `.control` runs the required analysis;
 * `.control` applies executable run values through named fixture parameters where available;
-* mock/development ngspice runs do not require `$LIB_PATH`, PDK/foundry models, or active process-corner includes;
+* ngspice runs do not require `$LIB_PATH`, PDK/foundry models, or active process-corner includes;
 * if process-corner coverage is deferred, `tests/<group_name>.control` contains the commented Cadence/Spectre model-hookup note through `$LIB_PATH`;
 * log contains `RESULT` / `FAIL` / `SUMMARY`;
 * metrics CSV is created, non-empty, and matches the schema;
 * samples/waveform CSV is created if planned;
 * planned CSV files have valid CSV format with consistent delimiter;
 * waveform/sample CSV contains a run identifier if it includes data from more than one run;
-* DUT/mock run gives meaningful measurements for all metrics in the current group;
+* generated mock run gives meaningful measurements for all metrics in the current group, or explicitly marks mock-limited metrics as unmeasurable with `pass=0` and a clear reason;
 * actual run count matches executable coverage from the verification plan;
 * each RESULT row is measured under the requirement-specific condition from the verification plan;
 * control file uses loops for repeated similar runs or contains a comment explaining why a loop is impossible.
 
-If ngspice, HDL21, DUT/mock behavior, or simulator syntax blocks verification, stop and clearly state the blocker.
+If ngspice, HDL21, generated mock behavior, or simulator syntax blocks verification, stop and clearly state the blocker.
 
 ## Output Contract
 
@@ -297,7 +298,9 @@ Metrics CSV must match the schema from `testbench_implementation_plan.md`.
 
 Do not leave empty, NaN, or missing metrics without an explicit blocker.
 
-For mock/development ngspice runs, do not report deferred process corners as executed run parameters or per-corner pass/fail results.
+Do not report unmeasurable acceptance metrics as passing. If the generated mock cannot produce the needed crossing, settling point, operating point, or waveform condition, print and write the metric as `unmeasurable` with `pass=0` and a specific reason. This is acceptable for mock validation; it is not acceptable to hide it behind a passing constant.
+
+For ngspice runs with the generated mock, do not report deferred process corners as executed run parameters or per-corner pass/fail results.
 
 ## Cleanup
 
@@ -321,14 +324,14 @@ Respond briefly with:
 * which ngspice command was run;
 * which CSV/log outputs were produced;
 * expected run count and actual run count;
-* DUT/mock pass/fail summary;
+* mock pass/fail summary;
 * confirmation that executable coverage matches the verification plan;
 * confirmation that swept/corner-controlled fixture values are exposed as stable `TB_*` parameters for Cadence/Maestro reuse;
-* confirmation that process-corner coverage, if deferred, is preserved for Cadence/Spectre export through `$LIB_PATH` with corner identifiers `tt`, `ff`, `ss`, `fs`, `sf`;
+* confirmation that process-corner coverage, if deferred, is preserved for Cadence/Spectre export using the model convention and corner identifiers from `verification_plan.md`;
 * confirmation that every RESULT matches the requirement-specific condition, or a list of assumptions/blockers;
 * confirmation that the exported `.sp` is a complete fixture, not a thin wrapper or DUT-binding wrapper;
-* confirmation that generated `.sp` has no selected DUT/mock includes, real DUT netlist includes, `$LIB_PATH`, PDK/foundry model includes, process-corner TODOs, or Cadence/Spectre hookup comments;
-* confirmation that `.control` includes/sources the selected ngspice DUT/mock netlist and generated fixture;
+* confirmation that generated `.sp` has no `mock_device.sp` includes, DUT implementation netlist includes, `$LIB_PATH`, PDK/foundry model includes, process-corner TODOs, or Cadence/Spectre hookup comments;
+* confirmation that `.control` includes/sources `mock_device.sp` and generated fixture;
 * confirmation that planned CSV/waveform files have valid CSV format;
 * blockers/limitations, if any;
 * next group;

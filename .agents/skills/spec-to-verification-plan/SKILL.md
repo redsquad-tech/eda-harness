@@ -8,7 +8,6 @@ description: Use this skill to create verification_plan.md from a specification.
 ## Inputs
 
 * Specification: PDF, Markdown, plain text, or another document format.
-* Optional DUT netlist: SPICE or HDL21.
 
 ## Output
 
@@ -52,7 +51,7 @@ Use this structure:
 
 ## DUT Interface and Signal Interpretation
 
-Extract the public DUT interface from the specification and cross-check it against the optional netlist.
+Extract the expected public DUT interface from the specification.
 
 Use this table:
 
@@ -79,7 +78,7 @@ dut = <module_name>(
 )
 ```
 
-If no netlist is provided, create the expected public contract from the specification pin list and state that the actual wrapper/pin order must be confirmed when the implementation netlist is connected.
+If the specification does not define a SPICE subckt name or pin order, choose a stable expected contract from the documented pins and document the assumption.
 
 ## Specification Interpretation Notes
 
@@ -96,7 +95,7 @@ Document only items that affect verification, for example:
 * signal polarity contradictions;
 * typos in pin names, metric names, or conditions;
 * inconsistent supply/signal naming;
-* mismatch between specification pin list and netlist ports;
+* unclear public pin list, pin direction, pin naming, or pin order;
 * unclear nominal condition;
 * unclear current sign convention;
 * unclear requirement scope;
@@ -128,13 +127,15 @@ Coverage strategy must follow the specification, the default PVT/corner policy, 
 * Apply PVT coverage to analog/performance requirements, DC/OP currents, thresholds, timing, AC metrics, transient metrics, regulation, startup, and mode behavior where operating conditions can affect pass/fail.
 * Do not apply PVT expansion where it is not physically or logically meaningful; document the reason in notes or condition coverage.
 * Use full-combination coverage for PVT according to the policy below. For non-PVT sweeps, use full combinations only when explicitly required or engineering-necessary.
-* Include Monte Carlo/statistical verification only when the specification defines variation, sigma, mismatch, yield, or another statistical requirement.
+* Include Monte Carlo/statistical verification only when the specification defines a statistical acceptance requirement, yield requirement, sigma limit, mismatch requirement, or explicitly requires Monte Carlo/statistical verification.
+* Do not create Monte Carlo/statistical acceptance testbench rows from simulated, historical, characterization, or reference-result tables alone. If statistical values are listed only as simulated/reference results, document them in notes but do not add runnable statistical coverage.
 * Do not add Monte Carlo runs as future placeholders if the specification does not require statistical verification. Process corners must follow the PVT/corner policy below.
 * For one-dimensional non-PVT sweeps, explicitly state that only one group of conditions changes and all other conditions remain nominal.
 
 Default PVT/corner policy:
 
 * If the specification defines PVT conditions, process corners, voltage values, temperature values, or named model sections, use the specification-defined coverage for those dimensions.
+* If the specification names process corners or model sections anywhere, including simulation-condition or reference-result sections, use those names as the logical process-corner identifiers for the plan. Using the names does not make the reference results acceptance limits.
 * If the specification defines only part of PVT/corner coverage, use the specification-defined dimensions and apply default coverage to the missing PVT dimensions.
 * If the specification does not define PVT/corner coverage, create default PVT coverage for every test where PVT variation is applicable and meaningful.
 * Default process corners are the required logical five-corner set: `tt`, `ff`, `ss`, `fs`, `sf`.
@@ -212,7 +213,7 @@ Before finishing, verify that:
 After creating or updating `verification_plan.md`, respond briefly with:
 
 * created/updated file name;
-* selected DUT contract;
+* expected DUT contract;
 * main requirement groups covered;
 * PVT/corner decisions and model convention;
 * Monte Carlo/statistical decision and why;

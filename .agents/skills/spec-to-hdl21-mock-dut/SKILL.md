@@ -1,13 +1,13 @@
 ---
 name: spec-to-hdl21-mock-dut
-description: Use this skill to create an HDL21 mock DUT and generated SPICE mock netlist from a specification, verification_plan.md, and an optional SPICE/HDL21 DUT netlist.
+description: Use this skill to create an HDL21 mock DUT and generated SPICE mock netlist from a specification and verification_plan.md.
 ---
 
 # Skill: Spec to HDL21 Mock DUT
 
 ## Purpose
 
-Create a mock DUT for testbench development and sanity-checking.
+Create the mock DUT used by the generated testbench flow.
 
 The mock DUT is not a real device implementation. It must match the public DUT contract from `verification_plan.md` and reproduce the external behavior needed for the measurements in the Acceptance Test Matrix in a simplified way.
 
@@ -15,7 +15,6 @@ The mock DUT is not a real device implementation. It must match the public DUT c
 
 * Specification.
 * `verification_plan.md`.
-* Optional DUT netlist: SPICE or HDL21, only to clarify the top name, public ports, and pin order.
 
 ## Output
 
@@ -32,7 +31,7 @@ mock_device.sp
 
 * The DUT contract is more important than the internal mock implementation.
 * Generated SPICE must contain a `.subckt`/top wrapper with the same name, public pins, and pin order expected by the testbenches.
-* If the specification, verification plan, and optional netlist disagree, use the contract from `verification_plan.md`.
+* Use the DUT contract from `verification_plan.md` as the source of truth for the mock public wrapper.
 * Do not use internal nodes of the real DUT as the public interface of the mock.
 * Do not include PDK/foundry models.
 * Do not require `$LIB_PATH` or any process model files for mock generation or the mock smoke check.
