@@ -17,6 +17,7 @@
 \newunicodechar{≤}{\ensuremath{\leq}}
 \newunicodechar{≥}{\ensuremath{\geq}}
 \newunicodechar{→}{\ensuremath{\rightarrow}}
+\newunicodechar{↔}{\ensuremath{\leftrightarrow}}
 \newunicodechar{≈}{\ensuremath{\approx}}
 \newunicodechar{↑}{\ensuremath{\uparrow}}
 \newunicodechar{↓}{\ensuremath{\downarrow}}
@@ -45,6 +46,10 @@
 \setlength{\emergencystretch}{3em}
 
 \providecommand{\tightlist}{\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+
+$if(highlighting-macros)$
+$highlighting-macros$
+$endif$
 
 \usepackage{titlesec}
 \setcounter{secnumdepth}{3}

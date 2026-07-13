@@ -1,4 +1,0 @@
-interface:
-  display_name: "HDL21 to PNG"
-  short_description: "Render HDL21 schematics as PNG"
-  default_prompt: "Use $hdl21-to-png to convert an HDL21 module into schematic PNG output."

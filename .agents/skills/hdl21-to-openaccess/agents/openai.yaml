@@ -1,4 +1,0 @@
-interface:
-  display_name: "HDL21 to OpenAccess"
-  short_description: "Convert HDL21 designs into OA JSON"
-  default_prompt: "Use $hdl21-to-openaccess to convert an HDL21 module into OpenAccess-style schematic JSON."

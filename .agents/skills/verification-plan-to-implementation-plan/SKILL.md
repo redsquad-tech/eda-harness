@@ -1,9 +1,13 @@
 ---
 name: verification-plan-to-implementation-plan
-description: Use this skill to create a concise testbench_implementation_plan.md from verification_plan.md.
+description: Use this skill alone, after verification_plan.md and the mock DUT exist, to obtain the target existing-or-new Cadence cell and create testbench_implementation_plan.md. Treat it as one isolated workflow stage and stop before implementing testbenches.
 ---
 
 # Skill: Verification Plan to Testbench Implementation Plan
+
+## Execution Boundary
+
+Execute only this skill in the current turn. A broad request for the whole workflow does not authorize later stages. If the skill pauses for user input, including the Cadence cell name, the answer authorizes only completion of this skill. After reporting the result, wait for a new user message explicitly requesting continuation.
 
 ## Purpose
 
@@ -13,10 +17,21 @@ The implementation plan must define the minimum set of future testbench groups, 
 
 Always write `testbench_implementation_plan.md` in English.
 
+## Shared Fixture Name Input
+
+Before creating or updating the implementation plan, obtain the target Cadence cell name from the user. The cell will usually already exist; a new cell is created later only when the named cell does not exist. If the target is not already known from the current conversation, ask the following complete question, translated into the user's language, and wait for the answer:
+
+> Which Cadence cell should the acceptance tests be imported into later? Provide the existing cell name, or a name for a new cell if it does not exist yet. The same name will be used for the top-level fixture `.SUBCKT` in every testbench group.
+
+The question must explicitly mention both choices: an existing cell name, or a new cell name only if the target cell does not exist. Do not shorten or paraphrase it as merely “What should the cell be named?” or “What cell name should be used?”.
+
+Do not create or update `testbench_implementation_plan.md` until the user provides the name. Treat it as the stable top-level fixture `.SUBCKT` contract. It does not rename or replace the DUT subckt.
+
 ## Inputs
 
 * `verification_plan.md` — the primary source for requirements, test matrix, DUT contract, metrics, and acceptance criteria.
 * Specification — only if needed to clarify requirement meaning.
+* User-provided shared top-level fixture name.
 
 ## Output
 
@@ -33,11 +48,24 @@ Use this short structure:
 ```markdown
 # <BLOCK_NAME> Testbench Implementation Plan
 
-## 1. Fixture Groups
-## 2. Planned Files and Outputs
-## 3. Implementation Order
-## 4. Assumptions / Blockers
+## 1. Fixture Naming Contract
+## 2. Fixture Groups
+## 3. Planned Files and Outputs
+## 4. Implementation Order
+## 5. Assumptions / Blockers
 ```
+
+## Fixture Naming Contract
+
+Record only the fixture name required by downstream generation:
+
+```markdown
+| Item | Value |
+|---|---|
+| Shared Top-Level Fixture Subckt | `<user-provided name>` |
+```
+
+All testbench groups in the plan must share this top-level fixture subckt name. Group identity remains in group names and file names.
 
 ## Fixture Groups
 
@@ -84,8 +112,10 @@ Rules:
 
 * Each testbench group is implemented by a separate HDL21 Python file.
 * The SPICE fixture is exported to the stable path `tests/<group_name>.sp`.
+* Every exported fixture must use the user-provided shared top-level fixture `.SUBCKT` name.
+* The shared fixture `.SUBCKT` name does not change the DUT subckt name or public DUT contract.
 * The SPICE fixture owns testbench topology and the public DUT instance only.
-* The SPICE fixture must not include/source `mock_device.sp`, DUT implementation netlists, `$LIB_PATH`, PDK/foundry model files, process-corner models, or Cadence/Spectre hookup comments.
+* The SPICE fixture must not include/source `mock_device.sp`, DUT implementation netlists, PDK/foundry model files, process-corner models, or Cadence/Spectre hookup comments.
 * The ngspice `.control` owns mock binding: it must include/source `mock_device.sp` and the generated SPICE fixture.
 * Run matrix, measurements, derived metrics, and pass/fail checks must be in `tests/<group_name>.control`.
 * Do not plan separate SPICE decks for each corner/run/condition.
@@ -97,11 +127,10 @@ Rules:
 * Do not plan simulator temperature as a fixture parameter. Temperature must be represented as simulator temperature in ngspice and as corner-level simulator temperature in Cadence/Maestro.
 * Do not plan process corner, run ID, case name, requirement name, sweep target, or ramp direction as fixture parameters. They are run/corner labels or metadata.
 * If a ramp direction or sweep target affects the waveform, plan numeric `TB_*` parameters for the actual source values and timing; keep direction/target as run metadata.
-* Preserve PVT/corner coverage from `verification_plan.md` as verification intent and downstream Cadence/Spectre export coverage.
-* For ngspice runs with the generated mock, do not require `$LIB_PATH`, PDK/foundry model files, or active process-corner model includes.
-* For ngspice runs with the generated mock, do not plan active process-corner model sweeps; keep process corners for Cadence/Spectre export using the model convention and corner identifiers from `verification_plan.md`.
+* Preserve process coverage from `verification_plan.md` exactly: copy explicit logical corner names when present, or keep `configured_process_corners` when the concrete set is deferred to the later Cadence model configuration.
+* Do not copy concrete PDK model paths or sections into the implementation plan.
+* For ngspice runs with the generated mock, do not require PDK/foundry model files or plan active process-corner model sweeps.
 * Public-pin voltage/reference/control/stimulus sweeps and simulator temperature sweeps should remain planned where meaningful.
-* Plan any deferred process-model note only in the future `.control`; do not put `$LIB_PATH` or process-corner TODO comments into generated SPICE fixtures.
 * If the group does not require waveform/sample export, write `none` in the last column.
 * If the group has analysis type `TRAN`, `AC`, `noise`, `stability`, `PSRR`, transient response, frequency response, or another waveform-like/probe-based analysis, always plan the waveform/probe artifact: `results/<group_name>_waveforms.csv`.
 * `results/<group_name>_samples.csv` may only be an additional artifact for compact sample/crossing/sweep/debug points. Do not use samples CSV as a replacement for waveform/probe CSV for TRAN/AC/waveform-like groups.
@@ -159,7 +188,7 @@ Briefly state only items that may block implementation:
 * unclear required waveform/sample export;
 * ambiguous requirements that were not resolved in `verification_plan.md`.
 
-Missing local PDK files or missing `$LIB_PATH` is not a blocker for ngspice implementation. Preserve the Cadence/Spectre model convention from `verification_plan.md`.
+Cadence PDK model files and sections are not inputs or blockers at this stage.
 
 State explicitly that generated SPICE fixtures must stay DUT-implementation independent: `mock_device.sp` belongs in `.control`, not in `tests/<group_name>.sp`.
 
@@ -171,6 +200,8 @@ If the group is TRAN/AC/waveform-like but it is unclear which signals to save, d
 
 Before finishing, verify that:
 
+* the user provided the shared top-level fixture name before the plan was written;
+* the fixture naming contract records that shared top-level fixture subckt name;
 * all requirements from `verification_plan.md` are included in fixture groups;
 * groups are not split without reason;
 * each group has future `.py`, `.sp`, `.control`, and CSV paths;
@@ -181,9 +212,8 @@ Before finishing, verify that:
 * simulator temperature, process corner, run ID, case name, sweep target, and ramp direction are not planned as fixture parameters;
 * measurements/pass-fail are planned in `.control`;
 * CSV outputs have stable paths;
-* PVT/corner intent from `verification_plan.md` is preserved for Cadence/Spectre export;
-* ngspice planning with the generated mock does not require `$LIB_PATH`, PDK/foundry models, or active process-corner model sweeps;
-* deferred process-model notes are planned only in `.control`, not in generated SPICE fixtures;
+* explicit logical process corners or `configured_process_corners`, plus the other PVT intent from `verification_plan.md`, are preserved for Cadence/Spectre export;
+* ngspice planning with the generated mock does not require PDK/foundry models or active process-corner model sweeps;
 * TRAN/AC/waveform-like groups have planned waveform/probe CSV; if it cannot be created, this is listed as a blocker;
 * sample/waveform CSVs are not mixed with metrics CSV;
 * multiple sample/waveform outputs in one table cell are separated with `;`;
@@ -195,10 +225,15 @@ Before finishing, verify that:
 Respond briefly with:
 
 * `testbench_implementation_plan.md` created/updated;
+* the shared top-level fixture `.SUBCKT`, while preserving the separate DUT subckt contract;
 * how many fixture groups were defined;
 * which future files and CSV outputs are planned;
 * which groups plan waveform/sample artifacts;
 * how fixture/DUT binding is split between `.sp` and `.control`;
 * which `TB_*` fixture parameters are planned and which run dimensions are not fixture parameters;
-* how PVT/process-corner intent is preserved for Cadence/Spectre export;
+* whether process coverage uses explicit logical corners or `configured_process_corners` for later Cadence/Spectre export;
 * whether there are assumptions/blockers.
+
+## Stage Boundary
+
+After completing this skill, stop, report the result to the user, and wait for explicit confirmation before invoking any downstream skill.

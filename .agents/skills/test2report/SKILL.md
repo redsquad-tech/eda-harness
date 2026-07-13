@@ -1,9 +1,13 @@
 ---
 name: test2report
-description: Generate analog verification reports from a verification-plan Markdown file, implementation plan, per-group metrics CSVs, logs, schematic images, and optional waveform/sample artifacts. Use when Codex must create a structured verification report with DUT description, grouped test results, conclusions, Markdown output, and PDF output when the local toolchain is available.
+description: Use this skill alone, when the user requests a report after ngspice results exist, to generate an analog verification report from plans, metrics, logs, and optional evidence. Treat it as one isolated workflow stage and stop before Cadence work.
 ---
 
 # Test Results To Report
+
+## Execution Boundary
+
+Execute only this skill in the current turn. A broad request for the whole workflow does not authorize Cadence stages. If the skill pauses for user input, the answer authorizes only completion of this report. After reporting the result, wait for a new user message explicitly requesting continuation.
 
 Use this skill as the final reporting stage of the spec-to-testbench pipeline. It turns a generated EDA acceptance suite into an English sign-off style report.
 
@@ -193,3 +197,7 @@ When changing this skill itself, validate the skill folder when the validator is
 python /home/tim/.codex/skills/.system/skill-creator/scripts/quick_validate.py \
   .agents/skills/test2report
 ```
+
+## Stage Boundary
+
+After completing this skill, stop, report the result to the user, and wait for explicit confirmation before invoking any downstream skill.

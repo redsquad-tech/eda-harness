@@ -1,9 +1,13 @@
 ---
 name: maestro-to-cadence
-description: Use this skill to assemble validated Maestro setup blocks into a final Cadence/Virtuoso acceptance library using the generated mock DUT as the placeholder implementation.
+description: Use this skill alone, after all Maestro setup blocks are validated, to assemble the final reusable Cadence/Virtuoso generator with the mock DUT placeholder. Treat it as one isolated final workflow stage.
 ---
 
 # Maestro To Cadence
+
+## Execution Boundary
+
+Execute only this skill in the current turn. If the skill pauses for user input, the answer authorizes only completion of this final assembly stage. After reporting the result, stop.
 
 Use this skill after all groups have validated Maestro setup files in:
 
@@ -11,7 +15,7 @@ Use this skill after all groups have validated Maestro setup files in:
 <workspace>/cadence_export/maestro_setup/<group>.il
 ```
 
-This stage creates one Cadence library with one cell per testbench group. Each cell gets `spectre`, `config`, and `maestro` views. The generated Spectre wrappers include `cadence_export/dut_placeholder.scs` as the placeholder DUT implementation, then switch to `simulator lang=spice` for each generated fixture.
+This stage generates a reusable `generate.il` for importing all testbench groups into the shared cell named by `Shared Top-Level Fixture Subckt` in `testbench_implementation_plan.md`. Each group gets namespaced Spectre and config views. One user-selected Maestro view contains all Maestro tests from all group setup blocks.
 
 ## Inputs
 
@@ -21,16 +25,17 @@ Expected files in the workspace:
 mock_device.sp
 tests/<group>.sp
 cadence_export/maestro_setup/<group>.il
+testbench_implementation_plan.md
+cadence_export/model_bindings.toml
+cadence_export/model_bindings.il
 ```
 
 ## Output
 
 ```text
-<workspace>/cds.lib
 <workspace>/cadence_export/dut_placeholder.scs
 <workspace>/cadence_export/generate.il
 <workspace>/cadence_export/spectre_wrappers/<group>.scs
-<workspace>/cadence_export/<workspace_name>_acceptance/
 ```
 
 ## Workflow
@@ -43,12 +48,13 @@ python3 scripts/create_generate_il.py \
   --workspace /absolute/path/to/<workspace>
 ```
 
-The script writes `cds.lib`, `cadence_export/dut_placeholder.scs`, Spectre wrapper files, and one `cadence_export/generate.il`.
+The script first verifies that `model_bindings.il` was compiled from the current `model_bindings.toml`. If the TOML changed after the Maestro groups were validated, stop and regenerate the bindings and group setups before assembling the final export. The script then writes `cadence_export/dut_placeholder.scs`, Spectre wrapper files, and one `cadence_export/generate.il`. The generated file loads `model_bindings.il` once before applying any group setup blocks. After all blocks are applied, it uses their `generatedCornerAssignments` registry to enable each generated corner only for its exact applicable tests, disables all other tests on that corner, and disables the Nominal corner before saving. It does not parse TOML in Virtuoso, create or modify `cds.lib`, or run Virtuoso.
 
 By default, `dut_placeholder.scs` points to the generated mock:
 
 ```spice
 simulator lang=spice
+* DUT implementation only; process-corner models are configured in model_bindings.toml.
 .include "../mock_device.sp"
 ```
 
@@ -60,46 +66,52 @@ Each generated wrapper includes the placeholder first and then switches back to 
 simulator lang=spice
 ```
 
-3. Run the generated Cadence script separately:
+3. Do not run `generate.il`. Give the user the applicable command below.
+
+For an existing library:
 
 ```bash
-cd /absolute/path/to/<workspace>
-virtuoso -nograph -restore cadence_export/generate.il
+cd /path/containing/cds.lib
+export CADENCE_LIBRARY_NAME=<existing_library_name>
+unset CADENCE_LIBRARY_PATH
+export CADENCE_VIEW_PREFIX=acceptance_
+export CADENCE_MAESTRO_VIEW_NAME=acceptance_maestro
+virtuoso -nograph -restore /absolute/path/to/<workspace>/cadence_export/generate.il
 ```
 
-Successful output ends with:
+For a new library:
+
+```bash
+cd /path/containing/cds.lib
+export CADENCE_LIBRARY_NAME=<new_library_name>
+export CADENCE_LIBRARY_PATH=/absolute/path/to/<new_library>
+export CADENCE_VIEW_PREFIX=acceptance_
+export CADENCE_MAESTRO_VIEW_NAME=acceptance_maestro
+virtuoso -nograph -restore /absolute/path/to/<workspace>/cadence_export/generate.il
+```
+
+`CADENCE_LIBRARY_NAME`, `CADENCE_VIEW_PREFIX`, and `CADENCE_MAESTRO_VIEW_NAME` are always required. `CADENCE_LIBRARY_PATH` is required only when that library name is not already registered. Successful execution ends with:
 
 ```text
 cadence generate PASS
 ```
 
-4. Check the final library:
-
-```bash
-find /absolute/path/to/<workspace>/cadence_export/<workspace_name>_acceptance -maxdepth 3 -type f | sort
-```
-
-Each group should have a fixture cell:
+The shared cell will contain:
 
 ```text
-<fixture_cell>/spectre/netlist.oa
-<fixture_cell>/config/expand.cfg
-<fixture_cell>/maestro/active.state
-<fixture_cell>/maestro/maestro.sdb
+<shared_cell>/<CADENCE_VIEW_PREFIX>spectre_<group>/netlist.oa
+<shared_cell>/<CADENCE_VIEW_PREFIX>config_<group>/expand.cfg
+<shared_cell>/<CADENCE_MAESTRO_VIEW_NAME>/active.state
+<shared_cell>/<CADENCE_MAESTRO_VIEW_NAME>/maestro.sdb
 ```
-
-5. Inspect `active.state` when needed to confirm analyses, outputs, and specs were preserved. Inspect `maestro.sdb` when needed to confirm corner count, model files, and native simulator temperature.
 
 ## Rules
 
-* Do not manually edit the generated Cadence database files.
-* Do not regenerate or rewrite the per-group Maestro setup blocks in this stage.
-* Keep one Cadence cell per testbench group.
-* Keep the generated library under `cadence_export/`.
-* Keep `cds.lib` at the workspace root.
-* Keep real-DUT replacement localized to `cadence_export/dut_placeholder.scs`; do not tell the user to edit generated wrappers or `generate.il`.
-* Run `generate.il` as a separate Virtuoso command.
-* Do not run full Spectre simulations unless the user asks.
+* Do not modify the validated per-group Maestro setup blocks during this stage.
+* Do not run `generate.il`, Virtuoso, or Spectre.
+* Tell the user to select the DUT only through `cadence_export/dut_placeholder.scs`.
+* Keep process-corner model files and sections in `cadence_export/model_bindings.toml`. The real DUT selected by `dut_placeholder.scs` must not select process corners internally.
+* Provide the `generate.il` launch command from the directory containing the user's `cds.lib`.
 
 ## Final Response
 
@@ -107,24 +119,24 @@ Report briefly:
 
 * generated `generate.il`;
 * generated `dut_placeholder.scs`;
-* final library path;
-* cells created;
-* views present for each cell;
-* analyses/outputs/corner counts if checked;
-* that the library was generated with the mock DUT placeholder by default;
+* the shared cell name and the `CADENCE_VIEW_PREFIX` / `CADENCE_MAESTRO_VIEW_NAME` naming convention;
+* that `generate.il` uses the mock DUT placeholder by default;
 * that the DUT implementation is selected only by `<workspace>/cadence_export/dut_placeholder.scs`;
 * show the current mock placeholder contents:
 
 ```spice
 simulator lang=spice
+* DUT implementation only; process-corner models are configured in model_bindings.toml.
 .include "../mock_device.sp"
 ```
 
 * explain that to use a real DUT, the user replaces the entire contents of `cadence_export/dut_placeholder.scs`; do not tell the user to edit `generate.il`, `spectre_wrappers/*.scs`, or generated Cadence database files;
+* warn that the selected real DUT netlist must not include or select process-corner models. Put those model files and sections in `model_bindings.toml` so Maestro owns process selection. Ordinary DUT implementation includes that do not select process models may remain in the DUT netlist;
 * for a real Spectre DUT, use this placeholder shape:
 
 ```spice
 simulator lang=spectre
+// DUT implementation only; process-corner models are configured in model_bindings.toml.
 include "/private/path/to/real_dut.scs"
 ```
 
@@ -132,6 +144,7 @@ include "/private/path/to/real_dut.scs"
 
 ```spice
 simulator lang=spice
+* DUT implementation only; process-corner models are configured in model_bindings.toml.
 .include "/private/path/to/real_dut.sp"
 ```
 
@@ -144,12 +157,10 @@ simulator lang=spice
 ```
 
 * explain that the file included by `dut_placeholder.scs` must define that exact subckt name and pin order. If the private DUT uses a different name or pin order, the user should make `dut_placeholder.scs` include the private netlist and define a local adapter wrapper with the required public subckt contract around the private DUT;
-* after editing `cadence_export/dut_placeholder.scs` in the same generated workspace, tell the user to reopen or refresh Virtuoso/ADE;
-* if the workspace was moved/copied to another path, or if the user needs to rebuild the generated Cadence export, tell them to rerun the final Cadence export stage from that workspace root. Use a portable command in the final response, not the current machine's absolute path:
-
-```bash
-cd <workspace>
-virtuoso -nograph -restore cadence_export/generate.il
-```
-
+* provide both launch commands from the directory containing the user's `cds.lib`;
+* state that Codex generated but did not execute `generate.il`;
 * any blockers or warnings.
+
+## Stage Boundary
+
+After completing this skill, stop and report the result to the user. Do not invoke another workflow skill in the same turn.

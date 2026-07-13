@@ -1,9 +1,13 @@
 ---
 name: spec-to-hdl21-mock-dut
-description: Use this skill to create an HDL21 mock DUT and generated SPICE mock netlist from a specification and verification_plan.md.
+description: Use this skill alone, after verification_plan.md exists, to create an HDL21 mock DUT and generated SPICE mock netlist. Treat it as one isolated workflow stage and stop before implementation-plan or testbench work.
 ---
 
 # Skill: Spec to HDL21 Mock DUT
+
+## Execution Boundary
+
+Execute only this skill in the current turn. A broad request for the whole workflow does not authorize later stages. If the skill pauses for user input, the answer authorizes only completion of this skill. After reporting the result, wait for a new user message explicitly requesting continuation.
 
 ## Purpose
 
@@ -33,8 +37,7 @@ mock_device.sp
 * Generated SPICE must contain a `.subckt`/top wrapper with the same name, public pins, and pin order expected by the testbenches.
 * Use the DUT contract from `verification_plan.md` as the source of truth for the mock public wrapper.
 * Do not use internal nodes of the real DUT as the public interface of the mock.
-* Do not include PDK/foundry models.
-* Do not require `$LIB_PATH` or any process model files for mock generation or the mock smoke check.
+* Keep the mock independent of PDK/foundry models and Cadence model configuration.
 * The mock must be deterministic, fast, and simulator-friendly.
 * Mock values must be inside acceptance limits with reasonable margin, not on the boundary.
 
@@ -84,7 +87,6 @@ The mock must work correctly across public-pin conditions/runs listed in `verifi
 
 * If a supply/reference/control pin is swept, the mock must respond to that public pin or preserve valid measurable behavior across the full sweep range.
 * If temperature is swept, the mock must remain runnable and measurable across the temperature range, but it does not need to model real temperature physics.
-* If process corners are listed, treat them as downstream Cadence/Spectre coverage intent only. The mock must not include process models, require `$LIB_PATH`, or pretend to model process-corner effects.
 * If there is a mode control, bypass, enable, reset, or test mode, the mock must explicitly implement this public-pin logic.
 * If there are supply-current checks, the mock must create measurable current through the corresponding supply pins with the correct magnitude and stable sign convention.
 * If there are AC tests, the mock must have an AC-observable path sufficient for metric extraction.
@@ -103,7 +105,7 @@ The smoke deck is only used to check that `mock_device.sp` parses, instantiates,
 The smoke deck must:
 
 * include `mock_device.sp`;
-* not include PDK/foundry models or `$LIB_PATH`;
+* not include PDK/foundry models;
 * instantiate the mock DUT with the exact public DUT contract and pin order;
 * drive all supply, ground, analog input, digital/control, reference, bias, enable/reset pins to safe nominal values from `verification_plan.md`;
 * connect required public feedback pins according to the nominal operating setup, if such pins exist;
@@ -137,7 +139,6 @@ Before finishing, verify that:
 * planned checks from the Acceptance Test Matrix have supported mock behavior;
 * measured outputs/currents will be measurable where needed;
 * swept public-pin supplies/references/controls are supported or remain measurable over their ranges;
-* process corners do not require PDK models, `$LIB_PATH`, or real corner behavior in the mock;
 * the mock does not require PDK/foundry includes;
 * no internal DUT nodes are used;
 * the ngspice smoke check passed;
@@ -152,4 +153,8 @@ Respond briefly with:
 * which planned checks are supported by the mock behavior;
 * whether SPICE was generated through the HDL21 flow;
 * whether the ngspice smoke check passed;
-* remaining limitations/blockers, if any, including that process-corner effects are not modeled by the mock.
+* remaining limitations/blockers, if any.
+
+## Stage Boundary
+
+After completing this skill, stop, report the result to the user, and wait for explicit confirmation before invoking any downstream skill.
