@@ -85,22 +85,24 @@ For an existing library:
 
 ```bash
 cd /path/containing/cds.lib
+export CADENCE_EXPORT_DIR=/absolute/path/to/<workspace>/cadence_export
 export CADENCE_LIBRARY_NAME=<existing_library_name>
 unset CADENCE_LIBRARY_PATH
 export CADENCE_VIEW_PREFIX=acceptance_
 export CADENCE_MAESTRO_VIEW_NAME=acceptance_maestro
-virtuoso -nograph -restore /absolute/path/to/<workspace>/cadence_export/generate.il
+virtuoso -nograph -restore "$CADENCE_EXPORT_DIR/generate.il"
 ```
 
 For a new library registered through that `cds.lib`:
 
 ```bash
 cd /path/containing/cds.lib
+export CADENCE_EXPORT_DIR=/absolute/path/to/<workspace>/cadence_export
 export CADENCE_LIBRARY_NAME=<new_library_name>
 export CADENCE_LIBRARY_PATH=/absolute/path/to/<new_library_directory>
 export CADENCE_VIEW_PREFIX=acceptance_
 export CADENCE_MAESTRO_VIEW_NAME=acceptance_maestro
-virtuoso -nograph -restore /absolute/path/to/<workspace>/cadence_export/generate.il
+virtuoso -nograph -restore "$CADENCE_EXPORT_DIR/generate.il"
 ```
 
 The existing library and cell are reused; missing ones are created. Generated Spectre/config views use the required prefix. The selected Maestro view is opened in append mode, so use a new Maestro view name or remove the previous generated view when intentionally replacing an older test/corner matrix.

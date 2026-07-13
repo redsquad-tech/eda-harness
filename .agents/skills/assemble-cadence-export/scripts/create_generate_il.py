@@ -39,7 +39,7 @@ def verify_model_bindings(config: Path, bindings: Path) -> None:
     if not bindings.is_file():
         raise SystemExit(
             f"missing generated model bindings: {bindings}; "
-            "complete the control-to-maestro model-binding step first"
+            "complete the create-maestro-setup-block model-binding step first"
         )
     text = bindings.read_text(encoding="utf-8", errors="replace")
     match = re.search(r"(?m)^; Source SHA-256: ([0-9a-f]{64})$", text)
@@ -86,20 +86,21 @@ def main() -> int:
         ".include \"../mock_device.sp\"\n",
     )
     body = [
-        f"load({skill_str(model_bindings)})",
-        "",
-        "let((cfg status sess lib libPath libObj cdsLib cell viewPrefix maestroView",
+        "let((cfg status sess lib libPath libObj cdsLib cell viewPrefix maestroView exportDir wrapperPath",
         "      generatedCornerAssignments allTests assignment cornerName desiredTests",
         "      disabledTests existingTest)",
+        '  exportDir = getShellEnvVar("CADENCE_EXPORT_DIR")',
         '  lib = getShellEnvVar("CADENCE_LIBRARY_NAME")',
         '  libPath = getShellEnvVar("CADENCE_LIBRARY_PATH")',
         '  viewPrefix = getShellEnvVar("CADENCE_VIEW_PREFIX")',
         '  maestroView = getShellEnvVar("CADENCE_MAESTRO_VIEW_NAME")',
         '  cdsLib = "cds.lib"',
         f"  cell = {skill_str(cell)}",
+        '  unless(exportDir && strlen(exportDir) > 0 error("CADENCE_EXPORT_DIR is not set\\n"))',
         '  unless(lib && strlen(lib) > 0 error("CADENCE_LIBRARY_NAME is not set\\n"))',
         '  unless(viewPrefix && strlen(viewPrefix) > 0 error("CADENCE_VIEW_PREFIX is not set\\n"))',
         '  unless(maestroView && strlen(maestroView) > 0 error("CADENCE_MAESTRO_VIEW_NAME is not set\\n"))',
+        '  load(strcat(exportDir "/model_bindings.il"))',
         "  libObj = ddGetObj(lib)",
         "  if(libObj then",
         '    printf("Using existing library %s\\n" lib)',
@@ -127,18 +128,19 @@ def main() -> int:
         if "generatedCornerAssignments" not in block:
             raise SystemExit(
                 f"Maestro setup does not register corner-to-test assignments: {maestro}; "
-                "regenerate this group with control-to-maestro"
+                "regenerate this group with create-maestro-setup-block"
             )
         group_data.append((group, wrapper, block))
 
-    for group, wrapper, _ in group_data:
+    for group, _, _ in group_data:
         body.append(
             f"""  let((spectreView configView)
     spectreView = strcat(viewPrefix {skill_str(f"spectre_{group}")})
     configView = strcat(viewPrefix {skill_str(f"config_{group}")})
+    wrapperPath = strcat(exportDir {skill_str(f"/spectre_wrappers/{group}.scs")})
 
     when(ddGetObj(lib cell spectreView) ddDeleteObj(ddGetObj(lib cell spectreView)))
-    status = system(strcat("cdsTextTo5x -CDSLIB " cdsLib " -LIB " lib " -CELL " cell " -VIEW " spectreView " -LANG spectre " {skill_str(wrapper)}))
+    status = system(strcat("cdsTextTo5x -CDSLIB " cdsLib " -LIB " lib " -CELL " cell " -VIEW " spectreView " -LANG spectre \\"" wrapperPath "\\""))
     unless(status == 0 error("cdsTextTo5x failed for {group}\\n"))
 
     when(ddGetObj(lib cell configView) ddDeleteObj(ddGetObj(lib cell configView)))

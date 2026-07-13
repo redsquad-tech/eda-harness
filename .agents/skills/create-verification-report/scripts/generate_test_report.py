@@ -480,7 +480,7 @@ def generate_plot_if_possible(csv_path: Path, output_path: Path, title: str) -> 
 
     import os
 
-    os.environ.setdefault("MPLCONFIGDIR", "/tmp/matplotlib-test2report")
+    os.environ.setdefault("MPLCONFIGDIR", "/tmp/matplotlib-create-verification-report")
     import matplotlib
 
     matplotlib.use("Agg")

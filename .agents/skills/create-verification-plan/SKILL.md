@@ -1,9 +1,9 @@
 ---
-name: spec-to-verification-plan
-description: Use this skill alone to create verification_plan.md from a specification. Treat it as one isolated workflow stage and stop before any mock-DUT, implementation-plan, testbench, report, or Cadence work.
+name: create-verification-plan
+description: Create, update, or repair verification_plan.md from a specification. Use when specification-based acceptance-testbench work needs an initial verification plan, or when the existing plan must be changed or reconciled with the specification. Treat this as one isolated workflow stage; stop and report after completion.
 ---
 
-# Skill: Spec to Verification Plan
+# Create Verification Plan
 
 ## Execution Boundary
 

@@ -1,9 +1,9 @@
 ---
-name: maestro-to-cadence
-description: Use this skill alone, after all Maestro setup blocks are validated, to assemble the final reusable Cadence/Virtuoso generator with the mock DUT placeholder. Treat it as one isolated final workflow stage.
+name: assemble-cadence-export
+description: Assemble, update, or regenerate the final Cadence/Virtuoso export, including cadence_export/generate.il, dut_placeholder.scs, and Spectre wrappers, from validated per-group Maestro setup blocks. Use when all required Maestro blocks are valid and the final export is missing or stale, or when the user explicitly requests final Cadence assembly or reassembly. Treat this as one isolated workflow stage; stop and report after completion.
 ---
 
-# Maestro To Cadence
+# Assemble Cadence Export
 
 ## Execution Boundary
 
@@ -48,7 +48,7 @@ python3 scripts/create_generate_il.py \
   --workspace /absolute/path/to/<workspace>
 ```
 
-The script first verifies that `model_bindings.il` was compiled from the current `model_bindings.toml`. If the TOML changed after the Maestro groups were validated, stop and regenerate the bindings and group setups before assembling the final export. The script then writes `cadence_export/dut_placeholder.scs`, Spectre wrapper files, and one `cadence_export/generate.il`. The generated file loads `model_bindings.il` once before applying any group setup blocks. After all blocks are applied, it uses their `generatedCornerAssignments` registry to enable each generated corner only for its exact applicable tests, disables all other tests on that corner, and disables the Nominal corner before saving. It does not parse TOML in Virtuoso, create or modify `cds.lib`, or run Virtuoso.
+The script first verifies that `model_bindings.il` was compiled from the current `model_bindings.toml`. If the TOML changed after the Maestro groups were validated, stop and regenerate the bindings and group setups before assembling the final export. The script then writes `cadence_export/dut_placeholder.scs`, Spectre wrapper files, and one `cadence_export/generate.il`. At run time, the generated file resolves `model_bindings.il` and all Spectre wrappers from the required `CADENCE_EXPORT_DIR` instead of embedding the workspace's absolute path. After all blocks are applied, it uses their `generatedCornerAssignments` registry to enable each generated corner only for its exact applicable tests, disables all other tests on that corner, and disables the Nominal corner before saving. It does not parse TOML in Virtuoso, create or modify `cds.lib`, or run Virtuoso.
 
 By default, `dut_placeholder.scs` points to the generated mock:
 
@@ -72,25 +72,39 @@ For an existing library:
 
 ```bash
 cd /path/containing/cds.lib
+export CADENCE_EXPORT_DIR=/absolute/path/to/<workspace>/cadence_export
 export CADENCE_LIBRARY_NAME=<existing_library_name>
 unset CADENCE_LIBRARY_PATH
 export CADENCE_VIEW_PREFIX=acceptance_
 export CADENCE_MAESTRO_VIEW_NAME=acceptance_maestro
-virtuoso -nograph -restore /absolute/path/to/<workspace>/cadence_export/generate.il
+virtuoso -nograph -restore "$CADENCE_EXPORT_DIR/generate.il"
 ```
 
 For a new library:
 
 ```bash
 cd /path/containing/cds.lib
+export CADENCE_EXPORT_DIR=/absolute/path/to/<workspace>/cadence_export
 export CADENCE_LIBRARY_NAME=<new_library_name>
 export CADENCE_LIBRARY_PATH=/absolute/path/to/<new_library>
 export CADENCE_VIEW_PREFIX=acceptance_
 export CADENCE_MAESTRO_VIEW_NAME=acceptance_maestro
-virtuoso -nograph -restore /absolute/path/to/<workspace>/cadence_export/generate.il
+virtuoso -nograph -restore "$CADENCE_EXPORT_DIR/generate.il"
 ```
 
-`CADENCE_LIBRARY_NAME`, `CADENCE_VIEW_PREFIX`, and `CADENCE_MAESTRO_VIEW_NAME` are always required. `CADENCE_LIBRARY_PATH` is required only when that library name is not already registered. Successful execution ends with:
+`CADENCE_EXPORT_DIR`, `CADENCE_LIBRARY_NAME`, `CADENCE_VIEW_PREFIX`, and `CADENCE_MAESTRO_VIEW_NAME` are always required. `CADENCE_EXPORT_DIR` must be the absolute path to the directory containing `generate.il`. `CADENCE_LIBRARY_PATH` is required only when that library name is not already registered.
+
+When presenting the launch command, explain every environment variable:
+
+* `CADENCE_EXPORT_DIR` is the absolute path to the generated `cadence_export` directory containing `generate.il`, `model_bindings.il`, and `spectre_wrappers/`.
+* `CADENCE_LIBRARY_NAME` is the target Cadence library name. It names either an already registered library to reuse or the new library to create.
+* `CADENCE_LIBRARY_PATH` is the absolute filesystem path where a new library is created. It must be unset when reusing an existing registered library.
+* `CADENCE_VIEW_PREFIX` is the namespace prefix added to every generated Spectre and config view so generated views do not collide with unrelated user views.
+* `CADENCE_MAESTRO_VIEW_NAME` is the exact name of the shared Maestro view that receives all generated tests.
+
+Explain that an absolute path shown in `CADENCE_EXPORT_DIR` is the value for the workspace's current location, not a path embedded in `generate.il`; if the workspace is moved, the user updates this variable.
+
+Successful execution ends with:
 
 ```text
 cadence generate PASS
@@ -158,6 +172,7 @@ simulator lang=spice
 
 * explain that the file included by `dut_placeholder.scs` must define that exact subckt name and pin order. If the private DUT uses a different name or pin order, the user should make `dut_placeholder.scs` include the private netlist and define a local adapter wrapper with the required public subckt contract around the private DUT;
 * provide both launch commands from the directory containing the user's `cds.lib`;
+* explain the purpose of every environment variable in those commands and which variables differ between an existing and a new library;
 * state that Codex generated but did not execute `generate.il`;
 * any blockers or warnings.
 

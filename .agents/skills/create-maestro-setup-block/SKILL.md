@@ -1,9 +1,9 @@
 ---
-name: control-to-maestro
-description: Use this skill alone, after an ngspice testbench group is complete, to create and validate its Maestro/ADE setup block. Process exactly one group per turn and stop before another group or final Cadence assembly.
+name: create-maestro-setup-block
+description: Create, update, or revalidate exactly one per-group Maestro/ADE setup block under cadence_export/maestro_setup/ from completed ngspice testbench artifacts. Use when the user asks to translate one ngspice testbench group into Maestro/ADE or to correct or revalidate an existing block. For normal forward continuation without a named group, use only after all planned ngspice groups are complete. Stop and report after that group.
 ---
 
-# Control To Maestro
+# Create Maestro Setup Block
 
 ## Execution Boundary
 

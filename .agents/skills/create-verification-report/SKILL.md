@@ -1,9 +1,9 @@
 ---
-name: test2report
-description: Use this skill alone, when the user requests a report after ngspice results exist, to generate an analog verification report from plans, metrics, logs, and optional evidence. Treat it as one isolated workflow stage and stop before Cadence work.
+name: create-verification-report
+description: Create, update, or repair analog verification report artifacts, including test_report.md and a PDF when available, from existing plans, ngspice metrics, logs, and optional evidence. Use only when the user explicitly requests a report, an update to an existing report, or regeneration after source results change. Treat this as one isolated workflow stage; stop and report after completion.
 ---
 
-# Test Results To Report
+# Create Verification Report
 
 ## Execution Boundary
 
@@ -58,7 +58,7 @@ Do not write a vague “all good” conclusion when failures, missing numeric va
 From the verification-suite root:
 
 ```bash
-python .agents/skills/test2report/scripts/generate_test_report.py \
+python .agents/skills/create-verification-report/scripts/generate_test_report.py \
   --suite-root . \
   --output test_report.md \
   --pdf
@@ -81,7 +81,7 @@ results/all_metrics.csv
 Use an explicit metrics CSV only when the user asks for one:
 
 ```bash
-python .agents/skills/test2report/scripts/generate_test_report.py \
+python .agents/skills/create-verification-report/scripts/generate_test_report.py \
   --suite-root . \
   --results-csv results/all_metrics.csv \
   --output test_report.md
@@ -195,7 +195,7 @@ When changing this skill itself, validate the skill folder when the validator is
 
 ```bash
 python /home/tim/.codex/skills/.system/skill-creator/scripts/quick_validate.py \
-  .agents/skills/test2report
+  .agents/skills/create-verification-report
 ```
 
 ## Stage Boundary

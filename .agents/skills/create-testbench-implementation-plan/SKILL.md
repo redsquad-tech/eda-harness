@@ -1,9 +1,9 @@
 ---
-name: verification-plan-to-implementation-plan
-description: Use this skill alone, after verification_plan.md and the mock DUT exist, to obtain the target existing-or-new Cadence cell and create testbench_implementation_plan.md. Treat it as one isolated workflow stage and stop before implementing testbenches.
+name: create-testbench-implementation-plan
+description: Create, update, or repair testbench_implementation_plan.md from existing verification_plan.md and mock DUT artifacts, obtaining the target existing-or-new Cadence cell when needed. Use when the implementation plan is missing, stale, or explicitly requested for correction. Treat this as one isolated workflow stage; stop and report after completion.
 ---
 
-# Skill: Verification Plan to Testbench Implementation Plan
+# Create Testbench Implementation Plan
 
 ## Execution Boundary
 

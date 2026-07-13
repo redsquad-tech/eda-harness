@@ -1,9 +1,9 @@
 ---
-name: implementation-plan-to-testbenches
-description: Use this skill alone, after testbench_implementation_plan.md and the mock DUT exist, to implement exactly one ngspice testbench group per turn. Stop after the group and never proceed to reporting or Cadence work without a new user request.
+name: implement-ngspice-testbench-group
+description: Implement, update, or repair exactly one ngspice testbench group using existing verification_plan.md, testbench_implementation_plan.md, and mock DUT artifacts. Use for the next incomplete or stale group, or one explicitly requested for correction, including its HDL21 source, SPICE fixture, control file, and result outputs. Stop and report after that group.
 ---
 
-# Skill: Implementation Plan to Testbenches
+# Implement Ngspice Testbench Group
 
 ## Execution Boundary
 

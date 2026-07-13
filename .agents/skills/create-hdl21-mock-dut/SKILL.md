@@ -1,9 +1,9 @@
 ---
-name: spec-to-hdl21-mock-dut
-description: Use this skill alone, after verification_plan.md exists, to create an HDL21 mock DUT and generated SPICE mock netlist. Treat it as one isolated workflow stage and stop before implementation-plan or testbench work.
+name: create-hdl21-mock-dut
+description: Create, update, or repair mock_device.py and generated mock_device.sp from a specification and existing verification_plan.md. Use when the mock DUT is missing, stale, or explicitly requested for correction. Treat this as one isolated workflow stage; stop and report after completion.
 ---
 
-# Skill: Spec to HDL21 Mock DUT
+# Create HDL21 Mock DUT
 
 ## Execution Boundary
 
