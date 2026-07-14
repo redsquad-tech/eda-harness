@@ -1,4 +1,0 @@
-interface:
-  display_name: "OpenAccess to HDL21"
-  short_description: "Convert OA schematic JSON into HDL21"
-  default_prompt: "Use $openaccess-to-hdl21 to convert OA schematic JSON into HDL21 source."

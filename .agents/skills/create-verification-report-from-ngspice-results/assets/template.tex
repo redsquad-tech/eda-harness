@@ -1,0 +1,106 @@
+% Verification report template for pandoc + XeLaTeX/LuaLaTeX
+\documentclass[12pt]{extarticle}
+\PassOptionsToPackage{hyphens}{url}
+
+\usepackage{fontspec}
+\usepackage{polyglossia}
+\setmainlanguage{english}
+\setotherlanguage{russian}
+\setmainfont{Noto Serif}
+\newfontfamily\cyrillicfont{Noto Serif}
+\setmonofont{DejaVu Sans Mono}
+\newfontfamily\cyrillicfonttt{DejaVu Sans Mono}
+
+\usepackage{unicode-math}
+\setmathfont{Latin Modern Math}
+\usepackage{newunicodechar}
+\newunicodechar{≤}{\ensuremath{\leq}}
+\newunicodechar{≥}{\ensuremath{\geq}}
+\newunicodechar{→}{\ensuremath{\rightarrow}}
+\newunicodechar{↔}{\ensuremath{\leftrightarrow}}
+\newunicodechar{≈}{\ensuremath{\approx}}
+\newunicodechar{↑}{\ensuremath{\uparrow}}
+\newunicodechar{↓}{\ensuremath{\downarrow}}
+
+\usepackage{pdflscape}
+\usepackage{longtable}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{calc}
+\usepackage{geometry}
+\geometry{a4paper,left=25mm,right=18mm,top=20mm,bottom=20mm}
+
+\usepackage{setspace}
+\onehalfspacing
+\setlength{\parindent}{1.25cm}
+\setlength{\parskip}{0pt}
+
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{needspace}
+\usepackage{placeins}
+\usepackage{fancyhdr}
+\usepackage[hidelinks,breaklinks=true]{hyperref}
+\usepackage{xurl}
+\urlstyle{same}
+\setlength{\emergencystretch}{3em}
+
+\providecommand{\tightlist}{\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+
+$if(highlighting-macros)$
+$highlighting-macros$
+$endif$
+
+\usepackage{titlesec}
+\setcounter{secnumdepth}{3}
+\setcounter{tocdepth}{3}
+\titleformat{\section}{\normalfont\bfseries\normalsize}{\thesection}{1em}{}
+\titleformat{\subsection}{\normalfont\bfseries\normalsize}{\thesubsection}{0.75em}{}
+\titleformat{\subsubsection}{\normalfont\normalsize}{\thesubsubsection}{0.75em}{}
+\titlespacing*{\section}{0pt}{*4}{*2}
+\titlespacing*{\subsection}{0pt}{*3}{*1.5}
+\titlespacing*{\subsubsection}{0pt}{*2}{*1}
+
+% Keep report images in-place and preserve aspect ratio.
+\setkeys{Gin}{keepaspectratio}
+\newcommand{\reportimage}[3]{%
+  \begin{center}
+    \includegraphics[width=#2,height=#3,keepaspectratio]{#1}
+  \end{center}
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\includegraphics[height=0.75cm]{$if(logo_path)$$logo_path$$else$logo.png$endif$}}
+\fancyfoot[C]{\thepage}
+
+\begin{document}
+
+\begin{titlepage}
+\thispagestyle{empty}
+\begin{center}
+\includegraphics[height=1.8cm]{$if(logo_path)$$logo_path$$else$logo.png$endif$}\\[1.6cm]
+
+$if(company)$
+{\large $company$}\\[0.5cm]
+$endif$
+
+{\small Verification report}\\[2.2cm]
+{\bfseries\LARGE $title$}\\[0.8cm]
+{\Large $subtitle$}\\[3cm]
+
+\vfill
+$if(city)$$city$, $endif$$if(year)$$year$$endif$
+\end{center}
+\end{titlepage}
+
+\pagestyle{fancy}
+
+$if(toc)$
+\tableofcontents
+\newpage
+$endif$
+
+$body$
+
+\end{document}
