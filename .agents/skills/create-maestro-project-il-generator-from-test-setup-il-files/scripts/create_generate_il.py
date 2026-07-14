@@ -39,7 +39,7 @@ def verify_model_bindings(config: Path, bindings: Path) -> None:
     if not bindings.is_file():
         raise SystemExit(
             f"missing generated model bindings: {bindings}; "
-            "complete the create-maestro-setup-block model-binding step first"
+            "complete the create-maestro-test-setup-il-from-ngspice-group model-binding step first"
         )
     text = bindings.read_text(encoding="utf-8", errors="replace")
     match = re.search(r"(?m)^; Source SHA-256: ([0-9a-f]{64})$", text)
@@ -128,7 +128,7 @@ def main() -> int:
         if "generatedCornerAssignments" not in block:
             raise SystemExit(
                 f"Maestro setup does not register corner-to-test assignments: {maestro}; "
-                "regenerate this group with create-maestro-setup-block"
+                "regenerate this group with create-maestro-test-setup-il-from-ngspice-group"
             )
         group_data.append((group, wrapper, block))
 

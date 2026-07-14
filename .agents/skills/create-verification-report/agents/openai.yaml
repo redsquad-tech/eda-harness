@@ -1,4 +1,0 @@
-interface:
-  display_name: "Create Verification Report"
-  short_description: "Build reports from analog verification results"
-  default_prompt: "Use $create-verification-report to create a Markdown and PDF verification report from the existing plans, metrics, logs, and evidence."

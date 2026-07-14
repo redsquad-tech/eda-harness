@@ -1,6 +1,6 @@
 ---
-name: implement-ngspice-testbench-group
-description: Implement, update, or repair exactly one ngspice testbench group using existing verification_plan.md, testbench_implementation_plan.md, and mock DUT artifacts. Use for the next incomplete or stale group, or one explicitly requested for correction, including its HDL21 source, SPICE fixture, control file, and result outputs. Stop and report after that group.
+name: create-ngspice-testbench-group-from-implementation-plan
+description: Create or revise one ngspice testbench group from a completed verification_plan.md, completed testbench_implementation_plan.md, and completed mock DUT artifacts. The completed group includes its HDL21 source, generated SPICE fixture, ngspice control file, simulation log, metrics CSV, and any planned sample or waveform CSV files, with the required run matrix executed and every metric reported as pass, fail, or explicitly unmeasurable. Use when the user requests an ngspice acceptance test, or when the plans and mock DUT are complete and a planned group is missing, incomplete, or inconsistent with them. Process exactly one group per invocation and stop after reporting it.
 ---
 
 # Implement Ngspice Testbench Group

@@ -1,6 +1,6 @@
 ---
-name: create-testbench-implementation-plan
-description: Create, update, or repair testbench_implementation_plan.md from existing verification_plan.md and mock DUT artifacts, obtaining the target existing-or-new Cadence cell when needed. Use when the implementation plan is missing, stale, or explicitly requested for correction. Treat this as one isolated workflow stage; stop and report after completion.
+name: create-testbench-implementation-plan-from-verification-plan
+description: Create or revise testbench_implementation_plan.md from a completed verification_plan.md, completed mock DUT artifacts, and a user-confirmed target Cadence cell name that may refer to an existing cell or a new cell to create later. The completed plan groups all acceptance checks into the minimum set of ngspice testbench groups and defines the shared fixture name, stable file paths, TB_* parameters, CSV schemas, and implementation order. Use when the user requests a testbench implementation plan, or when the verification plan and mock DUT are complete and the implementation plan is missing, incomplete, or inconsistent with them. Complete only the implementation plan and stop after reporting it.
 ---
 
 # Create Testbench Implementation Plan

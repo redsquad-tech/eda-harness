@@ -1,6 +1,6 @@
 ---
-name: create-verification-plan
-description: Create, update, or repair verification_plan.md from a specification. Use when specification-based acceptance-testbench work needs an initial verification plan, or when the existing plan must be changed or reconciled with the specification. Treat this as one isolated workflow stage; stop and report after completion.
+name: create-verification-plan-from-spec
+description: Create or revise verification_plan.md from an analog block specification. The completed plan defines the public DUT subcircuit contract, acceptance-test matrix, stimuli, measurements, pass/fail limits, PVT/process coverage, and unresolved blockers. Use when the user requests a verification plan, or when a specification is available and its plan is missing, incomplete, or inconsistent. Complete only the plan and stop after reporting it.
 ---
 
 # Create Verification Plan

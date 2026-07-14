@@ -1,6 +1,6 @@
 ---
-name: create-maestro-setup-block
-description: Create, update, or revalidate exactly one per-group Maestro/ADE setup block under cadence_export/maestro_setup/ from completed ngspice testbench artifacts. Use when the user asks to translate one ngspice testbench group into Maestro/ADE or to correct or revalidate an existing block. For normal forward continuation without a named group, use only after all planned ngspice groups are complete. Stop and report after that group.
+name: create-maestro-test-setup-il-from-ngspice-group
+description: Create or revise one per-group Maestro test setup IL file under cadence_export/maestro_setup/ from completed verification and implementation plans and completed ngspice testbench artifacts, using model_bindings.toml when process coverage is required. The completed IL file creates and configures one or more Maestro tests for the group, preserving its analyses, design variables, outputs, acceptance limits, run matrix, temperatures, process corners, and model bindings, and passes temporary Virtuoso Maestro setup validation. Use when the user requests export of a specific ngspice testbench group to Cadence Maestro, or, for normal workflow continuation, when all planned ngspice groups are complete and the next per-group Maestro setup IL file is missing, incomplete, or inconsistent with its source artifacts. Process exactly one group per invocation and stop after reporting it.
 ---
 
 # Create Maestro Setup Block

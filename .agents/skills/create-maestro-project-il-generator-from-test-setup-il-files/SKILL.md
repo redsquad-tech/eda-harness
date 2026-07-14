@@ -1,6 +1,6 @@
 ---
-name: assemble-cadence-export
-description: Assemble, update, or regenerate the final Cadence/Virtuoso export, including cadence_export/generate.il, dut_placeholder.scs, and Spectre wrappers, from validated per-group Maestro setup blocks. Use when all required Maestro blocks are valid and the final export is missing or stale, or when the user explicitly requests final Cadence assembly or reassembly. Treat this as one isolated workflow stage; stop and report after completion.
+name: create-maestro-project-il-generator-from-test-setup-il-files
+description: Create or revise the final cadence_export/generate.il Maestro project generator, Spectre wrappers, and DUT placeholder from all validated per-group Maestro test setup IL files, completed testbench fixtures, and compiled model bindings. The completed generator creates or reuses the target Cadence library and shared cell, imports one Spectre and config view per testbench group, adds all configured tests to one shared Maestro view, assigns each generated corner only to its applicable tests, and reports cadence generate PASS when executed. Use when the user requests the complete Cadence Maestro export, or when every planned ngspice group has a validated Maestro test setup IL file and the final generator artifacts are missing, incomplete, or inconsistent with them. Produce only the final generator artifacts, do not execute generate.il, Virtuoso, or Spectre, and stop after reporting them.
 ---
 
 # Assemble Cadence Export

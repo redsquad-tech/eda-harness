@@ -1,6 +1,6 @@
 ---
-name: create-verification-report
-description: Create, update, or repair analog verification report artifacts, including test_report.md and a PDF when available, from existing plans, ngspice metrics, logs, and optional evidence. Use only when the user explicitly requests a report, an update to an existing report, or regeneration after source results change. Treat this as one isolated workflow stage; stop and report after completion.
+name: create-verification-report-from-ngspice-results
+description: Create or revise test_report.md and test_report.pdf from completed verification plans and completed ngspice metrics, logs, and waveform or sample evidence. The completed report summarizes executed coverage, pass, fail, and unmeasurable results, requirement-level conclusions, evidence plots, assumptions, and blockers without changing the source results. Use only when the user explicitly requests a verification report or asks to regenerate an existing report after its source plans or results changed. Complete only the report artifacts and stop after reporting them.
 ---
 
 # Create Verification Report
@@ -58,7 +58,7 @@ Do not write a vague “all good” conclusion when failures, missing numeric va
 From the verification-suite root:
 
 ```bash
-python .agents/skills/create-verification-report/scripts/generate_test_report.py \
+python .agents/skills/create-verification-report-from-ngspice-results/scripts/generate_test_report.py \
   --suite-root . \
   --output test_report.md \
   --pdf
@@ -81,7 +81,7 @@ results/all_metrics.csv
 Use an explicit metrics CSV only when the user asks for one:
 
 ```bash
-python .agents/skills/create-verification-report/scripts/generate_test_report.py \
+python .agents/skills/create-verification-report-from-ngspice-results/scripts/generate_test_report.py \
   --suite-root . \
   --results-csv results/all_metrics.csv \
   --output test_report.md
@@ -195,7 +195,7 @@ When changing this skill itself, validate the skill folder when the validator is
 
 ```bash
 python /home/tim/.codex/skills/.system/skill-creator/scripts/quick_validate.py \
-  .agents/skills/create-verification-report
+  .agents/skills/create-verification-report-from-ngspice-results
 ```
 
 ## Stage Boundary

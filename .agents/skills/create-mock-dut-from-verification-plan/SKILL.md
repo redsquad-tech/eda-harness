@@ -1,6 +1,6 @@
 ---
-name: create-hdl21-mock-dut
-description: Create, update, or repair mock_device.py and generated mock_device.sp from a specification and existing verification_plan.md. Use when the mock DUT is missing, stale, or explicitly requested for correction. Treat this as one isolated workflow stage; stop and report after completion.
+name: create-mock-dut-from-verification-plan
+description: Create or revise mock_device.py and HDL21-generated mock_device.sp from a completed verification_plan.md. The completed mock preserves the exact public DUT subcircuit contract, implements the simplified external behavior required by every planned acceptance measurement, requires no PDK models, and passes ngspice operating-point and transient smoke checks. Use when the user requests a mock DUT, or when verification_plan.md is complete and the mock artifacts are missing, incomplete, or inconsistent with it. Complete only the mock DUT artifacts and stop after reporting them.
 ---
 
 # Create HDL21 Mock DUT
@@ -17,7 +17,6 @@ The mock DUT is not a real device implementation. It must match the public DUT c
 
 ## Inputs
 
-* Specification.
 * `verification_plan.md`.
 
 ## Output
