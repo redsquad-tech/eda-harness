@@ -105,7 +105,6 @@ def main() -> int:
     parser.add_argument("--city")
     parser.add_argument("--year")
     parser.add_argument("--toc", action=argparse.BooleanOptionalAction, default=True)
-    parser.add_argument("--force-assets", action="store_true", help="Accepted for compatibility; assets are no longer copied.")
     parser.add_argument("--pdf-engine")
     args = parser.parse_args()
 

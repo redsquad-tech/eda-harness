@@ -5,7 +5,7 @@
   "display_name": "EDA Harness Skills",
   "version": "0.0.1",
   "description": "Agent Skills for analog and mixed-signal verification, with an empty MCP compatibility server.",
-  "long_description": "A portable suite of Agent Skills for verification planning, HDL21 and ngspice testbench development, reporting, schematic conversion, and Cadence/Virtuoso export. The bundled MCP server intentionally exposes no tools.",
+  "long_description": "A portable suite of Agent Skills for verification planning, HDL21 and ngspice testbench development, PDF reporting, and two-stage Cadence/Virtuoso Maestro export. The bundled MCP server intentionally exposes no tools.",
   "author": {
     "name": "RedSquad Tech",
     "url": "https://github.com/redsquad-tech"

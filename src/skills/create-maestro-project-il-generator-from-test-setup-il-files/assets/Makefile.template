@@ -10,8 +10,6 @@ CDSTEXT ?= cdsTextTo5x
 PYTHON ?= python3
 
 export PDK_PATH CADENCE_LIB CADENCE_WORKDIR
-export EDA_HARNESS_EXPORT_DIR := $(EXPORT_DIR)
-export EDA_HARNESS_CDSTEXT := $(shell command -v $(CDSTEXT) 2>/dev/null)
 
 .PHONY: help preflight import verify
 

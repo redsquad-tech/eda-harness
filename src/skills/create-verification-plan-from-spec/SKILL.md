@@ -102,7 +102,7 @@ Document only items that affect verification, for example:
 * unclear requirement scope;
 * unclear distinction between requirement and reference/simulated data;
 * default PVT/corner coverage assumptions;
-* default Cadence/Spectre model convention using `$LIB_PATH` and corner identifiers `tt`, `ff`, `ss`, `fs`, `sf`;
+* the source of logical process-corner coverage (specification, downstream configuration, or not applicable);
 * assumptions for Monte Carlo or statistical coverage when explicitly required.
 
 ## Operating Conditions and Coverage Presets
@@ -132,20 +132,30 @@ Coverage strategy must follow the specification, the default PVT/corner policy, 
 * Do not add Monte Carlo runs as future placeholders if the specification does not require statistical verification. Process corners must follow the PVT/corner policy below.
 * For one-dimensional non-PVT sweeps, explicitly state that only one group of conditions changes and all other conditions remain nominal.
 
+Add a process-coverage table:
+
+```markdown
+| Process Coverage Item | Value |
+|---|---|
+| Corner Source | `specification`, `configuration`, or `none` |
+| Logical Corners | `<exact specification names>`, `configured_process_corners`, or `none` |
+```
+
 Default PVT/corner policy:
 
 * If the specification defines PVT conditions, process corners, voltage values, temperature values, or named model sections, use the specification-defined coverage for those dimensions.
 * If the specification defines only part of PVT/corner coverage, use the specification-defined dimensions and apply default coverage to the missing PVT dimensions.
 * If the specification does not define PVT/corner coverage, create default PVT coverage for every test where PVT variation is applicable and meaningful.
-* Default process corners are the required logical five-corner set: `tt`, `ff`, `ss`, `fs`, `sf`.
-* Default Cadence/Spectre model convention is model root `$LIB_PATH` with corner identifiers/model names `tt`, `ff`, `ss`, `fs`, `sf`.
+* When the specification names process corners, preserve those exact logical names.
+* When process variation is meaningful but the specification does not name corners, use `configured_process_corners`; the later Cadence export configuration will bind those logical corners to PDK model files and sections.
+* Use `none` only when process variation is not meaningful for the test, and document why.
 * Local access to PDK model files is not required for `verification_plan.md`. Do not mark missing local model files as a blocker at this stage.
-* Logical process coverage must not be conditional on local model access. Keep the default corner identifiers in the plan; do not remove, weaken, or silently skip process coverage.
+* Logical process coverage must not be conditional on local model access. Do not remove, weaken, or silently skip applicable process coverage.
 * Default supply-voltage coverage is low/nominal/high. Use specified operating min/nom/max values when available. If only a range is specified, use min/mid/max. If only nominal supply is specified, use `0.9 * Vnom`, `Vnom`, and `1.1 * Vnom`. If no supply value is available, document a blocker instead of inventing a voltage.
 * Default temperature coverage is cold/nominal/hot. Use specified temperature min/nom/max values when available. If only a range is specified, use min/nominal-within-range/max. If no temperature values are specified, use `-40 °C`, `27 °C`, and `125 °C`.
 * For multiple supplies, vary relevant supplies coherently as low/nominal/high unless the specification requires independent supply combinations.
 * PVT coverage means the full combination of applicable process, supply-voltage, temperature, and specification-defined PVT dimensions for that test.
-* Do not invent project-specific model paths beyond the `$LIB_PATH` convention or proprietary model-section names beyond the default/spec-defined corner identifiers.
+* Do not invent project-specific model paths, PDK filenames, model sections, or corner names.
 
 ## Acceptance Test Matrix
 
@@ -198,7 +208,7 @@ Before finishing, verify that:
 * coverage in the test matrix is concrete, with no optional/future/TBD runnable runs;
 * PVT/corner coverage follows the specification when defined, otherwise the default PVT/corner policy is applied where meaningful;
 * PVT rows explicitly state the full combination of applicable dimensions;
-* default process corners use identifiers `tt`, `ff`, `ss`, `fs`, `sf` and model root `$LIB_PATH` for later Cadence/Spectre export;
+* process coverage records exact specification names or `configured_process_corners`, without inventing PDK bindings;
 * missing local PDK model files are not treated as a blocker for the verification plan;
 * nominal-only rows have a clear reason;
 * statistical coverage is included only when required by the specification;

@@ -1,16 +1,19 @@
-; Generated suite-level Cadence import. Fill every {{PLACEHOLDER}} before delivery.
+; Generated suite-level Cadence import.
 load("eda_harness_api.il")
 
-let((pdkPath lib workDir exportDir cdsText suiteCell maestroView sess expectedTests actualTests)
+let((pdkPath lib workDir exportDir cdsText suiteCell maestroView sess expectedTests actualTests validatedAnalyses validatedOutputs validatedCorners)
   pdkPath = ehRequiredEnv("PDK_PATH")
   lib = ehRequiredEnv("CADENCE_LIB")
   workDir = ehRequiredEnv("CADENCE_WORKDIR")
-  exportDir = ehRequiredEnv("EDA_HARNESS_EXPORT_DIR")
-  cdsText = ehRequiredEnv("EDA_HARNESS_CDSTEXT")
+  exportDir = getWorkingDir()
+  cdsText = "cdsTextTo5x"
   suiteCell = "{{SUITE_CELL}}"
   maestroView = "maestro"
   expectedTests = {{EXPECTED_TEST_COUNT}}
   actualTests = 0
+  validatedAnalyses = 0
+  validatedOutputs = 0
+  validatedCorners = 0
 
   ehCreateManagedLibrary(lib workDir)
 
@@ -35,9 +38,9 @@ let((pdkPath lib workDir exportDir cdsText suiteCell maestroView sess expectedTe
     strcat(exportDir "/validation.json")
     expectedTests
     actualTests
-    t
-    t
-    t
+    validatedAnalyses == expectedTests
+    validatedOutputs == expectedTests
+    validatedCorners == expectedTests
   )
   printf("EDA_HARNESS_EXPORT_OK tests=%d lib=%s cell=%s view=%s\n"
     actualTests lib suiteCell maestroView)

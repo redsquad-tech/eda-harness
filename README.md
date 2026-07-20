@@ -1,6 +1,6 @@
 # EDA Harness Skills
 
-EDA Harness is an agent-neutral collection of Agent Skills for analog and mixed-signal verification. The skills guide compatible agents from a circuit specification through verification planning, HDL21/ngspice testbench development, reporting, schematic conversion, and Cadence/Virtuoso export.
+EDA Harness is an agent-neutral collection of Agent Skills for analog and mixed-signal verification. The skills guide compatible agents from a circuit specification through verification planning, HDL21/ngspice testbench development, reporting, and Cadence/Virtuoso export.
 
 All distribution sources live in [`src`](src): it contains the canonical skills, MCPB sources, Codex metadata, and an intentionally empty MCP compatibility server.
 
@@ -13,12 +13,8 @@ All distribution sources live in [`src`](src): it contains the canonical skills,
 | `create-testbench-implementation-plan-from-verification-plan` | Define the minimum ordered testbench groups and stable outputs. |
 | `create-ngspice-testbench-group-from-implementation-plan` | Implement and execute one named group or all unfinished ngspice groups. |
 | `create-verification-report-from-ngspice-results` | Build Markdown and optional PDF verification reports. |
-| `testbenches-to-cadence` | Export completed groups to Cadence/Virtuoso. |
-| `draw-schem` | Convert SPICE exported from HDL21 into an xschem schematic. |
-| `hdl21-to-openaccess` | Convert HDL21 to OpenAccess-style JSON. |
-| `openaccess-to-hdl21` | Convert OpenAccess-style JSON to HDL21. |
-| `hdl21-to-png` | Render an HDL21 design as a schematic PNG. |
-| `export-bundle` | Package a device, testbenches, metrics, and documentation for sharing. |
+| `create-maestro-test-setup-il-from-ngspice-group` | Convert each completed ngspice group into a portable Maestro SKILL fragment. |
+| `create-maestro-project-il-generator-from-test-setup-il-files` | Assemble group fragments into one strict, portable Cadence export bundle. |
 
 ## Install skills
 
@@ -52,7 +48,7 @@ The generated marketplace is a local build artifact. It is not installable direc
 
 ## Runtime tools
 
-Individual skills may require Python, HDL21, ngspice, `ndt-sch-bridge`, CairoSVG, pandoc/LaTeX, xschem, or Cadence/Virtuoso. Heavy EDA dependencies and PDKs are neither installed by repository CI nor included in MCPB.
+Individual skills may require Python, HDL21, ngspice, pandoc/LaTeX, or Cadence/Virtuoso. Heavy EDA dependencies and PDKs are neither installed by repository CI nor included in MCPB.
 
 ## Development
 

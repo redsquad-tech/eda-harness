@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 import math
 import re
 import subprocess
@@ -27,7 +28,6 @@ METRICS_FIELDS = [
     "fail_reason",
     "source_log",
 ]
-IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".svg", ".webp"}
 METRICS_SUFFIX = "_metrics.csv"
 NON_METRIC_TOKENS = ("_samples", "_waveforms", "wave", "current_wave", "sequence_wave", "plot", "scope")
 FAIL_VALUES = {"0", "false", "fail", "failed", "no", "n"}
@@ -53,11 +53,9 @@ class GroupInfo:
 
 @dataclass
 class ArtifactInfo:
-    schematics: list[Path] = field(default_factory=list)
     waveform_csvs: list[Path] = field(default_factory=list)
     sample_csvs: list[Path] = field(default_factory=list)
     generated_plots: list[Path] = field(default_factory=list)
-    image_plots: list[Path] = field(default_factory=list)
     logs: list[Path] = field(default_factory=list)
     missing_planned: list[str] = field(default_factory=list)
 
@@ -232,18 +230,34 @@ def is_metrics_csv(path: Path) -> bool:
     return False
 
 
+def manifest_metrics_csvs(suite_root: Path) -> list[Path]:
+    manifest_path = suite_root / "tests" / "testbench_manifest.json"
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"invalid testbench manifest: {exc}") from exc
+    if manifest.get("schema_version") != 1 or not isinstance(manifest.get("groups"), list):
+        raise ValueError("testbench manifest must use schema_version 1 with a groups array")
+    paths: list[Path] = []
+    for group in sorted(manifest["groups"], key=lambda item: item.get("order", 0)):
+        raw = group.get("metrics")
+        if not isinstance(raw, str):
+            raise ValueError("every manifest group must declare metrics")
+        relative = Path(raw)
+        if relative.is_absolute() or ".." in relative.parts or relative.parent != Path("results"):
+            raise ValueError(f"metrics path must be a flat workspace results path: {raw}")
+        path = (suite_root / relative).resolve()
+        if not path.is_file():
+            raise ValueError(f"missing declared metrics file: {raw}")
+        paths.append(path)
+    return paths
+
+
 def discover_metrics_csvs(suite_root: Path, explicit: str | None) -> list[Path]:
     if explicit:
         path = Path(explicit).expanduser()
         return [(path if path.is_absolute() else suite_root / path).resolve()]
-    results_dir = suite_root / "results"
-    candidates: list[Path] = []
-    if results_dir.exists():
-        candidates.extend(path for path in results_dir.glob("*_metrics.csv") if path.is_file() and is_metrics_csv(path))
-        candidates.extend(path for path in results_dir.glob("**/*_metrics.csv") if path.is_file() and is_metrics_csv(path))
-    root_candidates = [path for path in suite_root.glob("*_metrics.csv") if path.is_file() and is_metrics_csv(path)]
-    candidates.extend(root_candidates)
-    return sorted({path.resolve() for path in candidates})
+    return manifest_metrics_csvs(suite_root)
 
 
 def read_metrics_csv(path: Path) -> list[dict[str, str]]:
@@ -396,14 +410,7 @@ def read_table_like_csv(path: Path) -> tuple[list[str], list[dict[str, str]], bo
         with path.open(newline="", encoding="utf-8-sig", errors="replace") as handle:
             reader = csv.DictReader(handle)
             return list(reader.fieldnames or []), [{k: v for k, v in row.items() if k is not None} for row in reader], True
-    lines = [line.strip() for line in text.splitlines() if line.strip()]
-    header = re.split(r"\s+", lines[0])
-    rows: list[dict[str, str]] = []
-    for line in lines[1:]:
-        parts = re.split(r"\s+", line)
-        if len(parts) == len(header):
-            rows.append(dict(zip(header, parts)))
-    return header, rows, False
+    return [], [], False
 
 
 def is_axis_column(name: str) -> bool:
@@ -480,7 +487,7 @@ def generate_plot_if_possible(csv_path: Path, output_path: Path, title: str) -> 
 
     import os
 
-    os.environ.setdefault("MPLCONFIGDIR", "/tmp/matplotlib-test2report")
+    os.environ.setdefault("MPLCONFIGDIR", "/tmp/matplotlib-eda-harness-report")
     import matplotlib
 
     matplotlib.use("Agg")
@@ -533,11 +540,6 @@ def paths_from_plan_field(value: str) -> list[str]:
 
 def discover_group_artifacts(suite_root: Path, group: str, info: GroupInfo | None) -> ArtifactInfo:
     artifacts = ArtifactInfo()
-    for dirname in ("schematics", "schematic"):
-        root = suite_root / dirname
-        if root.exists():
-            artifacts.schematics.extend(sorted(path for path in root.glob(f"*{group}*") if path.suffix.lower() in IMAGE_EXTS))
-
     results = suite_root / "results"
     if results.exists():
         artifacts.sample_csvs.extend(sorted(results.glob(f"{group}*_samples.csv")))
@@ -545,10 +547,6 @@ def discover_group_artifacts(suite_root: Path, group: str, info: GroupInfo | Non
         artifacts.waveform_csvs.extend(sorted(path for path in results.glob(f"{group}*.csv") if "wave" in path.name.lower() and not is_metrics_csv(path)))
         artifacts.logs.extend(sorted(results.glob(f"{group}.log")))
         artifacts.logs.extend(sorted(results.glob(f"{group}*.log")))
-        artifacts.image_plots.extend(sorted(path for path in results.glob(f"**/*{group}*") if path.suffix.lower() in IMAGE_EXTS))
-        legacy = results / "latest" / "ngspice" / group
-        if legacy.exists():
-            artifacts.waveform_csvs.extend(sorted(path for path in legacy.glob("**/*.csv") if any(tok in path.name.lower() for tok in ("wave", "tran", "ac"))))
 
     if info:
         planned = [info.metrics_csv, info.control, info.hdl21_source, info.spice_fixture]
@@ -556,11 +554,9 @@ def discover_group_artifacts(suite_root: Path, group: str, info: GroupInfo | Non
         for item in planned:
             if item and item.lower() != "none" and not (suite_root / item).exists():
                 artifacts.missing_planned.append(item)
-    artifacts.schematics = sorted({path.resolve() for path in artifacts.schematics})
     artifacts.sample_csvs = sorted({path.resolve() for path in artifacts.sample_csvs})
     artifacts.waveform_csvs = sorted({path.resolve() for path in artifacts.waveform_csvs})
     artifacts.logs = sorted({path.resolve() for path in artifacts.logs})
-    artifacts.image_plots = sorted({path.resolve() for path in artifacts.image_plots})
     return artifacts
 
 
@@ -650,7 +646,6 @@ def build_suspicious_notes(rows: list[dict[str, str]], grouped: dict[str, list[d
 
 def build_report(args: argparse.Namespace) -> tuple[str, Path | None, list[Path]]:
     suite_root = Path(args.suite_root).expanduser().resolve()
-    readme = read_text(suite_root / "README.md")
     verification_plan = read_text(suite_root / "verification_plan.md")
     implementation_plan = read_text(suite_root / "testbench_implementation_plan.md")
     existing_report = read_text(suite_root / "test_report.md")
@@ -690,16 +685,13 @@ def build_report(args: argparse.Namespace) -> tuple[str, Path | None, list[Path]
     dut_section = section_by_heading(verification_plan, r"DUT Interface|DUT")
     scope_section = section_by_heading(verification_plan, r"Purpose and Scope|Scope")
     matrix_section = section_by_heading(verification_plan, r"Acceptance Test Matrix|Test Matrix")
-    readme_context = section_by_heading(readme, r"DUT|Overview|Description|Testbench|Verification") if readme else ""
 
     lines: list[str] = [f"# {title}", ""]
     lines += ["## DUT Description and Public Interface", ""]
     if dut_section:
         lines += [dut_section, ""]
-    elif readme_context:
-        lines += [readme_context, ""]
     else:
-        lines += ["No README was required or found. DUT/interface context is taken from available verification artifacts only.", ""]
+        lines += ["DUT/interface context was not present in the verification plan.", ""]
 
     lines += ["## Verification Scope", ""]
     if scope_section:
@@ -719,8 +711,6 @@ def build_report(args: argparse.Namespace) -> tuple[str, Path | None, list[Path]
         lines.append("Metrics CSV inputs: none discovered.")
     if all_metrics_path:
         lines.append(f"Merged metrics artifact: `{rel(all_metrics_path, suite_root)}`.")
-    if not readme:
-        lines.append("README.md was absent; report generation used the verification plan, implementation plan, results, logs, and optional artifacts.")
     lines.append("")
 
     lines += ["## Testbench Groups", ""]
@@ -733,8 +723,6 @@ def build_report(args: argparse.Namespace) -> tuple[str, Path | None, list[Path]
         reasons = Counter(row.get("fail_reason", "-") or "-" for row in fails)
 
         lines += ["\\Needspace{0.42\\textheight}", f"### `{group}`", ""]
-        for schematic in artifacts.schematics[:2]:
-            lines += [latex_image(schematic, suite_root, "\\linewidth", "0.30\\textheight"), ""]
         lines += [generic_description(group, rows_for_group, info, requirements), ""]
         if requirements:
             lines += ["Requirements covered:", ""]
@@ -768,7 +756,7 @@ def build_report(args: argparse.Namespace) -> tuple[str, Path | None, list[Path]
             for sample in artifacts.sample_csvs[:4]:
                 lines.append(f"- {sample_summary(sample)}")
             lines.append("")
-        plots = sorted(set(artifacts.generated_plots + artifacts.image_plots))
+        plots = sorted(set(artifacts.generated_plots))
         if plots:
             lines += ["Waveform evidence:", ""]
             for image in plots[:6]:
@@ -793,7 +781,7 @@ def build_report(args: argparse.Namespace) -> tuple[str, Path | None, list[Path]
         lines += [f"- {note}" for note in suspicious[:24]]
         if len(suspicious) > 24:
             lines.append(f"- {len(suspicious) - 24} additional findings were omitted from this summary.")
-    if not any((artifact.generated_plots or artifact.image_plots) for artifact in artifacts_by_group.values()):
+    if not any(artifact.generated_plots for artifact in artifacts_by_group.values()):
         lines += ["", "No waveform plots were available or generated. This is acceptable for non-waveform groups, but transient/AC evidence should include waveform CSVs or images when required by the plan."]
     lines += [
         "",
@@ -839,7 +827,6 @@ def main() -> int:
             "anadeto",
             "--company",
             "anadeto",
-            "--force-assets",
         ]
         result = subprocess.run(cmd)
         if result.returncode != 0:

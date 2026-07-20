@@ -11,17 +11,13 @@ const skillsRoot = join(root, "src", "skills");
 const requireFromSource = createRequire(join(root, "src", "package.json"));
 const { parse } = requireFromSource("yaml");
 const expectedSkills = [
+  "create-maestro-project-il-generator-from-test-setup-il-files",
+  "create-maestro-test-setup-il-from-ngspice-group",
   "create-mock-dut-from-verification-plan",
   "create-ngspice-testbench-group-from-implementation-plan",
   "create-testbench-implementation-plan-from-verification-plan",
   "create-verification-plan-from-spec",
   "create-verification-report-from-ngspice-results",
-  "draw-schem",
-  "export-bundle",
-  "hdl21-to-openaccess",
-  "hdl21-to-png",
-  "openaccess-to-hdl21",
-  "testbenches-to-cadence",
 ];
 
 function filesBelow(directory) {

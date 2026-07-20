@@ -23,7 +23,7 @@ validate: bootstrap ## Validate distribution manifests and all Agent Skills
 	node --test tests/skills.test.mjs tests/codex.test.mjs tests/cadence-assets.test.mjs
 
 test: bootstrap ## Run wrapper and MCP protocol tests
-	node --test tests/wrappers.test.mjs tests/mcp.test.mjs tests/runner.test.mjs
+	node --test tests/wrappers.test.mjs tests/mcp.test.mjs tests/runner.test.mjs tests/report.test.mjs
 
 dist-mcpb: bootstrap validate ## Build and clean the versioned MCPB archive
 	mkdir -p dist
