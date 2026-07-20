@@ -18,7 +18,7 @@ const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const python = process.env.PYTHON ?? "python3";
 const runnerAsset = join(
   root,
-  "src/skills/implementation-plan-to-testbenches/assets/run_test.py",
+  "src/skills/create-ngspice-testbench-group-from-implementation-plan/assets/run_test.py",
 );
 const metricsHeader = [
   "test_name",

@@ -12,9 +12,9 @@ const wrappers = [
   "src/skills/hdl21-to-openaccess/scripts/hdl21_to_openaccess.py",
   "src/skills/hdl21-to-png/scripts/hdl21_to_png.py",
   "src/skills/openaccess-to-hdl21/scripts/openaccess_to_hdl21.py",
-  "src/skills/test2report/scripts/generate_test_report.py",
-  "src/skills/test2report/scripts/render_report_pdf.py",
-  "src/skills/implementation-plan-to-testbenches/assets/run_test.py",
+  "src/skills/create-verification-report-from-ngspice-results/scripts/generate_test_report.py",
+  "src/skills/create-verification-report-from-ngspice-results/scripts/render_report_pdf.py",
+  "src/skills/create-ngspice-testbench-group-from-implementation-plan/assets/run_test.py",
   "src/skills/testbenches-to-cadence/assets/verify_export.py",
 ];
 

@@ -1,5 +1,5 @@
 ---
-name: spec-to-hdl21-mock-dut
+name: create-mock-dut-from-verification-plan
 description: Create a runnable HDL21 development mock and generated SPICE netlist from verification_plan.md and the public DUT contract. Use when ngspice testbench development needs a deterministic open-stack DUT because no runnable ngspice-compatible real DUT is available; requires Python, HDL21, ngspice, and a writable DUT workspace.
 ---
 

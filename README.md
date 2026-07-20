@@ -8,11 +8,11 @@ All distribution sources live in [`src`](src): it contains the canonical skills,
 
 | Skill | Purpose |
 | --- | --- |
-| `spec-to-verification-plan` | Turn a circuit specification into an acceptance verification plan. |
-| `spec-to-hdl21-mock-dut` | Create a minimal HDL21/ngspice development DUT when a runnable DUT is unavailable. |
-| `verification-plan-to-implementation-plan` | Define the minimum ordered testbench groups and stable outputs. |
-| `implementation-plan-to-testbenches` | Implement and execute ngspice groups sequentially. |
-| `test2report` | Build Markdown and optional PDF verification reports. |
+| `create-verification-plan-from-spec` | Turn a circuit specification into an acceptance verification plan. |
+| `create-mock-dut-from-verification-plan` | Create a minimal HDL21/ngspice development DUT when a runnable DUT is unavailable. |
+| `create-testbench-implementation-plan-from-verification-plan` | Define the minimum ordered testbench groups and stable outputs. |
+| `create-ngspice-testbench-group-from-implementation-plan` | Implement and execute one named group or all unfinished ngspice groups. |
+| `create-verification-report-from-ngspice-results` | Build Markdown and optional PDF verification reports. |
 | `testbenches-to-cadence` | Export completed groups to Cadence/Virtuoso. |
 | `draw-schem` | Convert SPICE exported from HDL21 into an xschem schematic. |
 | `hdl21-to-openaccess` | Convert HDL21 to OpenAccess-style JSON. |

@@ -10,10 +10,10 @@ const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const skillsRoot = join(root, "src", "skills");
 const python = process.env.PYTHON ?? "python3";
 const pipelineSkills = [
-  "spec-to-verification-plan",
-  "spec-to-hdl21-mock-dut",
-  "verification-plan-to-implementation-plan",
-  "implementation-plan-to-testbenches",
+  "create-verification-plan-from-spec",
+  "create-mock-dut-from-verification-plan",
+  "create-testbench-implementation-plan-from-verification-plan",
+  "create-ngspice-testbench-group-from-implementation-plan",
   "testbenches-to-cadence",
 ];
 

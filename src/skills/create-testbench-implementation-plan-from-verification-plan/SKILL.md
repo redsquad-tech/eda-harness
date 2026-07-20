@@ -1,5 +1,5 @@
 ---
-name: verification-plan-to-implementation-plan
+name: create-testbench-implementation-plan-from-verification-plan
 description: Create testbench_implementation_plan.md from verification_plan.md, defining the minimum fixture groups, stable HDL21/SPICE/control paths, suite runner manifest entries, outputs, expected run counts, and implementation order. Use when a verified requirements matrix must be converted into an executable testbench file plan.
 ---
 

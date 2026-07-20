@@ -1,5 +1,5 @@
 ---
-name: test2report
+name: create-verification-report-from-ngspice-results
 description: Generate analog verification reports from a verification-plan Markdown file, implementation plan, per-group metrics CSVs, logs, schematic images, and optional waveform/sample artifacts. Use when an agent must create a structured verification report with DUT description, grouped test results, conclusions, Markdown output, and PDF output when the local toolchain is available.
 ---
 

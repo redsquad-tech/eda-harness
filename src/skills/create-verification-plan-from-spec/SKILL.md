@@ -1,5 +1,5 @@
 ---
-name: spec-to-verification-plan
+name: create-verification-plan-from-spec
 description: Create or update verification_plan.md from a circuit or block specification, with the public DUT contract, requirement coverage, PVT policy, measurements, and acceptance limits. Use when a task needs specification requirements normalized into a concrete verification matrix before testbench design.
 ---
 

@@ -11,17 +11,17 @@ const skillsRoot = join(root, "src", "skills");
 const requireFromSource = createRequire(join(root, "src", "package.json"));
 const { parse } = requireFromSource("yaml");
 const expectedSkills = [
+  "create-mock-dut-from-verification-plan",
+  "create-ngspice-testbench-group-from-implementation-plan",
+  "create-testbench-implementation-plan-from-verification-plan",
+  "create-verification-plan-from-spec",
+  "create-verification-report-from-ngspice-results",
   "draw-schem",
   "export-bundle",
   "hdl21-to-openaccess",
   "hdl21-to-png",
-  "implementation-plan-to-testbenches",
   "openaccess-to-hdl21",
-  "spec-to-hdl21-mock-dut",
-  "spec-to-verification-plan",
-  "test2report",
   "testbenches-to-cadence",
-  "verification-plan-to-implementation-plan",
 ];
 
 function filesBelow(directory) {

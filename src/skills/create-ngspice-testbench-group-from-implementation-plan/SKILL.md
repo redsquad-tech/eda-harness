@@ -1,5 +1,5 @@
 ---
-name: implementation-plan-to-testbenches
+name: create-ngspice-testbench-group-from-implementation-plan
 description: Implement and execute one named group or all unfinished testbench groups from testbench_implementation_plan.md inside a DUT workspace. Generate HDL21 fixtures, exported SPICE, ngspice controls, a persistent suite runner/manifest, logs, metrics, and waveform artifacts; requires a writable workspace, Python with HDL21, ngspice, and a runnable real or mock DUT netlist.
 ---
 
