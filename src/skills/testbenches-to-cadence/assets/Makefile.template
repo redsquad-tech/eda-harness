@@ -1,0 +1,39 @@
+SHELL := /usr/bin/env bash
+.DEFAULT_GOAL := help
+
+EXPORT_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
+LOG_DIR := $(EXPORT_DIR)/logs
+LOG_FILE := $(LOG_DIR)/import.log
+VALIDATION_FILE := $(EXPORT_DIR)/validation.json
+VIRTUOSO ?= virtuoso
+CDSTEXT ?= cdsTextTo5x
+PYTHON ?= python3
+
+export PDK_PATH CADENCE_LIB CADENCE_WORKDIR
+export EDA_HARNESS_EXPORT_DIR := $(EXPORT_DIR)
+export EDA_HARNESS_CDSTEXT := $(shell command -v $(CDSTEXT) 2>/dev/null)
+
+.PHONY: help preflight import verify
+
+help: ## Show generated Cadence deployment targets
+	@awk 'BEGIN {FS = ":.*## "}; /^[a-zA-Z0-9_.-]+:.*## / {printf "%-12s %s\n", $$1, $$2}' $(lastword $(MAKEFILE_LIST))
+
+preflight: ## Check runtime environment without creating Cadence objects
+	@test -n "$(PDK_PATH)" || { echo "missing PDK_PATH" >&2; exit 2; }
+	@test -n "$(CADENCE_LIB)" || { echo "missing CADENCE_LIB" >&2; exit 2; }
+	@test -n "$(CADENCE_WORKDIR)" || { echo "missing CADENCE_WORKDIR" >&2; exit 2; }
+	@test -d "$(PDK_PATH)" && test -r "$(PDK_PATH)" || { echo "unreadable PDK_PATH" >&2; exit 2; }
+	@test -d "$(CADENCE_WORKDIR)" && test -w "$(CADENCE_WORKDIR)" || { echo "CADENCE_WORKDIR must exist and be writable" >&2; exit 2; }
+	@command -v "$(VIRTUOSO)" >/dev/null || { echo "virtuoso is not available in PATH" >&2; exit 2; }
+	@command -v "$(CDSTEXT)" >/dev/null || { echo "cdsTextTo5x is not available in PATH" >&2; exit 2; }
+	@command -v "$(PYTHON)" >/dev/null || { echo "python3 is not available in PATH" >&2; exit 2; }
+{{INPUT_AND_MODEL_CHECKS}}
+
+import: preflight ## Create and verify the complete Maestro suite
+	@mkdir -p "$(LOG_DIR)"
+	@$(RM) "$(VALIDATION_FILE)"
+	@cd "$(EXPORT_DIR)" && "$(VIRTUOSO)" -nograph -restore generate.il >"$(LOG_FILE)" 2>&1
+	@$(MAKE) --no-print-directory verify
+
+verify: ## Reject warnings, partial state, and missing suite artifacts
+	@"$(PYTHON)" "$(EXPORT_DIR)/verify_export.py" "$(LOG_FILE)" "$(VALIDATION_FILE)"

@@ -1,0 +1,37 @@
+{
+  "name": "eda-harness-skills",
+  "version": "0.0.1",
+  "description": "Agent Skills for analog and mixed-signal verification.",
+  "author": {
+    "name": "RedSquad Tech",
+    "url": "https://github.com/redsquad-tech"
+  },
+  "homepage": "https://github.com/redsquad-tech/eda-harness",
+  "repository": "https://github.com/redsquad-tech/eda-harness.git",
+  "license": "MIT",
+  "keywords": [
+    "eda",
+    "analog",
+    "verification",
+    "agent-skills"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "EDA Harness Skills",
+    "shortDescription": "EDA verification workflows for engineering agents",
+    "longDescription": "Plan, implement, report, and export analog and mixed-signal verification workflows.",
+    "developerName": "RedSquad Tech",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/redsquad-tech/eda-harness",
+    "defaultPrompt": [
+      "Create an acceptance verification plan for this circuit specification.",
+      "Implement the planned ngspice acceptance testbenches.",
+      "Export the completed testbench suite to Cadence/Virtuoso."
+    ]
+  }
+}

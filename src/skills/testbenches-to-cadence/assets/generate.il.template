@@ -1,0 +1,46 @@
+; Generated suite-level Cadence import. Fill every {{PLACEHOLDER}} before delivery.
+load("eda_harness_api.il")
+
+let((pdkPath lib workDir exportDir cdsText suiteCell maestroView sess expectedTests actualTests)
+  pdkPath = ehRequiredEnv("PDK_PATH")
+  lib = ehRequiredEnv("CADENCE_LIB")
+  workDir = ehRequiredEnv("CADENCE_WORKDIR")
+  exportDir = ehRequiredEnv("EDA_HARNESS_EXPORT_DIR")
+  cdsText = ehRequiredEnv("EDA_HARNESS_CDSTEXT")
+  suiteCell = "{{SUITE_CELL}}"
+  maestroView = "maestro"
+  expectedTests = {{EXPECTED_TEST_COUNT}}
+  actualTests = 0
+
+  ehCreateManagedLibrary(lib workDir)
+
+  ; Recreate the suite-level Maestro view once, before adding group tests.
+  when(ddGetObj(lib suiteCell maestroView)
+    ddDeleteObj(ddGetObj(lib suiteCell maestroView))
+  )
+  sess = maeOpenSetup(lib suiteCell maestroView ?mode "a" ?allowADEXL t)
+  unless(sess error("maeOpenSetup failed: %s/%s/%s\n" lib suiteCell maestroView))
+
+  ; Each generated block imports one fixture into unique spectre_<group> and
+  ; config_<group> views, creates one test, then configures variables,
+  ; normalized analysis, outputs/specs, and corners through the adapter.
+{{GROUP_BLOCKS}}
+
+  ehAssert(actualTests == expectedTests "test count mismatch")
+  maeSaveSetup(?lib lib ?cell suiteCell ?view maestroView ?session sess)
+
+  ; Group blocks must run persisted-state assertions before incrementing
+  ; actualTests. Emit validation only after every group has passed them.
+  ehWriteValidation(
+    strcat(exportDir "/validation.json")
+    expectedTests
+    actualTests
+    t
+    t
+    t
+  )
+  printf("EDA_HARNESS_EXPORT_OK tests=%d lib=%s cell=%s view=%s\n"
+    actualTests lib suiteCell maestroView)
+)
+
+exit()

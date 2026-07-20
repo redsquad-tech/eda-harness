@@ -1,166 +1,95 @@
-# EDA Harness Acceptance Flow
+# EDA Harness Skills
 
-This repository is used with a Codex agent to generate analog acceptance testbenches from a block specification and then export the completed suite to Cadence/Virtuoso.
+EDA Harness is an agent-neutral collection of Agent Skills for analog and mixed-signal verification. The skills guide compatible agents from a circuit specification through verification planning, HDL21/ngspice testbench development, reporting, schematic conversion, and Cadence/Virtuoso export.
 
-The flow is staged and interactive: the agent creates one artifact stage or one testbench group at a time, reports the result, and waits for confirmation before continuing.
+All distribution sources live in [`src`](src): it contains the canonical skills, MCPB sources, Codex metadata, and an intentionally empty MCP compatibility server.
 
-## Requirements
+## Included skills
 
-For planning and ngspice testbench development:
+| Skill | Purpose |
+| --- | --- |
+| `spec-to-verification-plan` | Turn a circuit specification into an acceptance verification plan. |
+| `spec-to-hdl21-mock-dut` | Create a minimal HDL21/ngspice development DUT when a runnable DUT is unavailable. |
+| `verification-plan-to-implementation-plan` | Define the minimum ordered testbench groups and stable outputs. |
+| `implementation-plan-to-testbenches` | Implement and execute ngspice groups sequentially. |
+| `test2report` | Build Markdown and optional PDF verification reports. |
+| `testbenches-to-cadence` | Export completed groups to Cadence/Virtuoso. |
+| `draw-schem` | Convert SPICE exported from HDL21 into an xschem schematic. |
+| `hdl21-to-openaccess` | Convert HDL21 to OpenAccess-style JSON. |
+| `openaccess-to-hdl21` | Convert OpenAccess-style JSON to HDL21. |
+| `hdl21-to-png` | Render an HDL21 design as a schematic PNG. |
+| `export-bundle` | Package a device, testbenches, metrics, and documentation for sharing. |
 
-- Python environment with the project dependencies installed;
-- `hdl21` and `vlsirtools`;
-- `ngspice`;
-- a runnable ngspice DUT netlist, or enough information for the agent to create a development mock.
+## Install skills
 
-For optional report generation:
+Each direct child of [`src/skills`](src/skills) is a standalone Agent Skill rooted at `SKILL.md`. Install one skill by copying or linking its directory into a skills location supported by your agent. Install the complete suite by copying or linking all direct children of `src/skills/`.
 
-- `pandoc`;
-- `xelatex` or `lualatex`;
-- Python plotting dependencies such as `matplotlib`.
-
-For Cadence/Virtuoso export:
-
-- Cadence Virtuoso available on `PATH`, including `virtuoso` and `cdsTextTo5x`;
-- a valid Cadence license and working batch launch environment;
-- Spectre/ADE/Maestro APIs available in the installed Virtuoso version;
-- PDK/model files available through the model convention used by the generated corners, usually `$LIB_PATH/<process>.scs section <process>`.
-
-The Cadence export stage can create Maestro setup and symbolic `$LIB_PATH` model references without local model files existing in the workspace, but real Spectre simulation later requires those model files to resolve in the Cadence environment.
-
-## Inputs
-
-Create one workspace directory per block/device. Put the specification and available netlists there:
+Clients that install from GitHub paths can address an individual skill as:
 
 ```text
-<workspace>/
-  specification.pdf / specification.md / specification.txt
-  original_spectre_netlist
-  optional_runnable_ngspice_dut.sp
+redsquad-tech/eda-harness:src/skills/<skill-name>
 ```
 
-The original Spectre netlist is treated as the primary DUT source. If it is not directly runnable in ngspice, the agent may create a minimal development mock only for ngspice testbench development. Cadence export must use the original Spectre DUT, not the mock.
+The exact command and destination are client-specific because the Agent Skills specification defines the skill directory format, not one universal package installer.
 
-## Starting A Run
+## MCPB distribution
 
-Ask the agent from the repository root, for example:
+`make dist-mcpb` creates one `.mcpb` containing all skills and a standards-compliant Node.js MCP server. The server deliberately advertises no tools, resources, or prompts: current skills orchestrate command-line tools from the user's environment.
+
+MCPB hosts install and run the MCP server but do not automatically register arbitrary Agent Skills payloads. To use the bundled skills, extract or inspect the ZIP-compatible `.mcpb` and import or link its `skills/` children according to the target agent.
+
+## Codex plugin distribution
+
+`make dist-codex` creates a local Codex marketplace at `dist/codex-marketplace/`. It contains one skills-only plugin and deliberately excludes the MCP server and Node.js dependencies.
+
+```bash
+make dist-codex
+codex plugin marketplace add ./dist/codex-marketplace
+codex plugin add eda-harness-skills@eda-harness
+```
+
+The generated marketplace is a local build artifact. It is not installable directly with `codex plugin marketplace add redsquad-tech/eda-harness`; publish the generated marketplace as the root of a dedicated distribution repository or branch if Git-backed installation is needed later.
+
+## Runtime tools
+
+Individual skills may require Python, HDL21, ngspice, `ndt-sch-bridge`, CairoSVG, pandoc/LaTeX, xschem, or Cadence/Virtuoso. Heavy EDA dependencies and PDKs are neither installed by repository CI nor included in MCPB.
+
+## Development
+
+Repository development requires Node.js 18+ and Python 3.11+. Node dependencies are isolated under `src/node_modules/`; there is no repository Python environment.
+
+```bash
+make bootstrap
+make ci
+```
+
+Targets:
+
+- `make validate` validates the MCPB and Codex metadata plus all skills.
+- `make test` runs Python-wrapper smoke tests and the MCP handshake test.
+- `make dist-mcpb` runs the official MCPB pack and clean flow, then writes a SHA-256 sidecar.
+- `make dist-codex` builds the local skills-only Codex marketplace.
+- `make dist` builds both distribution formats in `dist/`.
+- `make verify-dist` checks both formats, their metadata, isolation, and complete skill payloads.
+- `make clean` removes generated dependencies, archives, and caches.
+
+The bundle version is explicit and must match in `src/manifest.json`, `src/package.json`, and `src/codex/plugin.json`. Before creating a `vX.Y.Z` Git tag, update those files and the server fallback to `X.Y.Z`; CI enforces synchronization.
+
+## Repository layout
 
 ```text
-Я положил спеку и нетлист в папку <workspace>, сделай тестбенчи.
+src/                    shared distribution sources
+  codex/                Codex plugin and marketplace metadata
+  manifest.json         MCPB metadata
+  package.json          pinned runtime and development dependencies
+  server/index.mjs      empty MCP stdio server
+  skills/               canonical Agent Skills for both formats
+tests/                  Node-based validation and smoke tests
+analytics/              curated quality research and benchmark definitions
+.github/                 CI and automated review workflows
+dist/                    ignored MCPB and Codex marketplace output
 ```
 
-The agent should first identify the workspace, describe the plan briefly, and wait for confirmation before creating artifacts.
+## License
 
-## Workflow
-
-The standard flow is:
-
-1. Create `<workspace>/verification_plan.md`.
-2. Prepare the DUT for ngspice development.
-3. Create `<workspace>/testbench_implementation_plan.md`.
-4. Implement ngspice testbench groups one by one.
-5. Optionally generate `test_report.md` and `test_report.pdf`.
-6. Export Cadence/Virtuoso setup one testbench group at a time.
-
-After each stage, and after each testbench group, the agent should stop and ask whether to continue.
-
-## Ngspice Artifacts
-
-Each implemented testbench group normally creates:
-
-```text
-<workspace>/
-  tests/
-    <group>.py
-    <group>.sp
-    <group>.control
-  results/
-    <group>.log
-    <group>_metrics.csv
-    <group>_samples.csv      # when planned
-    <group>_waveforms.csv    # when planned
-```
-
-`tests/<group>.py` generates the reusable fixture through HDL21. `tests/<group>.sp` contains the testbench topology, public DUT instance, sources, loads, stimuli, and stable `TB_*` parameters.
-
-The selected ngspice DUT binding belongs in `tests/<group>.control`, not in the fixture. For mock-based development, `.control` includes `mock_device.sp`; the fixture itself must not include mock files, real DUT files, PDK models, or `$LIB_PATH`.
-
-Metrics and pass/fail decisions are produced by ngspice `.control` logic, not by Python.
-
-## Optional Report
-
-After all ngspice groups pass, the agent can generate:
-
-```text
-<workspace>/test_report.md
-<workspace>/test_report.pdf
-```
-
-The PDF requires local report tooling such as `pandoc` and a LaTeX engine. If the report is not needed, skip it and continue to Cadence export.
-
-## Cadence/Virtuoso Export
-
-Cadence export is generated after the ngspice suite is complete. Run it one group at a time.
-
-Typical artifacts:
-
-```text
-<workspace>/
-  cadence_export/
-    groups/
-      <group>/
-        generate.il
-    generated_support/
-      cadence_dut.scs
-      <group>.scs
-    <workspace>_acceptance_lib/
-```
-
-`cadence_dut.scs` is generated from the original Spectre DUT netlist. If the original netlist is a flat Spectre/ADE point netlist, the export creates a clean public `subckt` wrapper and leaves PDK/process models to Maestro corners.
-
-`generated_support/<group>.scs` embeds `tests/<group>.sp` so the ngspice fixture remains the source of truth for Cadence fixture topology.
-
-Each Cadence group creates:
-
-```text
-<library>/<cell>/spectre_<group>
-<library>/<cell>/config
-<library>/<cell>/maestro
-```
-
-The Maestro setup contains one test for the group, `TB_*` design variables, the analysis, outputs/specs, native corner temperature, and PVT/case corners. Process models are symbolic references such as:
-
-```text
-$LIB_PATH/<process>.scs section <process>
-```
-
-Cadence export should not include `mock_device.sp`, ngspice `.control` files, `RESULT`/`SUMMARY` logic, or full Spectre simulation unless explicitly requested.
-
-## Expected Final Layout
-
-```text
-<workspace>/
-  verification_plan.md
-  testbench_implementation_plan.md
-  mock_device.py              # only if needed for ngspice development
-  mock_device.sp              # only if needed for ngspice development
-  tests/
-    <group>.py
-    <group>.sp
-    <group>.control
-  results/
-    <group>.log
-    <group>_metrics.csv
-    <group>_samples.csv
-    <group>_waveforms.csv
-    all_metrics.csv           # when report generation merges results
-  test_report.md              # optional
-  test_report.pdf             # optional
-  cadence_export/
-    groups/<group>/generate.il
-    generated_support/cadence_dut.scs
-    generated_support/<group>.scs
-    <workspace>_acceptance_lib/
-```
-
-Cadence may also create local runtime files such as `.cadence/`, `.tmp_*`, `logs_*`, or `libManager.log`. These are tool-side runtime artifacts, not acceptance outputs.
+MIT. See [LICENSE](LICENSE).

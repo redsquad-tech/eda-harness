@@ -1,4 +1,0 @@
-interface:
-  display_name: "test2report"
-  short_description: "Build verification reports from tests"
-  default_prompt: "Create a Markdown and PDF verification report from this suite using verification_plan.md, testbench_implementation_plan.md, per-group metrics CSVs, logs, and optional schematic/waveform artifacts."

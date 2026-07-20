@@ -1,0 +1,20 @@
+{
+  "name": "eda-harness",
+  "interface": {
+    "displayName": "EDA Harness"
+  },
+  "plugins": [
+    {
+      "name": "eda-harness-skills",
+      "source": {
+        "source": "local",
+        "path": "./plugins/eda-harness-skills"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}
