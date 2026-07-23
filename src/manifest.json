@@ -1,0 +1,36 @@
+{
+  "$schema": "https://raw.githubusercontent.com/modelcontextprotocol/mcpb/main/schemas/mcpb-manifest-v0.4.schema.json",
+  "manifest_version": "0.4",
+  "name": "eda-harness-skills",
+  "display_name": "EDA Harness Skills",
+  "version": "0.0.1",
+  "description": "Agent Skills for analog and mixed-signal verification, with an empty MCP compatibility server.",
+  "long_description": "A portable suite of Agent Skills for verification planning, HDL21 and ngspice testbench development, PDF reporting, and two-stage Cadence/Virtuoso Maestro export. The bundled MCP server intentionally exposes no tools.",
+  "author": {
+    "name": "RedSquad Tech",
+    "url": "https://github.com/redsquad-tech"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/redsquad-tech/eda-harness.git"
+  },
+  "homepage": "https://github.com/redsquad-tech/eda-harness",
+  "license": "MIT",
+  "server": {
+    "type": "node",
+    "entry_point": "server/index.mjs",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/server/index.mjs"],
+      "env": {
+        "EDA_HARNESS_VERSION": "0.0.1"
+      }
+    }
+  },
+  "compatibility": {
+    "platforms": ["darwin", "linux", "win32"],
+    "runtimes": {
+      "node": ">=18.0.0"
+    }
+  }
+}

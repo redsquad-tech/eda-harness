@@ -1,0 +1,53 @@
+#!/usr/bin/env python3
+"""Validate a generated Cadence import log and structural validation record."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import re
+from pathlib import Path
+
+
+FAILURE_RE = re.compile(
+    r"(?:\*error\*|\berror\b|\bwarning\b|doesn't exist|undefined function|unbound variable|failed)",
+    re.IGNORECASE,
+)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Verify a generated EDA Harness Cadence import.")
+    parser.add_argument("log")
+    parser.add_argument("validation")
+    args = parser.parse_args()
+
+    log_path = Path(args.log)
+    validation_path = Path(args.validation)
+    if not log_path.is_file():
+        raise SystemExit(f"missing Cadence log: {log_path}")
+    text = log_path.read_text(encoding="utf-8", errors="replace")
+    failures = [line for line in text.splitlines() if FAILURE_RE.search(line)]
+    if failures:
+        raise SystemExit("Cadence emitted warning/error output:\n" + "\n".join(failures[:20]))
+    if "EDA_HARNESS_EXPORT_OK" not in text:
+        raise SystemExit("missing EDA_HARNESS_EXPORT_OK sentinel")
+
+    try:
+        validation = json.loads(validation_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise SystemExit(f"invalid validation record: {exc}") from exc
+    if validation.get("status") != "ok":
+        raise SystemExit("Cadence validation status is not ok")
+    expected = validation.get("expected_tests")
+    actual = validation.get("actual_tests")
+    if not isinstance(expected, int) or expected < 1 or actual != expected:
+        raise SystemExit(f"Cadence test count mismatch: expected={expected}, actual={actual}")
+    for field in ("analyses_valid", "outputs_valid", "corners_valid"):
+        if validation.get(field) is not True:
+            raise SystemExit(f"Cadence validation failed: {field}")
+    print(f"Cadence export verified: tests={actual}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

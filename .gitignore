@@ -1,7 +1,9 @@
-pdks/
 .venv/
-venv/
+node_modules/
+dist/
+.pytest_cache/
 __pycache__/
-output/
-tmp/
-.codex
+*.py[cod]
+pdks/
+analytics/runs/*
+!analytics/runs/.gitignore

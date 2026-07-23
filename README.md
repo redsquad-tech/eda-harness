@@ -1,114 +1,91 @@
-# EDA Harness Acceptance Flow
+# EDA Harness Skills
 
-This repository is used with Codex to turn an analog block specification into ngspice acceptance testbenches and a reusable Cadence/Virtuoso Maestro setup.
+EDA Harness is an agent-neutral collection of Agent Skills for analog and mixed-signal verification. The skills guide compatible agents from a circuit specification through verification planning, HDL21/ngspice testbench development, reporting, and Cadence/Virtuoso export.
 
-The workflow is interactive. Codex completes one stage, or one testbench group, reports the result, and waits before continuing.
+All distribution sources live in [`src`](src): it contains the canonical skills, MCPB sources, Codex metadata, and an intentionally empty MCP compatibility server.
 
-## Requirements
+## Included skills
 
-- Python environment with the project dependencies, including HDL21 and VLSIR tools;
-- `ngspice`;
-- `pandoc` and a LaTeX engine when a PDF report is requested;
-- Cadence Virtuoso, Spectre/ADE/Maestro APIs, a valid license, and an interactive shell that loads the Cadence environment for the Cadence stages.
+| Skill | Purpose |
+| --- | --- |
+| `create-verification-plan-from-spec` | Turn a circuit specification into an acceptance verification plan. |
+| `create-mock-dut-from-verification-plan` | Create a minimal HDL21/ngspice development DUT when a runnable DUT is unavailable. |
+| `create-testbench-implementation-plan-from-verification-plan` | Define the minimum ordered testbench groups and stable outputs. |
+| `create-ngspice-testbench-group-from-implementation-plan` | Implement and execute one named group or all unfinished ngspice groups. |
+| `create-verification-report-from-ngspice-results` | Build Markdown and optional PDF verification reports. |
+| `create-maestro-test-setup-il-from-ngspice-group` | Convert each completed ngspice group into a portable Maestro SKILL fragment. |
+| `create-maestro-project-il-generator-from-test-setup-il-files` | Assemble group fragments into one strict, portable Cadence export bundle. |
 
-## Start a Run
+## Install skills
 
-Create one workspace directory per block, place the specification in it, and ask Codex from the repository root:
+Each direct child of [`src/skills`](src/skills) is a standalone Agent Skill rooted at `SKILL.md`. Install one skill by copying or linking its directory into a skills location supported by your agent. Install the complete suite by copying or linking all direct children of `src/skills/`.
 
-```text
-Я положил спеку в папку <workspace>, сделай тестбенчи.
-```
-
-The real DUT netlist is not required for ngspice testbench development. The workflow creates an HDL21/SPICE mock DUT first.
-
-## Workflow
-
-1. Create `verification_plan.md`.
-2. Create and smoke-test `mock_device.py` and `mock_device.sp`.
-3. Obtain the target existing-or-new Cadence cell name and create `testbench_implementation_plan.md`.
-4. Implement and run one ngspice testbench group per turn.
-5. Optionally create `test_report.md` and `test_report.pdf`.
-6. Create and validate one Maestro setup block per turn.
-7. Assemble the final `cadence_export/generate.il`.
-
-## Main Artifacts
+Clients that install from GitHub paths can address an individual skill as:
 
 ```text
-<workspace>/
-  verification_plan.md
-  testbench_implementation_plan.md
-  mock_device.py
-  mock_device.sp
-  tests/
-    <group>.py
-    <group>.sp
-    <group>.control
-  results/
-    <group>.log
-    <group>_metrics.csv
-    <group>_samples.csv       # when needed
-    <group>_waveforms.csv     # when needed
-  test_report.md              # optional
-  test_report.pdf             # optional
-  cadence_export/
-    model_bindings.toml
-    model_bindings.il         # generated; do not edit
-    dut_placeholder.scs
-    generate.il
-    maestro_setup/<group>.il
-    spectre_wrappers/<group>.scs
+redsquad-tech/eda-harness:src/skills/<skill-name>
 ```
 
-The generated `.sp` fixture contains topology and stable `TB_*` parameters. Its `.control` file binds the mock DUT, executes ngspice, evaluates acceptance limits, and writes results.
+The exact command and destination are client-specific because the Agent Skills specification defines the skill directory format, not one universal package installer.
 
-## Cadence Model Bindings
+## MCPB distribution
 
-When process coverage is required, Codex creates `cadence_export/model_bindings.toml`. The user supplies:
+`make dist-mcpb` creates one `.mcpb` containing all skills and a standards-compliant Node.js MCP server. The server deliberately advertises no tools, resources, or prompts: current skills orchestrate command-line tools from the user's environment.
 
-- `common.models` for models required by every logical process corner;
-- `corners.<name>.models` for each configured logical corner;
-- absolute model-file paths and optional section names.
+MCPB hosts install and run the MCP server but do not automatically register arbitrary Agent Skills payloads. To use the bundled skills, extract or inspect the ZIP-compatible `.mcpb` and import or link its `skills/` children according to the target agent.
 
-Do not select process-corner models inside the real DUT netlist. Maestro applies the configured model bindings per corner.
+## Codex plugin distribution
 
-## Final Cadence Export
-
-The generator uses one shared Cadence cell for all groups. Each group receives namespaced `spectre_<group>` and `config_<group>` views, while all tests are stored in one selected Maestro view.
-
-By default, `dut_placeholder.scs` includes the generated mock. To use the real DUT, replace the entire placeholder contents with a Spectre or SPICE include. The included netlist must expose the public subckt name and pin order recorded in the plans; add a local adapter subckt when necessary.
-
-`generate.il` never deletes or clears `cds.lib`. Run it from the directory containing the user's existing `cds.lib`; when a new library is requested, Cadence registers it through the active library list.
-
-Codex generates this file but does not run it; the user launches it in the intended Cadence environment.
-
-For an existing library:
+`make dist-codex` creates a local Codex marketplace at `dist/codex-marketplace/`. It contains one skills-only plugin and deliberately excludes the MCP server and Node.js dependencies.
 
 ```bash
-cd /path/containing/cds.lib
-export CADENCE_EXPORT_DIR=/absolute/path/to/<workspace>/cadence_export
-export CADENCE_LIBRARY_NAME=<existing_library_name>
-unset CADENCE_LIBRARY_PATH
-export CADENCE_VIEW_PREFIX=acceptance_
-export CADENCE_MAESTRO_VIEW_NAME=acceptance_maestro
-virtuoso -nograph -restore "$CADENCE_EXPORT_DIR/generate.il"
+make dist-codex
+codex plugin marketplace add ./dist/codex-marketplace
+codex plugin add eda-harness-skills@eda-harness
 ```
 
-For a new library registered through that `cds.lib`:
+The generated marketplace is a local build artifact. It is not installable directly with `codex plugin marketplace add redsquad-tech/eda-harness`; publish the generated marketplace as the root of a dedicated distribution repository or branch if Git-backed installation is needed later.
+
+## Runtime tools
+
+Individual skills may require Python, HDL21, ngspice, pandoc/LaTeX, or Cadence/Virtuoso. Heavy EDA dependencies and PDKs are neither installed by repository CI nor included in MCPB.
+
+## Development
+
+Repository development requires Node.js 18+ and Python 3.11+. Node dependencies are isolated under `src/node_modules/`; there is no repository Python environment.
 
 ```bash
-cd /path/containing/cds.lib
-export CADENCE_EXPORT_DIR=/absolute/path/to/<workspace>/cadence_export
-export CADENCE_LIBRARY_NAME=<new_library_name>
-export CADENCE_LIBRARY_PATH=/absolute/path/to/<new_library_directory>
-export CADENCE_VIEW_PREFIX=acceptance_
-export CADENCE_MAESTRO_VIEW_NAME=acceptance_maestro
-virtuoso -nograph -restore "$CADENCE_EXPORT_DIR/generate.il"
+make bootstrap
+make ci
 ```
 
-The existing library and cell are reused; missing ones are created. Generated Spectre/config views use the required prefix. The selected Maestro view is opened in append mode, so use a new Maestro view name or remove the previous generated view when intentionally replacing an older test/corner matrix.
+Targets:
 
-A successful run ends with:
+- `make validate` validates the MCPB and Codex metadata plus all skills.
+- `make test` runs Python-wrapper smoke tests and the MCP handshake test.
+- `make dist-mcpb` runs the official MCPB pack and clean flow, then writes a SHA-256 sidecar.
+- `make dist-codex` builds the local skills-only Codex marketplace.
+- `make dist` builds both distribution formats in `dist/`.
+- `make verify-dist` checks both formats, their metadata, isolation, and complete skill payloads.
+- `make clean` removes generated dependencies, archives, and caches.
+
+The bundle version is explicit and must match in `src/manifest.json`, `src/package.json`, and `src/codex/plugin.json`. Before creating a `vX.Y.Z` Git tag, update those files and the server fallback to `X.Y.Z`; CI enforces synchronization.
+
+## Repository layout
 
 ```text
-cadence generate PASS
+src/                    shared distribution sources
+  codex/                Codex plugin and marketplace metadata
+  manifest.json         MCPB metadata
+  package.json          pinned runtime and development dependencies
+  server/index.mjs      empty MCP stdio server
+  skills/               canonical Agent Skills for both formats
+tests/                  Node-based validation and smoke tests
+analytics/              curated quality research and benchmark definitions
+.github/                 CI and automated review workflows
+dist/                    ignored MCPB and Codex marketplace output
 ```
+
+## License
+
+MIT. See [LICENSE](LICENSE).
