@@ -16,6 +16,7 @@ Always write `testbench_implementation_plan.md` in English.
 ## Inputs
 
 * `verification_plan.md` — the primary source for requirements, test matrix, DUT contract, metrics, and acceptance criteria.
+* Canonical `stimuli/*.csv` files referenced by `verification_plan.md`, when present.
 * Specification — only if needed to clarify requirement meaning.
 * Optional DUT/mock netlist — only if needed to clarify the DUT contract.
 
@@ -68,9 +69,9 @@ For each group, specify the future files.
 Use this table:
 
 ```markdown
-| Fixture Group | HDL21 Source | Exported SPICE Fixture | Ngspice Control | Metrics CSV | Samples / Waveform CSV |
-|---|---|---|---|---|---|
-| `<group_name>` | `tests/<group_name>.py` | `tests/<group_name>.sp` | `tests/<group_name>.control` | `results/<group_name>_metrics.csv` | `<planned sample/waveform outputs or none>` |
+| Fixture Group | HDL21 Source | Exported SPICE Fixture | Ngspice Control | Canonical Input Stimulus | Metrics CSV | Samples / Waveform CSV |
+|---|---|---|---|---|---|---|
+| `<group_name>` | `tests/<group_name>.py` | `tests/<group_name>.sp` | `tests/<group_name>.control` | `<stimuli/*.csv paths or none>` | `results/<group_name>_metrics.csv` | `<planned sample/waveform outputs or none>` |
 ```
 
 Plan these shared generated files once for the DUT workspace:
@@ -78,6 +79,13 @@ Plan these shared generated files once for the DUT workspace:
 ```text
 tests/run_test.py
 tests/testbench_manifest.json
+```
+
+When canonical input CSV files are used, also plan:
+
+```text
+tests/materialize_stimuli.py
+tests/generated_stimuli/<group_name>_ngspice.inc
 ```
 
 Add a compact execution table:
@@ -139,6 +147,16 @@ Rules:
 * If the group requires both compact sample points and waveform/probe evidence, list both files separated by `;`, for example `results/<group_name>_samples.csv; results/<group_name>_waveforms.csv`.
 * If a waveform/probe CSV cannot be saved for a TRAN/AC/waveform-like group, state this as a blocker. Do not plan only samples CSV instead of waveform CSV.
 * Waveform/probe artifacts must be planned as normal outputs of the corresponding testbench group, so the next implementation step creates them together with metrics/log outputs.
+
+For canonical input stimuli:
+
+* keep each referenced `stimuli/*.csv` as the single source of waveform points; do not copy its numeric rows into the implementation plan or fixture generator;
+* explicitly map each CSV signal column to its driven public DUT pin and fixture source node;
+* plan `tests/materialize_stimuli.py` to validate the CSV and generate the ngspice PWL support before simulation;
+* keep generated simulator support under `tests/generated_stimuli/` and list it in the manifest as a generated dependency, not as a canonical input or result artifact;
+* when one fixture group uses multiple scenarios, plan a stable numeric `TB_*` selector and preserve the stable scenario names as run metadata;
+* derive paths from the DUT workspace at runtime and keep saved project artifacts free of machine-specific absolute paths;
+* distinguish input stimulus CSV files from `results/*_waveforms.csv`, which contain simulated outputs and probes.
 
 ## CSV Outputs
 
@@ -217,6 +235,8 @@ Before finishing, verify that:
 * simulator temperature, process corner, run ID, case name, sweep target, and ramp direction are not planned as fixture parameters;
 * measurements/pass-fail are planned in `.control`;
 * CSV outputs have stable paths;
+* every canonical input CSV referenced by a group is listed, mapped to public pins, and planned for materialization before simulation;
+* generated stimulus support is reproducible from the canonical CSV and uses no saved machine-specific absolute paths;
 * PVT/corner intent from `verification_plan.md` is preserved for Cadence/Spectre export;
 * mock/development ngspice planning does not require PDK/foundry models or real process-corner sweeps;
 * deferred process-model notes are planned only in `.control`, not in generated SPICE fixtures;
@@ -233,6 +253,7 @@ Respond briefly with:
 * `testbench_implementation_plan.md` created/updated;
 * how many fixture groups were defined;
 * which future files and CSV outputs are planned;
+* which canonical input CSV stimuli and generated ngspice support files are planned, if any;
 * how `tests/run_test.py` and `tests/testbench_manifest.json` cover the groups;
 * which groups plan waveform/sample artifacts;
 * how fixture/DUT binding is split between `.sp` and `.control`;

@@ -46,7 +46,7 @@ def relative_file(root: Path, raw: object, field: str) -> Path:
     return path
 
 
-def manifest_groups(root: Path) -> list[tuple[str, Path]]:
+def manifest_groups(root: Path, selected: set[str]) -> list[tuple[str, Path, bool]]:
     manifest_path = root / "tests" / "testbench_manifest.json"
     try:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -54,7 +54,8 @@ def manifest_groups(root: Path) -> list[tuple[str, Path]]:
         raise ValueError(f"invalid testbench manifest: {exc}") from exc
     if manifest.get("schema_version") != 1 or not isinstance(manifest.get("groups"), list):
         raise ValueError("testbench manifest schema_version must be 1 with a groups array")
-    result: list[tuple[str, int, Path]] = []
+    result: list[tuple[str, int, Path, bool]] = []
+    manifest_names: list[str] = []
     for item in manifest["groups"]:
         if not isinstance(item, dict):
             raise ValueError("manifest group must be an object")
@@ -62,13 +63,31 @@ def manifest_groups(root: Path) -> list[tuple[str, Path]]:
         order = item.get("order")
         if not isinstance(name, str) or not GROUP_RE.fullmatch(name):
             raise ValueError(f"invalid group name: {name!r}")
+        manifest_names.append(name)
         if not isinstance(order, int) or order < 1:
             raise ValueError(f"invalid order for group {name}")
+        if name not in selected:
+            continue
         fixture = relative_file(root, item.get("fixture"), f"{name}.fixture")
-        result.append((name, order, fixture))
-    if len({name for name, _, _ in result}) != len(result):
+        canonical = item.get("canonical_inputs", [])
+        if not isinstance(canonical, list) or not all(isinstance(path, str) for path in canonical):
+            raise ValueError(f"{name}.canonical_inputs must be an array of relative paths")
+        for index, path in enumerate(canonical):
+            relative_file(root, path, f"{name}.canonical_inputs[{index}]")
+        if canonical:
+            relative_file(root, item.get("materializer"), f"{name}.materializer")
+            dependencies = item.get("generated_dependencies")
+            if not isinstance(dependencies, list) or not dependencies:
+                raise ValueError(f"{name}.generated_dependencies must be non-empty")
+            for index, path in enumerate(dependencies):
+                relative_file(root, path, f"{name}.generated_dependencies[{index}]")
+        result.append((name, order, fixture, bool(canonical)))
+    if len(set(manifest_names)) != len(manifest_names):
         raise ValueError("duplicate manifest group name")
-    return [(name, fixture) for name, _, fixture in sorted(result, key=lambda row: row[1])]
+    missing = selected - set(manifest_names)
+    if missing:
+        raise ValueError(f"Maestro fragments are absent from the manifest: {sorted(missing)}")
+    return [(name, fixture, file_stimulus) for name, _, fixture, file_stimulus in sorted(result, key=lambda row: row[1])]
 
 
 def model_files(config: Path) -> list[str]:
@@ -187,15 +206,17 @@ def main() -> int:
     setup = export / "maestro_setup"
     support = export / "generated_support"
     config = export / "model_bindings.toml"
+    actual_fragments = {path.stem for path in setup.glob("*.il")}
+    if not actual_fragments:
+        raise SystemExit("no validated Maestro group fragments found")
     try:
-        groups = manifest_groups(root)
+        groups = manifest_groups(root, actual_fragments)
         models = model_files(config)
-        fragments = {name: group_fragment(setup / f"{name}.il", name) for name, _ in groups}
+        fragments = {name: group_fragment(setup / f"{name}.il", name) for name, _, _ in groups}
     except ValueError as exc:
         raise SystemExit(str(exc)) from exc
 
-    actual_fragments = {path.stem for path in setup.glob("*.il")}
-    expected_fragments = {name for name, _ in groups}
+    expected_fragments = {name for name, _, _ in groups}
     if actual_fragments != expected_fragments:
         raise SystemExit(
             f"Maestro fragment set mismatch: expected={sorted(expected_fragments)}, "
@@ -209,16 +230,32 @@ def main() -> int:
     (support / "cadence_dut.scs").write_text(dut_text + "\n", encoding="utf-8")
 
     blocks: list[str] = []
-    for name, fixture in groups:
+    file_groups = [name for name, _, file_stimulus in groups if file_stimulus]
+    if file_groups:
+        materializer = export / "materialize_stimuli.py"
+        if not materializer.is_file():
+            raise SystemExit(f"missing Cadence stimulus materializer: {materializer}")
+        for name in file_groups:
+            template = support / f"{name}_source.scs.in"
+            stimulus_dir = support / "stimuli" / name
+            if not template.is_file():
+                raise SystemExit(f"missing Spectre stimulus template: {template}")
+            if "__EDA_HARNESS_STIMULUS_DIR__" not in template.read_text(encoding="utf-8"):
+                raise SystemExit(f"missing portable stimulus token in {template}")
+            if not stimulus_dir.is_dir() or not any(
+                path.is_file() and path.stat().st_size > 0 for path in stimulus_dir.glob("*.pwl")
+            ):
+                raise SystemExit(f"missing Spectre PWL stimuli for {name}: {stimulus_dir}")
+            (support / f"{name}_source.scs").unlink(missing_ok=True)
+
+    for name, fixture, file_stimulus in groups:
         fixture_text = fixture.read_text(encoding="utf-8", errors="replace").rstrip()
         if not re.search(rf"(?im)^\s*\.subckt\s+{re.escape(args.suite_cell)}(?:\s|$)", fixture_text):
             raise SystemExit(f"fixture {fixture} does not define .SUBCKT {args.suite_cell}")
-        wrapper = (
-            'simulator lang=spectre\ninclude "cadence_dut.scs"\n'
-            "simulator lang=spice\n"
-            + fixture_text
-            + "\nsimulator lang=spectre\n"
-        )
+        includes = 'simulator lang=spectre\ninclude "cadence_dut.scs"\n'
+        if file_stimulus:
+            includes += f'include "{name}_source.scs"\n'
+        wrapper = includes + "simulator lang=spice\n" + fixture_text + "\nsimulator lang=spectre\n"
         (support / f"{name}.scs").write_text(wrapper, encoding="utf-8")
         blocks.append(group_block(name, fragments[name]))
 
@@ -238,14 +275,35 @@ def main() -> int:
     ]
     checks.extend(
         f'\t@test -r "$(EXPORT_DIR)/generated_support/{name}.scs" || {{ echo "missing support deck for {name}" >&2; exit 2; }}'
-        for name, _ in groups
+        for name, _, _ in groups
     )
+    if file_groups:
+        checks.append(
+            '\t@test -r "$(EXPORT_DIR)/materialize_stimuli.py" || { echo "missing Cadence stimulus materializer" >&2; exit 2; }'
+        )
+        for name in file_groups:
+            checks.extend(
+                [
+                    f'\t@test -r "$(EXPORT_DIR)/generated_support/{name}_source.scs.in" || {{ echo "missing Spectre stimulus template for {name}" >&2; exit 2; }}',
+                    f'\t@test -n "$$(find "$(EXPORT_DIR)/generated_support/stimuli/{name}" -type f -name "*.pwl" -size +0c -print -quit 2>/dev/null)" || {{ echo "missing Spectre PWL stimuli for {name}" >&2; exit 2; }}',
+                ]
+            )
     checks.extend(
         f'\t@test -r "$(PDK_PATH)/{model}" || {{ echo "missing PDK model: {model}" >&2; exit 2; }}'
         for model in models
     )
     makefile = (assets / "Makefile.template").read_text(encoding="utf-8")
     makefile = makefile.replace("{{INPUT_AND_MODEL_CHECKS}}", "\n".join(checks))
+    materialize = ""
+    materialized_checks = ""
+    if file_groups:
+        materialize = '\t@"$(PYTHON)" "$(EXPORT_DIR)/materialize_stimuli.py" --export-dir "$(EXPORT_DIR)"'
+        materialized_checks = "\n".join(
+            f'\t@test -s "$(EXPORT_DIR)/generated_support/{name}_source.scs" || {{ echo "missing materialized Spectre stimulus for {name}" >&2; exit 2; }}'
+            for name in file_groups
+        )
+    makefile = makefile.replace("{{MATERIALIZE_STIMULI}}", materialize)
+    makefile = makefile.replace("{{MATERIALIZED_STIMULUS_CHECKS}}", materialized_checks)
     if "{{" in makefile or "}}" in makefile:
         raise SystemExit("unresolved Makefile placeholder")
     (export / "Makefile").write_text(makefile, encoding="utf-8")

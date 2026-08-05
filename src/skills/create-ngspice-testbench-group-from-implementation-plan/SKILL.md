@@ -13,6 +13,7 @@ Implement the testbench groups selected from `testbench_implementation_plan.md` 
 
 * `verification_plan.md` — DUT contract, requirements, conditions, metrics, and pass/fail limits.
 * `testbench_implementation_plan.md` — fixture groups, planned files, CSV outputs, and implementation order.
+* Canonical `stimuli/*.csv` files referenced by the selected group, when present.
 * DUT netlist for development/run — user-provided runnable SPICE netlist or generated mock netlist selected in the previous stage.
 * Optional model files/includes — use only when the selected real ngspice DUT requires them. Do not require PDK/foundry process models for mock/development ngspice runs.
 
@@ -50,6 +51,13 @@ results/<group_name>_samples.csv / results/<group_name>_waveforms.csv, if planne
 results/<group_name>.log
 ```
 
+When planned for a selected group, also create or update:
+
+```text
+tests/materialize_stimuli.py
+tests/generated_stimuli/<group_name>_ngspice.inc
+```
+
 Each group has its own separate HDL21 Python file. Do not create one shared generator for all groups.
 
 If simulator-native output requires structural normalization, save it as `tests/<group_name>_parse_results.py`, declare it in the manifest, and invoke it only through `tests/run_test.py`. Never use an ephemeral heredoc or unsaved parser.
@@ -62,10 +70,31 @@ Before modifying any selected group, run one aggregated preflight for the select
 * confirm Python runs and imports HDL21;
 * confirm ngspice is executable;
 * confirm the selected real or mock DUT and every existing required include are readable;
+* confirm every planned canonical input CSV is readable and matches its planned columns;
 * confirm planned input/output paths remain inside the DUT workspace;
 * report all missing requirements together before creating or deleting group artifacts.
 
 Do not probe Cadence, Virtuoso, PDK model roots, or site setup here. This skill runs entirely on the open stack.
+
+## File-Based Stimulus Materialization
+
+When the selected group references canonical input CSV files, implement the
+materialization contract from `testbench_implementation_plan.md`.
+
+* Keep each `stimuli/*.csv` as the single source of numeric waveform points; do not rewrite it or duplicate its rows in fixture source code.
+* `tests/materialize_stimuli.py` must validate headers, finite numeric values, strictly increasing `time_s`, and the planned mapping from signal columns to driven public DUT pins.
+* Generate `tests/generated_stimuli/<group_name>_ngspice.inc` with the ngspice PWL source/helper definitions required by the fixture. Never copy DUT outputs or internal traces into stimulus.
+* If several scenarios share one group, implement the planned stable numeric `TB_*` selector and preserve scenario names as run metadata.
+* Apply only waveform transformations explicitly planned in `testbench_implementation_plan.md`; preserve every planned point and hold the endpoint through analysis stop instead of allowing unplanned extrapolation.
+* Derive all paths from the DUT workspace at runtime. Saved CSV, Python, SPICE, control, manifest, and generated-support files must not contain machine-specific absolute paths.
+* The generated include is a reproducible simulator-support dependency, not a canonical input or result artifact.
+* Declare the canonical CSV inputs, materializer, and generated include as group dependencies in `tests/testbench_manifest.json`. The shared runner removes stale generated support, runs the materializer, and requires the include to be recreated before invoking the HDL21 group generator and ngspice.
+* Keep the HDL21 group generator focused on fixture generation; it must not invoke the materializer itself.
+
+The group fixture must instantiate a stable backend-independent stimulus helper
+inside its importable top-level `.SUBCKT`. The generated ngspice include defines
+that helper for open-stack execution; later Cadence export may provide a
+Spectre implementation of the same helper without changing the fixture topology.
 
 ## HDL21 Fixture Requirement
 
@@ -109,6 +138,7 @@ Raw-SPICE exception:
 * This raw-SPICE fragment must be minimal, local to the fixture, and added by `tests/<group_name>.py` when generating `.sp`.
 * The raw-SPICE fragment must not include/source the selected DUT implementation netlist, mock netlist, real DUT netlist, or PDK/foundry models.
 * The final `tests/<group_name>.sp` must still contain a complete reusable fixture with stimulus/source elements.
+* For a planned file-based stimulus, the fixture must instantiate its stable stimulus helper and the generated ngspice include may provide that helper's simulator-specific PWL implementation.
 * Do not use raw-SPICE fragments in `.control` as a way to describe the main circuit topology.
 
 Cadence-importable fixture shape:
@@ -137,6 +167,7 @@ Before finishing the fixture, check that:
 
 * include/source the selected ngspice DUT/mock netlist for this stage;
 * include/source the generated SPICE fixture `tests/<group_name>.sp`;
+* include/source the generated ngspice stimulus-support file when the group uses canonical input CSV;
 * include/source required model/includes only when the selected real ngspice DUT requires them;
 * for mock/development ngspice runs, do not add active `.include` or `.lib` lines for process-corner models;
 * for mock/development ngspice runs, add the deferred Cadence/Spectre process-model note only in `tests/<group_name>.control`: list exact logical corners from the verification plan, or state that `configured_process_corners` will be resolved by `cadence_export/model_bindings.toml`;
@@ -254,6 +285,17 @@ Rules:
 * metrics CSV must use the schema from `testbench_implementation_plan.md`;
 * units must be consistent between log RESULT lines and CSV rows.
 
+For a canonical time-domain scenario, save an actual time-series waveform for
+at least each nominal canonical scenario, with enough simulator time points to
+show every driven transition and expected public response. Sparse acceptance
+checkpoints belong in an additional samples artifact and must not be presented
+as or substituted for the planned waveform CSV. Full waveforms need not be
+duplicated for every PVT run when representative nominal waveforms plus
+per-run metrics provide the required evidence. The saved runner flow must reject
+missing runs, non-monotonic time, traces that end before required observation
+points, or driven stimulus outside its planned range; use a declared structural
+parser when the simulator-native export cannot enforce these checks directly.
+
 ## Implementation Rules
 
 * Follow `verification_plan.md` and `testbench_implementation_plan.md`.
@@ -266,6 +308,7 @@ Rules:
 * For mock/development ngspice runs, do not require real process models; keep process-corner hookup as a commented note in `tests/<group_name>.control` only.
 * Do not place selected DUT/mock includes, real DUT netlist includes, process-corner hookup notes, or Cadence/Spectre TODO comments in generated `tests/<group_name>.sp`.
 * Output directories must exist before files are written. Create them in the HDL21 Python source or a pre-run step; do not make shell commands inside `.control` the main architecture.
+* File-based stimulus conversion belongs in the saved materializer and runner flow, not in `.control`, ephemeral shell commands, or manually edited generated SPICE.
 
 ## Ngspice Verification
 
@@ -295,6 +338,10 @@ Iteratively fix the implementation until the current group satisfies all of the 
 * generated `tests/<group_name>.sp` exposes swept and corner-controlled source/stimulus/control values as stable `TB_*` fixture parameters with nominal defaults;
 * generated `tests/<group_name>.sp` does not contain selected DUT/mock includes, real DUT netlist includes, PDK/foundry model includes, process-corner TODOs, or Cadence/Spectre hookup comments;
 * `tests/<group_name>.control` includes/sources the selected ngspice DUT/mock netlist and generated fixture;
+* for a file-based stimulus group, the runner recreated the generated ngspice include from the canonical CSV before fixture generation and `.control` included/sourced it;
+* the HDL21 group generator did not invoke the materializer;
+* the generated fixture instantiates the planned backend-independent stimulus helper inside its importable top-level `.SUBCKT`;
+* canonical CSV inputs and saved project files contain no machine-specific absolute paths;
 * ngspice finishes without fatal parse/runtime errors;
 * `.control` runs the required analysis;
 * `.control` applies executable run values through named fixture parameters where available;
@@ -303,6 +350,7 @@ Iteratively fix the implementation until the current group satisfies all of the 
 * log contains `RESULT` / `FAIL` / `SUMMARY`;
 * metrics CSV is created, non-empty, and matches the schema;
 * samples/waveform CSV is created if planned;
+* canonical time-domain scenarios have representative full time-series waveforms; sparse checkpoints, if retained, are declared as samples rather than waveforms;
 * planned CSV files have valid CSV format with consistent delimiter;
 * waveform/sample CSV contains a run identifier if it includes data from more than one run;
 * DUT/mock run gives meaningful measurements for all metrics in the current group;
@@ -342,7 +390,7 @@ The saved runner owns pre-run cleanup for generated fixtures and declared result
 * `__pycache__`;
 * unnecessary raw/binary files unless they are planned outputs.
 
-Keep planned source files, generated SPICE fixture, control file, CSV outputs, useful log, and required samples/waveforms.
+Keep planned source files, generated stimulus support, generated SPICE fixture, control file, CSV outputs, useful log, and required samples/waveforms.
 
 ## Completion Record
 
@@ -361,6 +409,7 @@ Return a concise record for all selected groups without introducing a confirmati
 * confirmation that the exported `.sp` is a complete fixture, not a thin wrapper or DUT-binding wrapper;
 * confirmation that generated `.sp` has no selected DUT/mock includes, real DUT netlist includes, PDK/foundry model includes, process-corner TODOs, or Cadence/Spectre hookup comments;
 * confirmation that `.control` includes/sources the selected ngspice DUT/mock netlist and generated fixture;
+* confirmation that any canonical input CSV was materialized into regenerated ngspice PWL support and mapped only to planned public inputs;
 * confirmation that planned CSV/waveform files have valid CSV format;
 * blockers/limitations, if any;
 * any remaining unselected or blocked groups.
