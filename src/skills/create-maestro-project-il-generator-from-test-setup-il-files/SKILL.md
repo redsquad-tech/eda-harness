@@ -105,7 +105,7 @@ Write `validation.json` only after the exact runtime test-set check succeeds:
 
 Save the setup once, print `EDA_HARNESS_EXPORT_OK` with the actual count, and close the Maestro session before terminating the batch process. Do not claim static or runtime validation of analyses, outputs, metrics, specs, or corners beyond successful API execution.
 
-Require `make import` to invoke `make verify`. Treat Virtuoso exit `0`, an exact minimal validation record, the sentinel, equal positive test counts, and no warning/error text as success. Treat exit `0` with a warning or partial test set as failure.
+Require `make import` to invoke `make verify`. Treat Virtuoso exit `0`, an exact minimal validation record, the sentinel, equal positive test counts, and no error or unexpected warning text as success. Allow only the known infrastructure warnings encoded by `verify_export.py`; treat every other warning or a partial test set as failure.
 
 ## Completion
 

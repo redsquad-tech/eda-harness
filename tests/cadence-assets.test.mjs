@@ -236,7 +236,8 @@ test("Maestro API adapter exposes the exact wrapper contract", () => {
     assert.ok(api.includes(`procedure(${helper}`), helper);
   assert.match(api, /procedure\(ehSetMinimum[\s\S]*?\?gt value/);
   assert.match(api, /procedure\(ehSetMaximum[\s\S]*?\?lt value/);
-  assert.match(api, /procedure\(ehSetRange[\s\S]*?\?gt minimum[\s\S]*?\?lt maximum/);
+  assert.match(api, /procedure\(ehSetRange[\s\S]*?\?range list\(minimum maximum\)/);
+  assert.doesNotMatch(api, /procedure\(ehSetRange[\s\S]*?\?gt minimum[\s\S]*?\?lt maximum/);
   for (const expression of ["VT", "VF", "VAR"])
     assert.ok(api.includes(`${expression}(\\\"%s\\\")`), expression);
   assert.doesNotMatch(api, /procedure\(eh(?:AnalysisName|AddOutput|SetSpec|ConfigureCorner)/);
@@ -249,6 +250,8 @@ test("Maestro API adapter exposes the exact wrapper contract", () => {
 
   assert.match(groupInstructions, /Create one or more Maestro tests per group\./);
   assert.match(groupInstructions, /Read the entire `\.control` block\./);
+  assert.match(groupInstructions, /matching fixture `\.SUBCKT`[\s\S]*?root hierarchy[\s\S]*?activation instances outside its `\.ENDS`[\s\S]*?path prefixes/);
+  assert.match(groupInstructions, /ngspice `tran \.\.\. uic`[\s\S]*?`\("skipdc" "yes"\)`/);
   assert.match(groupInstructions, /Escape every quote[\s\S]*?`\\"`/);
   assert.doesNotMatch(groupInstructions, /^; EDA_HARNESS_(?:OUTPUTS|CORNERS|ANALYSIS):/m);
   assert.doesNotMatch(groupInstructions, /validate_group_setup\.py/);
@@ -271,7 +274,16 @@ const validRecord = { status: "ok", expected_tests: 2, actual_tests: 2 };
 
 test("Cadence verifier accepts only the minimal exact validation record", () => {
   assert.equal(verify("EDA_HARNESS_EXPORT_OK tests=2\n", validRecord).status, 0);
+  assert.equal(verify([
+    "2026/08/17 WARNING This OS does not appear to be a Cadence supported Linux configuration.",
+    '*WARNING* could not load font "fixed", using font "fixed"',
+    '*WARNING* Font name "missing" is invalid',
+    "*WARNING* The Virtuoso Analog Design Environment (ADE) creates a user interface (UI) to match the available simulator.",
+    "EDA_HARNESS_EXPORT_OK tests=2",
+    "",
+  ].join("\n"), validRecord).status, 0);
   assert.notEqual(verify("WARNING analysis changed\nEDA_HARNESS_EXPORT_OK tests=2\n", validRecord).status, 0);
+  assert.notEqual(verify("*ERROR* undefined function\nEDA_HARNESS_EXPORT_OK tests=2\n", validRecord).status, 0);
   assert.notEqual(verify("EDA_HARNESS_EXPORT_OK tests=1\n", { ...validRecord, actual_tests: 1 }).status, 0);
   assert.notEqual(verify("EDA_HARNESS_EXPORT_OK tests=2\n", { ...validRecord, analyses_valid: true }).status, 0);
 });

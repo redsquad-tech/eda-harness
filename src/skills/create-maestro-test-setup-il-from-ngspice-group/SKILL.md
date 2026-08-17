@@ -61,12 +61,13 @@ Treat the complete `.control` as the executable source for run cases, analyses, 
 2. List every independent simulation run and its options.
 3. Partition incompatible runs into separate Maestro tests.
 4. Transfer each test's analysis and options, stable `TB_*` values, measurements, derived metrics, limits, and applicable corners.
-5. Check every referenced node against the fixture `.SUBCKT` interface.
-6. Use only public DUT pins and fixture probe nodes; never use internal DUT nodes.
-7. Preserve each acceptance metric as a calculated metric rather than simplifying it to a waveform.
-8. Do not open, save, close, or delete the shared Maestro view from a group fragment.
-9. Use only `eh*` wrappers for Maestro and AXL operations.
-10. Record the exact created test names in `EDA_HARNESS_TESTS`.
+5. Treat the matching fixture `.SUBCKT` imported as the suite cell as the root hierarchy; ignore activation instances outside its `.ENDS` and never use them as path prefixes.
+6. Derive every referenced node, source instance, and branch terminal from inside that `.SUBCKT`.
+7. Use only public DUT pins and fixture probe nodes; never use internal DUT nodes.
+8. Preserve each acceptance metric as a calculated metric rather than simplifying it to a waveform.
+9. Do not open, save, close, or delete the shared Maestro view from a group fragment.
+10. Use only `eh*` wrappers for Maestro and AXL operations.
+11. Record the exact created test names in `EDA_HARNESS_TESTS`.
 
 Create one or more Maestro tests per group.
 
@@ -109,12 +110,25 @@ ehSetTestVar(sess testName "TB_VDD" "1.2")
 ```
 
 Pass every analysis option as a backtick list. Preserve the exact applicable `.control` values.
+Map ngspice `tran ... uic` to the Cadence option `("skipdc" "yes")`; omit
+`skipdc` when `uic` is absent. Cadence enumerated option values are strings,
+not SKILL booleans.
 
 ```lisp
 ; OP
 ehSetAnalysis(
   sess testName "op"
   `(("saveOppoint" t))
+)
+
+; DC component-parameter sweep
+ehSetAnalysis(
+  sess testName "dc"
+  `(("dev" "vsource_instance")
+    ("param" "dc")
+    ("start" "0")
+    ("stop" "1.2")
+    ("step" "1m"))
 )
 
 ; TRAN

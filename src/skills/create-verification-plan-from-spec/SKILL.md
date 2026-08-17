@@ -18,6 +18,10 @@ Create or update the file:
 verification_plan.md
 ```
 
+Unless the user explicitly selects another workspace, treat the directory
+containing the input specification as the DUT workspace and create
+`verification_plan.md` there.
+
 Always write `verification_plan.md` in English.
 
 ## `verification_plan.md` Structure

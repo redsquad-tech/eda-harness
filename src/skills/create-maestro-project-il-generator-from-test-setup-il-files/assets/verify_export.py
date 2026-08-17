@@ -9,10 +9,24 @@ import re
 from pathlib import Path
 
 
-FAILURE_RE = re.compile(
-    r"(?:\*error\*|\berror\b|\bwarning\b|doesn't exist|undefined function|unbound variable|failed)",
+HARD_FAILURE_RE = re.compile(
+    r"(?:\*error\*|\berror\b|doesn't exist|undefined function|unbound variable|failed)",
     re.IGNORECASE,
 )
+WARNING_RE = re.compile(r"\bwarning\b", re.IGNORECASE)
+ALLOWED_WARNING_RES = (
+    re.compile(r"WARNING This OS does not appear to be a Cadence supported Linux configuration", re.IGNORECASE),
+    re.compile(r"\*WARNING\* could not load font .+ using font .+", re.IGNORECASE),
+    re.compile(r"\*WARNING\* Font name .+ is invalid", re.IGNORECASE),
+    re.compile(
+        r"\*WARNING\* The Virtuoso Analog Design Environment \(ADE\) creates a user interface \(UI\)",
+        re.IGNORECASE,
+    ),
+)
+
+
+def is_allowed_warning(line: str) -> bool:
+    return any(pattern.search(line) for pattern in ALLOWED_WARNING_RES)
 
 
 def main() -> int:
@@ -26,7 +40,12 @@ def main() -> int:
     if not log_path.is_file():
         raise SystemExit(f"missing Cadence log: {log_path}")
     text = log_path.read_text(encoding="utf-8", errors="replace")
-    failures = [line for line in text.splitlines() if FAILURE_RE.search(line)]
+    failures = [
+        line
+        for line in text.splitlines()
+        if HARD_FAILURE_RE.search(line)
+        or (WARNING_RE.search(line) and not is_allowed_warning(line))
+    ]
     if failures:
         raise SystemExit("Cadence emitted warning/error output:\n" + "\n".join(failures[:20]))
     if "EDA_HARNESS_EXPORT_OK" not in text:

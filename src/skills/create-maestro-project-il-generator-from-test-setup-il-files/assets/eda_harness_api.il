@@ -100,8 +100,7 @@ procedure(ehSetMaximum(sess testName outputName value)
 procedure(ehSetRange(sess testName outputName minimum maximum)
   maeSetSpec(
     outputName testName
-    ?gt minimum
-    ?lt maximum
+    ?range list(minimum maximum)
     ?session sess
   )
 )
