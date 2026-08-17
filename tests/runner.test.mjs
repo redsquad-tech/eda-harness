@@ -122,6 +122,45 @@ test("runner removes stale data and publishes only a fresh successful run", () =
   }
 });
 
+test("runner rematerializes declared simulator support before fixture generation", () => {
+  const item = group("alpha", 1);
+  item.canonical_inputs = ["stimuli/scenario.csv"];
+  item.materializer = "tests/materialize_stimuli.py";
+  item.generated_dependencies = ["tests/generated_stimuli/alpha_ngspice.inc"];
+  const fixture = workspace([item]);
+  try {
+    mkdirSync(join(fixture.directory, "stimuli"), { recursive: true });
+    mkdirSync(join(fixture.directory, "tests", "generated_stimuli"), { recursive: true });
+    writeFileSync(join(fixture.directory, "stimuli", "scenario.csv"), "time_s,input_v\n0,0\n1e-6,1\n");
+    const dependency = join(fixture.directory, "tests", "generated_stimuli", "alpha_ngspice.inc");
+    writeFileSync(dependency, "stale\n");
+    writeFileSync(
+      join(fixture.directory, "tests", "materialize_stimuli.py"),
+      `from pathlib import Path
+output = Path("tests/generated_stimuli/alpha_ngspice.inc")
+if output.exists():
+    raise SystemExit("stale dependency was not removed")
+output.write_text("fresh support\\n")
+`,
+    );
+    writeFileSync(
+      join(fixture.directory, "tests", "alpha.py"),
+      `from pathlib import Path
+dependency = Path("tests/generated_stimuli/alpha_ngspice.inc")
+if dependency.read_text() != "fresh support\\n":
+    raise SystemExit("materializer did not run before generator")
+Path("tests/generated/alpha.sp").write_text("* generated\\n")
+`,
+    );
+
+    const result = run(fixture, ["alpha"]);
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    assert.equal(readFileSync(dependency, "utf8"), "fresh support\n");
+  } finally {
+    rmSync(fixture.directory, { recursive: true, force: true });
+  }
+});
+
 test("runner distinguishes DUT failures and continues all independent groups", () => {
   const fixture = workspace([group("alpha", 1), group("beta", 2)]);
   try {

@@ -30,8 +30,10 @@ preflight: ## Check runtime environment without creating Cadence objects
 import: preflight ## Create and verify the complete Maestro suite
 	@mkdir -p "$(LOG_DIR)"
 	@$(RM) "$(VALIDATION_FILE)"
+{{MATERIALIZE_STIMULI}}
 	@cd "$(EXPORT_DIR)" && "$(VIRTUOSO)" -nograph -restore generate.il >"$(LOG_FILE)" 2>&1
 	@$(MAKE) --no-print-directory verify
 
 verify: ## Reject warnings, partial state, and missing suite artifacts
+{{MATERIALIZED_STIMULUS_CHECKS}}
 	@"$(PYTHON)" "$(EXPORT_DIR)/verify_export.py" "$(LOG_FILE)" "$(VALIDATION_FILE)"

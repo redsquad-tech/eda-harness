@@ -17,6 +17,9 @@ Copy `assets/run_test.py` unchanged to `<workspace>/tests/run_test.py`. Create o
       "expected_runs": 81,
       "expected_results": 162,
       "parser": null,
+      "canonical_inputs": [],
+      "materializer": null,
+      "generated_dependencies": [],
       "artifacts": []
     }
   ]
@@ -34,6 +37,21 @@ For a waveform artifact use:
 ```
 
 All paths are relative to the DUT workspace. Do not use absolute paths, `..`, or symlinks.
+
+For a file-based stimulus group, declare all three fields together:
+
+```json
+{
+  "canonical_inputs": ["stimuli/scenario.csv"],
+  "materializer": "tests/materialize_stimuli.py",
+  "generated_dependencies": ["tests/generated_stimuli/group_ngspice.inc"]
+}
+```
+
+The runner checks the input paths, removes stale generated dependencies, runs
+the materializer before the HDL21 generator, and requires every dependency to
+be recreated and non-empty. The materializer owns CSV schema and waveform
+validation.
 
 ## Commands and status
 
@@ -65,4 +83,4 @@ The parser may tokenize records, quote CSV fields, copy explicit simulator value
 
 ## Reproducibility gate
 
-The runner deletes the selected group's generated fixture and declared result files before every run. Completion requires a newly generated fixture, a successful ngspice process, one canonical SUMMARY, matching run/result/failure counts, a metrics CSV with the canonical header, and every declared artifact with its required columns. On infrastructure failure, data outputs are removed and the current diagnostic log is retained.
+The runner deletes the selected group's generated dependencies, fixture, and declared result files before every run. Completion requires newly materialized simulator support when declared, a newly generated fixture, a successful ngspice process, one canonical SUMMARY, matching run/result/failure counts, a metrics CSV with the canonical header, and every declared artifact with its required columns. On infrastructure failure, generated dependencies and data outputs are removed and the current diagnostic log is retained.

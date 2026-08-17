@@ -9,6 +9,8 @@ All distribution sources live in [`src`](src): it contains the canonical skills,
 | Skill | Purpose |
 | --- | --- |
 | `create-verification-plan-from-spec` | Turn a circuit specification into an acceptance verification plan. |
+| `create-systemverilog-model-plan-from-verification-plan` | Define the interface, behavior, coverage, and validation plan for a SystemVerilog reference model. |
+| `create-systemverilog-model-from-model-plan` | Implement and validate a SystemVerilog reference model from its approved plan. |
 | `create-mock-dut-from-verification-plan` | Create a minimal HDL21/ngspice development DUT when a runnable DUT is unavailable. |
 | `create-testbench-implementation-plan-from-verification-plan` | Define the minimum ordered testbench groups and stable outputs. |
 | `create-ngspice-testbench-group-from-implementation-plan` | Implement and execute one named group or all unfinished ngspice groups. |
