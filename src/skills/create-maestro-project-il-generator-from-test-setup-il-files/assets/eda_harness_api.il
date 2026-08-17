@@ -23,59 +23,144 @@ procedure(ehCreateManagedLibrary(lib workDir)
   )
 )
 
-procedure(ehAnalysisName(kind)
-  cond(
-    ((kind == "op" || kind == "dc") "dc")
-    ((kind == "tran") "tran")
-    ((kind == "ac") "ac")
-    (t error("API_UNSUPPORTED analysis kind: %s\n" kind))
+procedure(ehCreateTest(sess testName lib cell configView)
+  maeCreateTest(
+    testName
+    ?lib lib
+    ?cell cell
+    ?view configView
+    ?simulator "spectre"
+    ?session sess
+  )
+)
+
+procedure(ehSetTestVar(sess testName name value)
+  maeSetVar(
+    name value
+    ?typeName "test"
+    ?typeValue list(testName)
+    ?session sess
   )
 )
 
 procedure(ehSetAnalysis(sess testName kind options)
   let((analysis)
-    analysis = ehAnalysisName(kind)
-    maeSetAnalysis(testName analysis ?enable t ?options options ?session sess)
-    analysis
+    analysis = cond(
+      ((kind == "op") "dc")
+      ((kind == "dc") "dc")
+      ((kind == "tran") "tran")
+      ((kind == "ac") "ac")
+      (t error("unsupported analysis: %s\n" kind))
+    )
+
+    maeSetAnalysis(
+      testName
+      analysis
+      ?enable t
+      ?options options
+      ?session sess
+    )
   )
 )
 
-procedure(ehAddOutput(sess testName name expression)
-  maeAddOutput(name testName ?outputType "point" ?expr expression ?session sess)
+procedure(ehAddWaveform(sess testName name signalName)
+  maeAddOutput(
+    name testName
+    ?outputType "net"
+    ?signalName signalName
+    ?session sess
+  )
 )
 
-; Pass the exact, generated maeSetSpec argument list. Keeping the call here
-; makes unsupported local API signatures fail once with API_UNSUPPORTED.
-procedure(ehSetSpec(specArgs)
-  unless(getd('maeSetSpec) error("API_UNSUPPORTED maeSetSpec\n"))
-  apply('maeSetSpec specArgs)
+procedure(ehAddMetric(sess testName name expression)
+  maeAddOutput(
+    name testName
+    ?outputType "point"
+    ?expr expression
+    ?session sess
+  )
 )
 
-procedure(ehConfigureCorner(db testName cornerName proc temp modelFile section)
-  let((cornerHandle model)
-    cornerHandle = axlGetCorner(db cornerName)
-    ehAssert(cornerHandle sprintf(nil "missing corner %s" cornerName))
-    axlPutVar(cornerHandle "temperature" temp)
-    model = axlPutModel(cornerHandle proc)
-    ehAssert(model sprintf(nil "axlPutModel failed for %s" cornerName))
+procedure(ehSetMinimum(sess testName outputName value)
+  maeSetSpec(
+    outputName testName
+    ?gt value
+    ?session sess
+  )
+)
+
+procedure(ehSetMaximum(sess testName outputName value)
+  maeSetSpec(
+    outputName testName
+    ?lt value
+    ?session sess
+  )
+)
+
+procedure(ehSetRange(sess testName outputName minimum maximum)
+  maeSetSpec(
+    outputName testName
+    ?gt minimum
+    ?lt maximum
+    ?session sess
+  )
+)
+
+procedure(ehVT(path)
+  sprintf(nil "VT(\"%s\")" path)
+)
+
+procedure(ehVF(path)
+  sprintf(nil "VF(\"%s\")" path)
+)
+
+procedure(ehVAR(name)
+  sprintf(nil "VAR(\"%s\")" name)
+)
+
+procedure(ehCreateCorner(sess cornerName)
+  maeSetCorner(
+    cornerName
+    ?enabled t
+    ?session sess
+  )
+)
+
+procedure(ehSetCornerVar(sess cornerName name value)
+  maeSetVar(
+    name value
+    ?typeName "corner"
+    ?typeValue list(cornerName)
+    ?session sess
+  )
+)
+
+procedure(ehAddCornerModel(
+    sess cornerName modelName modelFile modelSection testName
+  )
+  let((sdb corner model)
+    sdb = axlGetMainSetupDB(sess)
+    corner = axlGetCorner(sdb cornerName)
+    ehAssert(corner sprintf(nil "missing corner %s" cornerName))
+
+    model = axlPutModel(corner modelName)
     axlSetModelFile(model modelFile)
-    axlSetModelSection(model section)
+    when(modelSection
+      axlSetModelSection(model modelSection)
+    )
     axlSetModelTest(model testName)
     axlSetEnabled(model t)
   )
 )
 
-procedure(ehWriteValidation(path expectedTests actualTests analysesValid outputsValid cornersValid)
+procedure(ehWriteValidation(path expectedCount actualCount)
   let((out)
     out = outfile(path "w")
     ehAssert(out sprintf(nil "cannot write validation file %s" path))
     fprintf(out "{\n")
     fprintf(out "  \"status\": \"ok\",\n")
-    fprintf(out "  \"expected_tests\": %d,\n" expectedTests)
-    fprintf(out "  \"actual_tests\": %d,\n" actualTests)
-    fprintf(out "  \"analyses_valid\": %s,\n" if(analysesValid then "true" else "false"))
-    fprintf(out "  \"outputs_valid\": %s,\n" if(outputsValid then "true" else "false"))
-    fprintf(out "  \"corners_valid\": %s\n" if(cornersValid then "true" else "false"))
+    fprintf(out "  \"expected_tests\": %d,\n" expectedCount)
+    fprintf(out "  \"actual_tests\": %d\n" actualCount)
     fprintf(out "}\n")
     close(out)
   )

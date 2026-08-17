@@ -36,15 +36,18 @@ def main() -> int:
         validation = json.loads(validation_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise SystemExit(f"invalid validation record: {exc}") from exc
+    expected_fields = {"status", "expected_tests", "actual_tests"}
+    if not isinstance(validation, dict) or set(validation) != expected_fields:
+        actual_fields = sorted(validation) if isinstance(validation, dict) else type(validation).__name__
+        raise SystemExit(
+            f"invalid validation fields: expected={sorted(expected_fields)}, actual={actual_fields}"
+        )
     if validation.get("status") != "ok":
         raise SystemExit("Cadence validation status is not ok")
     expected = validation.get("expected_tests")
     actual = validation.get("actual_tests")
     if not isinstance(expected, int) or expected < 1 or actual != expected:
         raise SystemExit(f"Cadence test count mismatch: expected={expected}, actual={actual}")
-    for field in ("analyses_valid", "outputs_valid", "corners_valid"):
-        if validation.get(field) is not True:
-            raise SystemExit(f"Cadence validation failed: {field}")
     print(f"Cadence export verified: tests={actual}")
     return 0
 

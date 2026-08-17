@@ -1,6 +1,6 @@
 ---
 name: create-maestro-test-setup-il-from-ngspice-group
-description: Convert one named or all completed ngspice testbench groups into portable Maestro setup IL fragments. Read verification and implementation plans, generated SPICE fixtures, ngspice control files, manifests, logs, and metrics; preserve analyses, TB variables, outputs, limits, cases, temperatures, and configured process corners without launching Cadence.
+description: Convert one named or all completed ngspice testbench groups into portable Maestro setup IL fragments. Read verification and implementation plans, generated SPICE fixtures, complete ngspice control files, manifests, logs, and metrics; preserve analyses, TB variables, waveforms, calculated acceptance metrics, limits, cases, temperatures, and configured process corners without launching Cadence.
 ---
 
 # Create Maestro Setup IL
@@ -27,9 +27,9 @@ Use the original Spectre DUT public contract for later export. Do not bind the n
 
 ## Selection
 
-* An explicit group name selects that group.
-* `all`, `remaining`, or no selector processes every completed group without a confirmation gate.
-* A group is completed only when its saved runner produced structurally valid current outputs.
+* Let an explicit group name select that group.
+* Process every completed group for `all`, `remaining`, or no selector without a confirmation gate.
+* Treat a group as completed only when its saved runner produced structurally valid current outputs.
 * Continue independent groups after a group-specific conversion blocker.
 
 ## Outputs
@@ -41,7 +41,7 @@ cadence_export/model_bindings.toml
 cadence_export/maestro_setup/<group>.il
 ```
 
-`model_bindings.toml` schema version is `1`. Model file names are relative to runtime `PDK_PATH`; absolute paths and `..` are forbidden. Each entry contains `file` and optional `section`. Logical corners come from the specification when explicit, otherwise from configured corner tables. Do not invent a fixed five-corner set.
+Keep `model_bindings.toml` at schema version `1`. Keep model file names relative to runtime `PDK_PATH`; forbid absolute paths and `..`. Give each entry `file` and optional `section`. Take logical corners from the specification when explicit, otherwise from configured corner tables. Do not invent a fixed five-corner set.
 
 ```toml
 version = 1
@@ -53,11 +53,35 @@ models = []
 models = [{ file = "relative/model/file.scs", section = "model_section" }]
 ```
 
-## Translation Contract
+## Translate The Complete Control Program
 
-Treat `.control` as the executable source for run cases, analyses, measurements, and limits. Cross-check it against both plans, the manifest counts, and current metrics. Never infer acceptance behavior from filenames alone.
+Treat the complete `.control` as the executable source for run cases, analyses, measurements, and limits. Cross-check it against both plans, manifest counts, current logs, and current metrics. Never choose an analysis from the group name or filename.
 
-Normalize analyses exactly:
+1. Read the entire `.control` block.
+2. List every independent simulation run and its options.
+3. Partition incompatible runs into separate Maestro tests.
+4. Transfer each test's analysis and options, stable `TB_*` values, measurements, derived metrics, limits, and applicable corners.
+5. Check every referenced node against the fixture `.SUBCKT` interface.
+6. Use only public DUT pins and fixture probe nodes; never use internal DUT nodes.
+7. Preserve each acceptance metric as a calculated metric rather than simplifying it to a waveform.
+8. Do not open, save, close, or delete the shared Maestro view from a group fragment.
+9. Use only `eh*` wrappers for Maestro and AXL operations.
+10. Record the exact created test names in `EDA_HARNESS_TESTS`.
+
+Create one or more Maestro tests per group.
+
+Use one test when all measurements share one compatible analysis definition. Create separate tests for different analysis types, DC sweep sources, transient stop/maxstep settings, AC ranges, or other incompatible options. Do not create separate tests only for process, temperature, supply, or load; represent these as corners or test variables.
+
+Use stable group-prefixed names:
+
+```text
+dac_characterization
+  |-- dac_characterization__static
+  |-- dac_characterization__rise
+  `-- dac_characterization__fall
+```
+
+Normalize analysis kinds only through `ehSetAnalysis`:
 
 ```text
 op   -> dc
@@ -66,43 +90,98 @@ tran -> tran
 ac   -> ac
 ```
 
-Never emit `dcOp`. Represent simulator temperature as native corner temperature, not as a design variable. Preserve stable fixture `TB_*` parameters as Maestro design variables. Process/case/temperature combinations are corners rather than separate Maestro tests.
-
-Create one Maestro test per group. Add one output and one spec for every acceptance metric represented by the group. Derive signal hierarchy from the imported fixture; use only public DUT pins and fixture probe nodes.
+Never emit `dcOp`. Represent simulator temperature as native corner temperature rather than as a design variable. Preserve stable fixture `TB_*` parameters as test variables.
 
 ## Fragment Interface
 
-Each fragment is embedded inside a suite generator and may use these variables:
+Embed each fragment inside the suite generator. Use these supplied variables as needed:
 
 ```text
 sess lib suiteCell spectreView configView testName pdkPath
+generatedCornerAssignments
 ```
 
-It may call helpers from `eda_harness_api.il`, including normalized analysis, output/spec, and corner helpers. It must not open, delete, or save the shared Maestro view and must not call `exit`, `system`, `chmod`, `chown`, `setfacl`, or `sudo`.
+Assign `testName` to each declared name and call:
 
-Start every fragment with machine-readable metadata:
+```lisp
+ehCreateTest(sess testName lib suiteCell configView)
+ehSetTestVar(sess testName "TB_VDD" "1.2")
+```
+
+Pass every analysis option as a backtick list. Preserve the exact applicable `.control` values.
+
+```lisp
+; OP
+ehSetAnalysis(
+  sess testName "op"
+  `(("saveOppoint" t))
+)
+
+; TRAN
+ehSetAnalysis(
+  sess testName "tran"
+  `(("stop" "10u") ("maxstep" "1n"))
+)
+
+; AC
+ehSetAnalysis(
+  sess testName "ac"
+  `(("start" "1")
+    ("stop" "10G")
+    ("incrType" "Logarithmic")
+    ("stepTypeLog" "Points Per Decade")
+    ("dec" "20"))
+)
+```
+
+Use `ehAddWaveform` only for a waveform requested as an output. Use `ehAddMetric` for acceptance metrics. Do not replace settling time, INL, DNL, gain, phase margin, or leakage with a raw voltage waveform.
+
+```lisp
+ehAddWaveform(sess testName "aout" "/aout")
+
+ehAddMetric(
+  sess testName
+  "output_max"
+  sprintf(nil "ymax(%s)" ehVT("/aout"))
+)
+
+ehSetMinimum(sess testName "gain" "60")
+ehSetMaximum(sess testName "leakage" "1u")
+ehSetRange(sess testName "output" "0.1" "1.1")
+```
+
+Use `ehVT`, `ehVF`, and `ehVAR` for common signal and variable expressions. Escape every quote inside an arbitrary SKILL Calculator expression string as `\"`.
+
+Create each corner before assigning variables or models. Prefix every Maestro corner name with its group, for example `dac__tt_27`, `dac__ss_125`, or `enable__tt_27`.
+
+```lisp
+ehCreateCorner(sess cornerName)
+ehSetCornerVar(sess cornerName "temperature" "27")
+ehSetCornerVar(sess cornerName "TB_VDD" "1.2")
+ehAddCornerModel(
+  sess cornerName modelName modelFile modelSection testName
+)
+
+applicableTests = list("dac__static" "dac__rise" "dac__fall")
+generatedCornerAssignments = cons(
+  list(cornerName applicableTests)
+  generatedCornerAssignments
+)
+```
+
+Use a stable, corner-local `modelName` for every model binding and make it unique when a corner uses more than one model. Pass `nil` for a missing model section.
+
+Do not call any `mae*` or `axl*` function directly. Do not call `exit`, `maeOpenSetup`, `maeSaveSetup`, `maeCloseSession`, `ddDeleteObj`, `system`, or permission-changing commands from a group fragment.
+
+Start every fragment with only these machine-readable metadata fields:
 
 ```skill
-; EDA_HARNESS_GROUP: <group>
-; EDA_HARNESS_TESTS: 1
-; EDA_HARNESS_OUTPUTS: <positive integer>
-; EDA_HARNESS_CORNERS: <positive integer>
-; EDA_HARNESS_ANALYSIS: dc|tran|ac
+; EDA_HARNESS_GROUP: dac
+; EDA_HARNESS_TESTS: dac__static,dac__rise,dac__fall
 ```
 
-The fragment must create `testName`, select `configView`, configure the normalized enabled analysis, add outputs/specs, configure exact corners, and assert the expected persisted counts before returning.
-
-## Validation
-
-Copy `scripts/validate_group_setup.py` only when a standalone validator is useful, or run it directly from the skill:
-
-```bash
-python <skill-root>/scripts/validate_group_setup.py \
-  cadence_export/maestro_setup/<group>.il --group <group>
-```
-
-Validation must reject missing metadata, wrong group identity, unsupported analysis, zero counts, `dcOp`, destructive suite operations, site setup, permission repair, and unresolved placeholders.
+List test names in creation order without placeholders. Do not emit `EDA_HARNESS_OUTPUTS`, `EDA_HARNESS_CORNERS`, or `EDA_HARNESS_ANALYSIS`; those claims cannot be confirmed without running Cadence.
 
 ## Completion
 
-Report selected groups, generated fragments, normalized analyses, test/output/corner counts, and blockers. State clearly that Cadence has not been run.
+Report selected groups, generated fragments, and exact declared test names. Report conversion blockers separately. State clearly that Cadence has not been run and that analysis, output, metric, spec, and corner correctness has not been runtime-verified.

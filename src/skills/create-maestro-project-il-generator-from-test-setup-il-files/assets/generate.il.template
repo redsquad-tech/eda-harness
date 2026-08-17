@@ -1,7 +1,10 @@
 ; Generated suite-level Cadence import.
 load("eda_harness_api.il")
 
-let((pdkPath lib workDir exportDir cdsText suiteCell maestroView sess expectedTests actualTests validatedAnalyses validatedOutputs validatedCorners)
+let((pdkPath lib workDir exportDir cdsText suiteCell maestroView sess
+     expectedTests actualTests allTests generatedCornerAssignments
+     assignment cornerName applicableTests disabledTests existingTest
+     expectedTest actualTest)
   pdkPath = ehRequiredEnv("PDK_PATH")
   lib = ehRequiredEnv("CADENCE_LIB")
   workDir = ehRequiredEnv("CADENCE_WORKDIR")
@@ -9,11 +12,9 @@ let((pdkPath lib workDir exportDir cdsText suiteCell maestroView sess expectedTe
   cdsText = "cdsTextTo5x"
   suiteCell = "{{SUITE_CELL}}"
   maestroView = "maestro"
-  expectedTests = {{EXPECTED_TEST_COUNT}}
-  actualTests = 0
-  validatedAnalyses = 0
-  validatedOutputs = 0
-  validatedCorners = 0
+  expectedTests = {{EXPECTED_TESTS}}
+  actualTests = nil
+  generatedCornerAssignments = nil
 
   ehCreateManagedLibrary(lib workDir)
 
@@ -25,25 +26,73 @@ let((pdkPath lib workDir exportDir cdsText suiteCell maestroView sess expectedTe
   unless(sess error("maeOpenSetup failed: %s/%s/%s\n" lib suiteCell maestroView))
 
   ; Each generated block imports one fixture into unique spectre_<group> and
-  ; config_<group> views, creates one test, then configures variables,
-  ; normalized analysis, outputs/specs, and corners through the adapter.
+  ; config_<group> views, then creates one or more declared tests through eh*.
 {{GROUP_BLOCKS}}
 
-  ehAssert(actualTests == expectedTests "test count mismatch")
-  maeSaveSetup(?lib lib ?cell suiteCell ?view maestroView ?session sess)
+  ; Limit each group-prefixed corner to its registered tests.
+  allTests = maeGetSetup(
+    ?typeName "tests"
+    ?session sess
+  )
 
-  ; Group blocks must run persisted-state assertions before incrementing
-  ; actualTests. Emit validation only after every group has passed them.
+  foreach(assignment generatedCornerAssignments
+    cornerName = car(assignment)
+    applicableTests = cadr(assignment)
+    disabledTests = nil
+
+    foreach(existingTest allTests
+      unless(member(existingTest applicableTests)
+        disabledTests = cons(existingTest disabledTests)
+      )
+    )
+
+    maeSetCorner(
+      cornerName
+      ?enabled t
+      ?disableTests disabledTests
+      ?session sess
+    )
+  )
+
+  ; Compare the exact declared and actual test sets in both directions.
+  actualTests = maeGetSetup(
+    ?typeName "tests"
+    ?session sess
+  )
+
+  foreach(expectedTest expectedTests
+    unless(member(expectedTest actualTests)
+      error("missing Maestro test: %s\n" expectedTest)
+    )
+  )
+
+  foreach(actualTest actualTests
+    unless(member(actualTest expectedTests)
+      error("unexpected Maestro test: %s\n" actualTest)
+    )
+  )
+
+  maeSaveSetup(
+    ?lib lib
+    ?cell suiteCell
+    ?view maestroView
+    ?session sess
+  )
+
   ehWriteValidation(
     strcat(exportDir "/validation.json")
-    expectedTests
-    actualTests
-    validatedAnalyses == expectedTests
-    validatedOutputs == expectedTests
-    validatedCorners == expectedTests
+    length(expectedTests)
+    length(actualTests)
   )
-  printf("EDA_HARNESS_EXPORT_OK tests=%d lib=%s cell=%s view=%s\n"
-    actualTests lib suiteCell maestroView)
+
+  printf(
+    "EDA_HARNESS_EXPORT_OK tests=%d\n"
+    length(actualTests)
+  )
+
+  maeCloseSession(
+    ?session sess
+  )
 )
 
 exit()
