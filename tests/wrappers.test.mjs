@@ -10,7 +10,6 @@ const wrappers = [
   "src/skills/create-verification-report-from-ngspice-results/scripts/generate_test_report.py",
   "src/skills/create-verification-report-from-ngspice-results/scripts/render_report_pdf.py",
   "src/skills/create-ngspice-testbench-group-from-implementation-plan/assets/run_test.py",
-  "src/skills/create-maestro-test-setup-il-from-ngspice-group/scripts/validate_group_setup.py",
   "src/skills/create-maestro-project-il-generator-from-test-setup-il-files/scripts/create_generate_il.py",
   "src/skills/create-maestro-project-il-generator-from-test-setup-il-files/assets/verify_export.py",
 ];

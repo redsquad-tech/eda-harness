@@ -39,6 +39,11 @@ mock_device.sp
 * The mock must be deterministic, fast, and simulator-friendly.
 * Mock values must be inside acceptance limits with reasonable margin, not on the boundary.
 
+If HDL21 is unavailable, first try to make it available in the active user or
+project Python environment without system-wide changes. Report a blocker only
+if this is not permitted or fails. Do not replace required HDL21 generation
+with handwritten SPICE.
+
 ## HDL21 Requirement
 
 `mock_device.py` must actually use HDL21 to describe the circuit and export SPICE.

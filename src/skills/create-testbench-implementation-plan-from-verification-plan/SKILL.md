@@ -59,6 +59,7 @@ Grouping rules:
 * One group must cover all checks with the same circuit setup, stimulus, analysis type, and observability.
 * Derived metrics do not get a separate group if they are computed from the same waveform/run/analysis.
 * Split groups only when setup, stimulus, analysis type, or measured public outputs/currents actually differ.
+* Choose the analysis from both the requirement row and the DUT public update/observation protocol. Use OP/DC only when the observed result is valid without advancing simulation time. An input sweep alone does not justify DC. If prerequisite or validity events are required, use TRAN and record those events and the observation condition from `verification_plan.md` in the group's `Grouping Reason`.
 * Group name must be a short `snake_case` name and must be used as the stable base for future file names.
 * Refer to requirement names and test matrix rows from `verification_plan.md`; do not duplicate the whole verification plan.
 

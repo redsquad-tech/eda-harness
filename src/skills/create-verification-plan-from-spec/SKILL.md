@@ -18,6 +18,10 @@ Always create or update:
 verification_plan.md
 ```
 
+Unless the user explicitly selects another workspace, treat the directory
+containing the input specification as the DUT workspace and create
+`verification_plan.md` there.
+
 When a specification figure defines a nontrivial reusable input sequence, also
 create:
 

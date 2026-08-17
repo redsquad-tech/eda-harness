@@ -74,6 +74,11 @@ Before modifying any selected group, run one aggregated preflight for the select
 * confirm planned input/output paths remain inside the DUT workspace;
 * report all missing requirements together before creating or deleting group artifacts.
 
+If HDL21 is unavailable, first try to make it available in the active user or
+project Python environment without system-wide changes. Report a blocker only
+if this is not permitted or fails. Do not replace required HDL21 generation
+with handwritten SPICE.
+
 Do not probe Cadence, Virtuoso, PDK model roots, or site setup here. This skill runs entirely on the open stack.
 
 ## File-Based Stimulus Materialization
@@ -110,6 +115,8 @@ Rules:
 * Do not put `.include`, `.lib`, or `source` statements for `mock_device.sp`, real DUT netlists, selected DUT netlists, PDK/foundry models, or process corners into `tests/<group_name>.sp`.
 * For OP/DC/static groups, the fixture should usually contain all static sources, loads, feedback connections, and the DUT instance.
 * For TRAN/AC/waveform-like groups, the fixture must contain the stimulus/source elements required for the analysis, for example parameterized PULSE/PWL/AC/DC sources, loads/caps, and stable probe nodes.
+* Prefer standard simulator-portable source forms such as DC, AC, PULSE, SIN, and PWL whenever they can express the required stimulus. Do not synthesize an equivalent standard waveform with a behavioral expression.
+* Do not create electrical source or probe elements solely to calculate a derived metric. Calculate such metrics in `.control` from saved public or fixture probe signals; downstream Cadence export must represent them as Calculator expressions.
 * `.control` must not be the primary place where the testbench circuit topology is created. Do not move supply/reference/control/stimulus sources into `.control` just because it is easier.
 * `.control` must control the already-created fixture: include/source files, `alterparam`/`alter`, `reset`, analysis commands, measurements, derived metrics, pass/fail, `RESULT`/`FAIL`/`SUMMARY`, and CSV/waveform exports.
 * Export the SPICE fixture through the HDL21 netlisting/export flow.
@@ -134,7 +141,7 @@ Rules:
 
 Raw-SPICE exception:
 
-* If a required simulator-specific element is not expressed well by pure HDL21 primitives, for example a PULSE/PWL source, behavioral helper, special probe/helper element, or fixture parameter declaration, the Python generator may add a small documented raw-SPICE fragment to the generated `tests/<group_name>.sp`.
+* Use a behavioral raw-SPICE element only when standard source forms cannot represent the required electrical behavior. Do not use this exception for derived measurements.
 * This raw-SPICE fragment must be minimal, local to the fixture, and added by `tests/<group_name>.py` when generating `.sp`.
 * The raw-SPICE fragment must not include/source the selected DUT implementation netlist, mock netlist, real DUT netlist, or PDK/foundry models.
 * The final `tests/<group_name>.sp` must still contain a complete reusable fixture with stimulus/source elements.
@@ -178,6 +185,34 @@ Before finishing the fixture, check that:
 * pass/fail checks;
 * `RESULT` / `FAIL` / `SUMMARY` lines;
 * writing metrics CSV and planned samples/waveform CSV.
+
+Every reported metric must have current-run simulator-data provenance. Its
+`RESULT value=` must come from a simulator measurement, simulator vector, or an
+expression whose dependency chain contains at least one voltage, current, or
+measurement produced by the current run.
+
+Specification values and expected mock values may be used only as stimuli,
+limits, or expected metadata. Do not report `let metric = <literal>` or another
+literal-only expression as a measured result. Before accepting the group,
+trace every `RESULT value=` back to at least one simulator-owned source.
+
+Generic examples of invalid and valid metric provenance:
+
+```spice
+* Invalid: fabricated result
+let measured_metric = 1
+echo RESULT ... value=$&measured_metric
+
+* Valid: measured from the current simulation
+meas tran measured_metric MAX v(out)
+echo RESULT ... value=$&measured_metric
+
+* Valid: derived from simulator measurements
+meas tran measured_max MAX v(out)
+meas tran measured_min MIN v(out)
+let measured_metric = measured_max - measured_min
+echo RESULT ... value=$&measured_metric
+```
 
 Python must not compute physical metrics or pass/fail. The saved runner and any declared parser may only launch tools, remove stale outputs, serialize simulator-owned records, validate schemas/counts, and publish diagnostics.
 

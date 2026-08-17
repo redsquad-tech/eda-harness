@@ -34,6 +34,6 @@ import: preflight ## Create and verify the complete Maestro suite
 	@cd "$(EXPORT_DIR)" && "$(VIRTUOSO)" -nograph -restore generate.il >"$(LOG_FILE)" 2>&1
 	@$(MAKE) --no-print-directory verify
 
-verify: ## Reject warnings, partial state, and missing suite artifacts
+verify: ## Reject errors, unexpected warnings, partial state, and missing suite artifacts
 {{MATERIALIZED_STIMULUS_CHECKS}}
 	@"$(PYTHON)" "$(EXPORT_DIR)/verify_export.py" "$(LOG_FILE)" "$(VALIDATION_FILE)"

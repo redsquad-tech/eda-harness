@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Assemble a portable suite-level Cadence bundle from validated group fragments."""
+"""Assemble a portable suite-level Cadence bundle from group fragments."""
 
 from __future__ import annotations
 
@@ -12,22 +12,16 @@ from pathlib import Path
 
 
 GROUP_RE = re.compile(r"[a-z][a-z0-9_]*\Z")
-META_RE = re.compile(r"^; EDA_HARNESS_(GROUP|TESTS|OUTPUTS|CORNERS|ANALYSIS):\s*(\S+)\s*$", re.M)
-FORBIDDEN_FRAGMENT = (
-    "dcOp",
-    "ddDeleteObj",
-    "maeOpenSetup",
-    "maeSaveSetup",
-    "exit(",
-    "system(",
-    "vs55",
-    "chmod",
-    "chown",
-    "setfacl",
-    "sudo",
-    "{{",
-    "}}",
+META_RE = re.compile(r"^;\s*EDA_HARNESS_([A-Z][A-Z0-9_]*):[ \t]*(.*?)[ \t]*$", re.M)
+FRAGMENT_METADATA = {"GROUP", "TESTS"}
+OBSOLETE_METADATA = {"OUTPUTS", "CORNERS", "ANALYSIS"}
+FORBIDDEN_FRAGMENT_CALLS = (
+    ("exit", re.compile(r"\bexit\s*\(")),
+    ("maeOpenSetup", re.compile(r"\bmaeOpenSetup\s*\(")),
+    ("maeSaveSetup", re.compile(r"\bmaeSaveSetup\s*\(")),
+    ("ddDeleteObj", re.compile(r"\bddDeleteObj\s*\(")),
 )
+DIRECT_MAESTRO_CALL_RE = re.compile(r"\b(?:mae|axl)[A-Za-z0-9_]*\s*\(")
 
 
 def relative_file(root: Path, raw: object, field: str) -> Path:
@@ -126,30 +120,53 @@ def model_files(config: Path) -> list[str]:
     return sorted(set(paths))
 
 
-def group_fragment(path: Path, group: str) -> str:
+def group_fragment(path: Path, group: str) -> tuple[str, list[str]]:
     if not path.is_file():
         raise ValueError(f"missing Maestro group fragment: {path}")
     text = path.read_text(encoding="utf-8", errors="replace")
-    metadata = dict(META_RE.findall(text))
-    if metadata.get("GROUP") != group or metadata.get("TESTS") != "1":
-        raise ValueError(f"invalid group metadata in {path}")
-    if metadata.get("ANALYSIS") not in {"dc", "tran", "ac"}:
-        raise ValueError(f"unsupported analysis in {path}")
-    for field in ("OUTPUTS", "CORNERS"):
-        value = metadata.get(field, "")
-        if not value.isdigit() or int(value) < 1:
-            raise ValueError(f"invalid {field} metadata in {path}")
-    for needle in FORBIDDEN_FRAGMENT:
-        if needle in text:
-            raise ValueError(f"forbidden {needle!r} in {path}")
-    for required in ("maeCreateTest", "ehSetAnalysis", "ehAddOutput", "ehSetSpec"):
-        if required not in text:
-            raise ValueError(f"missing {required} in {path}")
-    return text.strip()
+    metadata: dict[str, str] = {}
+    for name, value in META_RE.findall(text):
+        if name in OBSOLETE_METADATA:
+            raise ValueError(f"obsolete EDA_HARNESS_{name} metadata in {path}")
+        if name not in FRAGMENT_METADATA:
+            raise ValueError(f"unsupported EDA_HARNESS_{name} metadata in {path}")
+        if name in metadata:
+            raise ValueError(f"duplicate EDA_HARNESS_{name} metadata in {path}")
+        metadata[name] = value.strip()
+
+    if set(metadata) != FRAGMENT_METADATA:
+        raise ValueError(
+            f"invalid metadata fields in {path}: "
+            f"expected={sorted(FRAGMENT_METADATA)}, actual={sorted(metadata)}"
+        )
+    if metadata["GROUP"] != group:
+        raise ValueError(
+            f"group mismatch in {path}: expected={group}, actual={metadata['GROUP']}"
+        )
+
+    test_names = [name.strip() for name in metadata["TESTS"].split(",")]
+    if not metadata["TESTS"] or any(not name for name in test_names):
+        raise ValueError(f"EDA_HARNESS_TESTS must be a nonempty comma-separated list in {path}")
+    if len(set(test_names)) != len(test_names):
+        raise ValueError(f"duplicate Maestro test name in {path}")
+
+    if "{{" in text or "}}" in text:
+        raise ValueError(f"unresolved placeholder in {path}")
+    for name, pattern in FORBIDDEN_FRAGMENT_CALLS:
+        if pattern.search(text):
+            raise ValueError(f"forbidden {name} call in {path}")
+    direct_call = DIRECT_MAESTRO_CALL_RE.search(text)
+    if direct_call:
+        raise ValueError(f"direct Maestro/AXL call {direct_call.group(0)!r} in {path}")
+    return text.strip(), test_names
 
 
 def skill_string(value: str) -> str:
     return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def skill_list(values: list[str]) -> str:
+    return "list(\n" + "\n".join(f"    {skill_string(value)}" for value in values) + "\n  )"
 
 
 def group_block(group: str, fragment: str) -> str:
@@ -157,7 +174,6 @@ def group_block(group: str, fragment: str) -> str:
     return f'''  let((spectreView configView testName wrapperPath cfg status)
     spectreView = {skill_string(f"spectre_{group}")}
     configView = {skill_string(f"config_{group}")}
-    testName = {skill_string(group)}
     wrapperPath = strcat(exportDir {skill_string(f"/generated_support/{group}.scs")})
 
     when(ddGetObj(lib suiteCell spectreView)
@@ -181,10 +197,6 @@ def group_block(group: str, fragment: str) -> str:
     hdbClose(cfg)
 
 {indented}
-    actualTests = actualTests + 1
-    validatedAnalyses = validatedAnalyses + 1
-    validatedOutputs = validatedOutputs + 1
-    validatedCorners = validatedCorners + 1
   )'''
 
 
@@ -212,7 +224,21 @@ def main() -> int:
     try:
         groups = manifest_groups(root, actual_fragments)
         models = model_files(config)
-        fragments = {name: group_fragment(setup / f"{name}.il", name) for name, _, _ in groups}
+        fragments: dict[str, str] = {}
+        expected_tests: list[str] = []
+        test_owners: dict[str, str] = {}
+        for name, _, _ in groups:
+            fragment, test_names = group_fragment(setup / f"{name}.il", name)
+            for test_name in test_names:
+                previous = test_owners.get(test_name)
+                if previous is not None:
+                    raise ValueError(
+                        f"duplicate Maestro test name {test_name!r} "
+                        f"in groups {previous!r} and {name!r}"
+                    )
+                test_owners[test_name] = name
+                expected_tests.append(test_name)
+            fragments[name] = fragment
     except ValueError as exc:
         raise SystemExit(str(exc)) from exc
 
@@ -264,7 +290,7 @@ def main() -> int:
         shutil.copyfile(assets / name, export / name)
     generate = (assets / "generate.il.template").read_text(encoding="utf-8")
     generate = generate.replace("{{SUITE_CELL}}", args.suite_cell)
-    generate = generate.replace("{{EXPECTED_TEST_COUNT}}", str(len(groups)))
+    generate = generate.replace("{{EXPECTED_TESTS}}", skill_list(expected_tests))
     generate = generate.replace("{{GROUP_BLOCKS}}", "\n\n".join(blocks))
     if "{{" in generate or "}}" in generate:
         raise SystemExit("unresolved generate.il placeholder")
@@ -307,7 +333,10 @@ def main() -> int:
     if "{{" in makefile or "}}" in makefile:
         raise SystemExit("unresolved Makefile placeholder")
     (export / "Makefile").write_text(makefile, encoding="utf-8")
-    print(f"Cadence bundle generated: groups={len(groups)} path={export}")
+    print(
+        f"Cadence bundle generated: groups={len(groups)} "
+        f"tests={len(expected_tests)} path={export}"
+    )
     return 0
 
 
