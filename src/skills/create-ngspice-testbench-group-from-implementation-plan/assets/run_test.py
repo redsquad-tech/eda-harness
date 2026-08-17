@@ -32,8 +32,6 @@ METRICS_HEADER = [
 SUMMARY_RE = re.compile(
     r"^SUMMARY\s+test=(\S+)\s+runs=(\d+)\s+results=(\d+)\s+fail_count=(\d+)\s*$"
 )
-
-
 class RunnerError(RuntimeError):
     pass
 
@@ -125,6 +123,31 @@ def declared_paths(root: Path, group: dict[str, object]) -> dict[str, object]:
     paths["parser"] = None if parser in (None, "") else inside(
         root, parser, f"{name}.parser", must_exist=True
     )
+    canonical_inputs = group.get("canonical_inputs", [])
+    generated_dependencies = group.get("generated_dependencies", [])
+    if not isinstance(canonical_inputs, list) or not isinstance(generated_dependencies, list):
+        raise RunnerError(
+            f"{name}.canonical_inputs and generated_dependencies must be arrays"
+        )
+    paths["canonical_inputs"] = [
+        inside(root, item, f"{name}.canonical_inputs[{index}]", must_exist=True)
+        for index, item in enumerate(canonical_inputs)
+    ]
+    paths["generated_dependencies"] = [
+        inside(root, item, f"{name}.generated_dependencies[{index}]")
+        for index, item in enumerate(generated_dependencies)
+    ]
+    materializer = group.get("materializer")
+    paths["materializer"] = None if materializer in (None, "") else inside(
+        root, materializer, f"{name}.materializer", must_exist=True
+    )
+    if any((paths["canonical_inputs"], paths["generated_dependencies"], paths["materializer"])) and not all(
+        (paths["canonical_inputs"], paths["generated_dependencies"], paths["materializer"])
+    ):
+        raise RunnerError(
+            f"{name} file-based stimulus requires canonical_inputs, materializer, "
+            "and generated_dependencies"
+        )
     artifacts = group.get("artifacts", [])
     if not isinstance(artifacts, list):
         raise RunnerError(f"{name}.artifacts must be an array")
@@ -215,6 +238,8 @@ def remove_file(path: Path) -> None:
 def remove_outputs(paths: dict[str, object], *, include_log: bool) -> None:
     remove_file(paths["fixture"])
     remove_file(paths["metrics"])
+    for dependency in paths["generated_dependencies"]:
+        remove_file(dependency)
     for artifact in paths["artifacts"]:
         remove_file(artifact["path"])
     if include_log:
@@ -286,8 +311,28 @@ def run_group(root: Path, group: dict[str, object], paths: dict[str, object], ng
         remove_outputs(paths, include_log=True)
         paths["log"].parent.mkdir(parents=True, exist_ok=True)
         paths["metrics"].parent.mkdir(parents=True, exist_ok=True)
+        for dependency in paths["generated_dependencies"]:
+            dependency.parent.mkdir(parents=True, exist_ok=True)
         for artifact in paths["artifacts"]:
             artifact["path"].parent.mkdir(parents=True, exist_ok=True)
+
+        if paths["materializer"] is not None:
+            materialized = subprocess.run(
+                [sys.executable, str(paths["materializer"])],
+                cwd=root,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            messages.append(
+                f"materializer exit={materialized.returncode}\n"
+                f"{materialized.stdout}{materialized.stderr}"
+            )
+            if materialized.returncode != 0 or any(
+                not path.is_file() or path.stat().st_size == 0
+                for path in paths["generated_dependencies"]
+            ):
+                raise RunnerError(f"stimulus materializer failed for {name}")
 
         generated = subprocess.run(
             [sys.executable, str(paths["generator"])],

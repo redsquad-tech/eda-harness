@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import test from "node:test";
@@ -169,6 +169,64 @@ test("project assembler preserves exact test order across unequal groups", () =>
       "enable__tran",
     ]);
     assert.match(result.stdout, /groups=2 tests=4/);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("project assembler wires portable Spectre support for canonical file stimuli", () => {
+  const directory = mkdtempSync(join(tmpdir(), "eda-harness-stimulus-"));
+  try {
+    mkdirSync(join(directory, "tests", "generated_stimuli"), { recursive: true });
+    mkdirSync(join(directory, "stimuli"), { recursive: true });
+    mkdirSync(join(directory, "cadence_export", "maestro_setup"), { recursive: true });
+    mkdirSync(join(directory, "cadence_export", "generated_support", "stimuli", "tran_group"), { recursive: true });
+    writeFileSync(join(directory, "tests", "tran_group.sp"), ".SUBCKT tb_top 0\nXSTIM in 0 stimulus_helper\n.ENDS tb_top\n");
+    writeFileSync(join(directory, "stimuli", "input.csv"), "time_s,in_v\n0,0\n1e-6,1\n");
+    writeFileSync(join(directory, "tests", "materialize_stimuli.py"), "# ngspice materializer\n");
+    writeFileSync(join(directory, "tests", "generated_stimuli", "tran_group_ngspice.inc"), "* generated\n");
+    writeFileSync(join(directory, "tests", "testbench_manifest.json"), JSON.stringify({
+      schema_version: 1,
+      groups: [{
+        name: "tran_group",
+        order: 1,
+        fixture: "tests/tran_group.sp",
+        canonical_inputs: ["stimuli/input.csv"],
+        materializer: "tests/materialize_stimuli.py",
+        generated_dependencies: ["tests/generated_stimuli/tran_group_ngspice.inc"],
+      }, {
+        name: "unimplemented_group",
+        order: 2,
+        fixture: "tests/unimplemented_group.sp",
+      }],
+    }));
+    writeFileSync(join(directory, "dut.scs"), "subckt dut in out\nends dut\n");
+    writeFileSync(join(directory, "cadence_export", "model_bindings.toml"), "version = 1\n[common]\nmodels = []\n[corners]\n");
+    writeFileSync(
+      join(directory, "cadence_export", "maestro_setup", "tran_group.il"),
+      groupFragment("tran_group", ["tran_group__rise", "tran_group__fall"]),
+    );
+    writeFileSync(join(directory, "cadence_export", "materialize_stimuli.py"), "# portable Cadence materializer\n");
+    writeFileSync(
+      join(directory, "cadence_export", "generated_support", "tran_group_source.scs.in"),
+      'V1 (in 0) vsource type=pwl file="__EDA_HARNESS_STIMULUS_DIR__/input.pwl"\n',
+    );
+    writeFileSync(join(directory, "cadence_export", "generated_support", "stimuli", "tran_group", "input.pwl"), "0 0\n1e-6 1\n");
+    writeFileSync(join(directory, "cadence_export", "generated_support", "tran_group_source.scs"), "stale absolute output\n");
+
+    const assembler = join(projectSkill, "scripts", "create_generate_il.py");
+    const result = spawnSync(python, [assembler, "--workspace", directory, "--dut", join(directory, "dut.scs"), "--suite-cell", "tb_top"], { encoding: "utf8" });
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    const wrapper = readFileSync(join(directory, "cadence_export", "generated_support", "tran_group.scs"), "utf8");
+    const makefile = readFileSync(join(directory, "cadence_export", "Makefile"), "utf8");
+    assert.match(wrapper, /include "tran_group_source\.scs"/);
+    assert.match(makefile, /materialize_stimuli\.py/);
+    assert.match(makefile, /tran_group_source\.scs\.in/);
+    assert.match(makefile, /generated_support\/stimuli\/tran_group/);
+    assert.equal(existsSync(join(directory, "cadence_export", "generated_support", "tran_group_source.scs")), false);
+    const generate = readFileSync(join(directory, "cadence_export", "generate.il"), "utf8");
+    assert.deepEqual(generatedTests(generate), ["tran_group__rise", "tran_group__fall"]);
+    assert.match(result.stdout, /groups=1 tests=2/);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

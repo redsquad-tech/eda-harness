@@ -1,6 +1,6 @@
 ---
 name: create-verification-plan-from-spec
-description: Create or update verification_plan.md from a circuit or block specification, with the public DUT contract, requirement coverage, PVT policy, measurements, and acceptance limits. Use when a task needs specification requirements normalized into a concrete verification matrix before testbench design.
+description: Create or update verification_plan.md from a circuit or block specification, with the public DUT contract, requirement coverage, PVT policy, measurements, acceptance limits, and canonical CSV stimuli for verification-relevant waveform figures when needed. Use when specification requirements and figures must be normalized into a concrete verification matrix before testbench design.
 ---
 
 # Skill: Spec to Verification Plan
@@ -12,7 +12,7 @@ description: Create or update verification_plan.md from a circuit or block speci
 
 ## Output
 
-Create or update the file:
+Always create or update:
 
 ```text
 verification_plan.md
@@ -21,6 +21,13 @@ verification_plan.md
 Unless the user explicitly selects another workspace, treat the directory
 containing the input specification as the DUT workspace and create
 `verification_plan.md` there.
+
+When a specification figure defines a nontrivial reusable input sequence, also
+create:
+
+```text
+stimuli/<scenario>.csv
+```
 
 Always write `verification_plan.md` in English.
 
@@ -40,6 +47,10 @@ Use this structure:
 ### 5.2 Test Matrix
 ```
 
+When verification-relevant figures or file-based stimuli exist, add concise
+subsections under Sections 3 and 4 for figure interpretation and canonical
+stimulus presets. Do not add empty waveform sections.
+
 ## General Rules
 
 * The plan must be black-box at the DUT boundary.
@@ -50,6 +61,7 @@ Use this structure:
 * Do not invent requirements, numeric limits, statistical assumptions, DUT behavior, project-specific PDK model files, or proprietary model-section names. Default logical PVT/corner presets may be created only by the policy below.
 * Requirements and operating conditions have priority over historical, simulated, or reference results.
 * Historical, simulated, or reference results may be used to understand intent, but not as acceptance limits unless the specification explicitly defines them as requirements.
+* Inspect verification-relevant figures visually; extracted document text and captions alone are not sufficient to interpret plotted signals or event order.
 * If a requirement is ambiguous, choose the most consistent engineering interpretation and document it in the notes.
 * If an ambiguity blocks creation of the plan, ask the user a question.
 * The plan must be concise, deterministic, and sufficient for later implementation of acceptance testbenches.
@@ -109,6 +121,62 @@ Document only items that affect verification, for example:
 * the source of logical process-corner coverage (specification, downstream configuration, or not applicable);
 * assumptions for Monte Carlo or statistical coverage when explicitly required.
 
+## Specification Figures and Waveform Stimuli
+
+Classify each verification-relevant figure, and each trace in a mixed-role
+figure, before using it:
+
+* `stimulus` — a documented public DUT input sequence that may be driven;
+* `expected response` — a public DUT output or supply current to measure;
+* `internal/reference result` — an internal signal, historical simulation, or
+  characterization curve that must not become a black-box stimulus or
+  observability point;
+* `non-waveform` — a block diagram, layout, floorplan, or other figure that does
+  not define a time-domain stimulus.
+
+For a timing diagram containing several roles, create stimulus only from its
+documented public inputs. Keep public outputs as expected observations and
+ignore internal traces for black-box acceptance. Never copy an output or
+internal trace into a stimulus CSV.
+
+Choose the simplest faithful stimulus representation:
+
+* plan ordinary parameterized sources for a single clock, isolated pulse, or
+  simple independent ramp when `PULSE`/parameterized `PWL` expresses it clearly;
+* create a canonical CSV for a nontrivial, irregular, reusable, file-defined,
+  or multi-input sequence whose relative event timing or ordering matters;
+* do not create CSV merely because the specification contains a plotted line.
+
+For every canonical CSV:
+
+* use `time_s` as the first column and explicit SI-unit suffixes on driven
+  signal columns, such as `_v` or `_a`;
+* include only public inputs whose time variation is part of the scenario, with
+  finite numeric values and strictly increasing time; keep fixed bias, control,
+  and reference conditions in the plan and later `TB_*` parameters unless the
+  source explicitly defines them as waveform traces;
+* preserve documented levels, slopes, plateaus, transitions, simultaneous
+  events, and event ordering;
+* use numeric axes, labels, tables, and surrounding text as authoritative
+  sources; do not turn visually estimated plot values into exact DUT limits;
+* when a figure specifies only qualitative ordering, choose deterministic
+  executable times and record them as verification stimulus assumptions, not
+  DUT requirements or acceptance limits;
+* treat the CSV as the single canonical source of its numeric waveform points.
+
+Document each file-based scenario in the plan with its source figure, CSV path,
+driven public pins, fixed conditions, documented values, explicit assumptions,
+expected public outputs, and acceptance checkpoints. Reference the same stable
+scenario name from the Acceptance Test Matrix.
+
+After creating or changing a canonical CSV, generate a temporary plot of every
+driven column against time and visually compare it with the source figure.
+Check signal identity, levels, ordering, coincident events, slopes, plateaus,
+and missing or extra transitions. Correct the CSV and repeat until it matches
+the intended input portion of the figure, then delete the temporary preview.
+Expected DUT outputs are validated later by the implemented testbench, not by
+this input-only preview.
+
 ## Operating Conditions and Coverage Presets
 
 Extract explicit operating conditions from the specification first.
@@ -122,6 +190,10 @@ Use this table:
 ```
 
 Define reusable presets for nominal conditions, sweeps, PVT sets, transient stimuli, and statistical conditions when they are needed to verify requirements.
+
+When canonical CSV stimuli exist, list them as waveform stimulus presets. Keep
+the numeric time-series data in the CSV rather than duplicating every point in
+`verification_plan.md`.
 
 Coverage strategy must follow the specification, the default PVT/corner policy, and engineering judgment:
 
@@ -186,6 +258,8 @@ Testbench grouping rules:
 * Do not create a separate testbench only for a derived metric if it is computed from metrics in the same run.
 * Hysteresis, threshold pairs, droop/overshoot/average drop, gain/phase/gain-margin, and similar related metrics must be grouped into one reusable testbench if they use the same common stimulus or analysis.
 * Split testbenches only when setup, stimulus, analysis type, or observability actually differs.
+* For a file-based waveform scenario, reference its stable scenario name and
+  canonical CSV path rather than restating all numeric points in the matrix.
 
 Measurement rules:
 
@@ -219,6 +293,11 @@ Before finishing, verify that:
 * no fake project-specific PDK paths or proprietary model sections are invented;
 * no internal DUT nodes are used as acceptance observability points;
 * no requirements or numeric limits are invented;
+* every verification-relevant figure has been classified before its traces are used;
+* stimulus files contain only documented public inputs, never DUT outputs or internal traces;
+* simple periodic or parametric signals are not needlessly converted to CSV;
+* every canonical CSV has a plan entry, explicit units, strictly increasing time, and a matching Acceptance Test Matrix reference;
+* every canonical CSV preview was visually checked and removed after validation;
 * the plan is concise and ready for testbench implementation.
 
 ## Final Response to the User
@@ -230,4 +309,5 @@ After creating or updating `verification_plan.md`, respond briefly with:
 * main requirement groups covered;
 * PVT/corner decisions and model convention;
 * Monte Carlo/statistical decision and why;
+* canonical stimulus CSV files created and their source scenarios, if any;
 * blockers or assumptions, if any.

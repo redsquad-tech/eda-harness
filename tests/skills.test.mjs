@@ -15,6 +15,8 @@ const expectedSkills = [
   "create-maestro-test-setup-il-from-ngspice-group",
   "create-mock-dut-from-verification-plan",
   "create-ngspice-testbench-group-from-implementation-plan",
+  "create-systemverilog-model-from-model-plan",
+  "create-systemverilog-model-plan-from-verification-plan",
   "create-testbench-implementation-plan-from-verification-plan",
   "create-verification-plan-from-spec",
   "create-verification-report-from-ngspice-results",

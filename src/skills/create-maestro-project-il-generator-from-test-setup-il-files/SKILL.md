@@ -21,6 +21,9 @@ cadence_export/model_bindings.toml
 original Spectre DUT netlist
 ```
 
+For groups whose manifest entry declares `canonical_inputs`, also read those CSV files, the
+declared materializer, and generated ngspice support to preserve the same stimulus contract.
+
 Use the original Spectre DUT, never the ngspice mock. Preserve its public subckt interface. Remove service includes, analyses, simulator options, and process-model binding from a flat wrapper when necessary; process models belong to the generated corners.
 
 ## Outputs
@@ -37,6 +40,14 @@ cadence_export/
   maestro_setup/<group>.il
   generated_support/cadence_dut.scs
   generated_support/<group>.scs
+```
+
+For each group with canonical file stimuli, also create:
+
+```text
+cadence_export/materialize_stimuli.py
+cadence_export/generated_support/<group>_source.scs.in
+cadence_export/generated_support/stimuli/<group>/*.pwl
 ```
 
 Use the bundled assets as the stable starting point. Fill every placeholder before delivery. Keep the `model_bindings.toml` version `1` schema unchanged.
@@ -62,6 +73,14 @@ Perform only technical fragment checks before assembly:
 Do not statically judge analysis compatibility, node validity, Calculator expressions, outputs, specs, corners, or required helper-call counts.
 
 Embed every structurally checked group fragment into `generate.il`. Reject missing, stale, or extra fragments relative to the selected manifest groups. Require the shared fixture `.SUBCKT` from the implementation plan in every fixture.
+
+Translate each canonical CSV into Spectre PWL files without changing its planned points or
+transformations, and implement the fixture's existing backend-independent stimulus helper. Keep
+paths portable in saved files: the `.scs.in` template uses
+`__EDA_HARNESS_STIMULUS_DIR__`, and `materialize_stimuli.py --export-dir <dir>` replaces it only at
+runtime. `make preflight` validates the templates and PWL inputs; `make import` materializes the
+Spectre source before launching Virtuoso. Do not add this support to groups without canonical file
+stimuli.
 
 ## Runtime Contract
 
