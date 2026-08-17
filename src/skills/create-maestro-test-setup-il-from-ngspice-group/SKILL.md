@@ -102,6 +102,19 @@ sess lib suiteCell spectreView configView testName pdkPath
 generatedCornerAssignments
 ```
 
+Write each `cond` clause as exactly one list containing its predicate and actions; do not wrap the clause in an additional list:
+
+```lisp
+cond(
+  (somePredicate(value)
+    actionForFirstCase()
+  )
+  (t
+    fallbackAction()
+  )
+)
+```
+
 Assign `testName` to each declared name and call:
 
 ```lisp

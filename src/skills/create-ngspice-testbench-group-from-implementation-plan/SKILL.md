@@ -74,6 +74,11 @@ Before modifying any selected group, run one aggregated preflight for the select
 * confirm planned input/output paths remain inside the DUT workspace;
 * report all missing requirements together before creating or deleting group artifacts.
 
+If HDL21 is unavailable, first try to make it available in the active user or
+project Python environment without system-wide changes. Report a blocker only
+if this is not permitted or fails. Do not replace required HDL21 generation
+with handwritten SPICE.
+
 Do not probe Cadence, Virtuoso, PDK model roots, or site setup here. This skill runs entirely on the open stack.
 
 ## File-Based Stimulus Materialization
@@ -180,6 +185,34 @@ Before finishing the fixture, check that:
 * pass/fail checks;
 * `RESULT` / `FAIL` / `SUMMARY` lines;
 * writing metrics CSV and planned samples/waveform CSV.
+
+Every reported metric must have current-run simulator-data provenance. Its
+`RESULT value=` must come from a simulator measurement, simulator vector, or an
+expression whose dependency chain contains at least one voltage, current, or
+measurement produced by the current run.
+
+Specification values and expected mock values may be used only as stimuli,
+limits, or expected metadata. Do not report `let metric = <literal>` or another
+literal-only expression as a measured result. Before accepting the group,
+trace every `RESULT value=` back to at least one simulator-owned source.
+
+Generic examples of invalid and valid metric provenance:
+
+```spice
+* Invalid: fabricated result
+let measured_metric = 1
+echo RESULT ... value=$&measured_metric
+
+* Valid: measured from the current simulation
+meas tran measured_metric MAX v(out)
+echo RESULT ... value=$&measured_metric
+
+* Valid: derived from simulator measurements
+meas tran measured_max MAX v(out)
+meas tran measured_min MIN v(out)
+let measured_metric = measured_max - measured_min
+echo RESULT ... value=$&measured_metric
+```
 
 Python must not compute physical metrics or pass/fail. The saved runner and any declared parser may only launch tools, remove stale outputs, serialize simulator-owned records, validate schemas/counts, and publish diagnostics.
 
